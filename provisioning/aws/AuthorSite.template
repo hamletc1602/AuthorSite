@@ -1,0 +1,716 @@
+# BraeVitae AuthorSite Template
+#
+# Copyright 2022 BraeVitae Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  BraeVitae AuthorSite
+
+  This template creates all the infrastructure necessary to host a mostly static website from an S3 bucket, with
+  the following enhancements:
+
+   - Built-in target for feeback email forms.
+   - Built-in forwarder to the Amazon store for the user's country.
+   - Cloaking of .html extensions on page urls.
+   - Custom 404 page (returns to index.html).
+   - Creates a unique key pair for uploading files to only this website's bucket.
+
+   Copyright 2022 BraeVitae Inc. Apache License 2.0
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: Enter the domain name to use for this site.
+  DomainZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Enter an existing zone ID to use a subdomain for this site.
+    Default: ''
+  UploaderPassword:
+    Type: String
+    NoEcho: true
+    Description: Enter a password for the website files uploader user.
+  FeedbackEmail:
+    Type: String
+    Description: Recipient address for feedback emails.
+
+Conditions:
+  TopLevelDomain: !Equals [!Ref DomainZoneId, '']
+
+Resources:
+  WebData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref DomainName
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  FeedbackData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'feedback']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  WebDataAccess:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Limit bucket access to CloudFront
+
+  WebDataAccessPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebData
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref WebDataAccess]]
+            Action:
+              - 's3:GetObject'
+            Resource: !Join ['', [!GetAtt WebData.Arn, '/*']]
+
+  WebCacheLogs:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['', [!Ref DomainName, '-logs']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      CertificateTransparencyLoggingPreference: ENABLED
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      SubjectAlternativeNames:
+        - !Join ['.', ['www', !Ref DomainName]]
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+        - DomainName: !Join ['.', ['www', !Ref DomainName]]
+          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  WebCache:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: WebData
+            DomainName: !GetAtt WebData.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref WebDataAccess]]
+        Aliases:
+          - !Ref DomainName
+          - !Join ['.', ['www', !Ref DomainName]]
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1
+        DefaultCacheBehavior:
+          TargetOriginId: WebData
+          ViewerProtocolPolicy: allow-all
+          ForwardedValues:
+            QueryString: false
+            Headers:
+              - CloudFront-Is-Mobile-Viewer
+          LambdaFunctionAssociations:
+            - EventType: origin-request
+              LambdaFunctionARN: !Ref OnCacheVersion
+        CacheBehaviors:
+          - PathPattern: azn/*
+            TargetOriginId: WebData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+              Headers:
+                - CloudFront-Viewer-Country
+            LambdaFunctionAssociations:
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnAznVersion
+          - PathPattern: feedback/*
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: WebData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+              Headers:
+                - CloudFront-Viewer-Country
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !Ref OnFeedbackVersion
+                IncludeBody: true
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: '/index.html'
+        Logging:
+          Bucket: !GetAtt WebCacheLogs.DomainName
+          Prefix: ''
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  OnCache:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Allow use of frlendly (no .html ending) URLs and route to mobile-specifc site pages for phones.'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'edge']]
+      PackageType: Zip
+      Runtime: nodejs14.x
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          exports.handler = async (event, context) => {
+            const cf = event.Records[0].cf;
+            const request = cf.request;
+            let suffix = '.html';
+            // If the path already contains a '.', use default behaviour.'
+            if (request.uri === '/' || request.uri.indexOf('.') !== -1) {
+                suffix = '';
+            }
+            let typeDir = 'desktop';
+            if (request.headers) {
+              console.log(`Context: ${JSON.stringify(request.headers)}`)
+                const mobileHeader = request.headers['cloudfront-is-mobile-viewer'];
+                if (mobileHeader && mobileHeader[0] && mobileHeader[0].value) {
+                    if (mobileHeader[0].value === 'true') {
+                      typeDir = 'mobile';
+                    }
+                }
+            }
+            request.uri = '/' + typeDir + request.uri + suffix;
+            return request;
+          };
+
+  OnCacheVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnCache.Arn
+
+  OnAzn:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Use country-code header to translate ASIN URL to the correct country for the user''s locale.'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'azn-url']]
+      PackageType: Zip
+      Runtime: nodejs14.x
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          // Map GeoIP Country code to Amazon URL top level domain.
+          const countryUrlMap = {
+            "GB": ".co.uk" ,
+            "DE": ".de" ,
+            "FR": ".fr" ,
+            "ES": ".es" ,
+            "IT": ".it",
+            "NL": ".nl",
+            "JP": ".co.jp",
+            "IN": ".in",
+            "CA": ".ca",
+            "BR": ".com.br",
+            "MX": ".com.mx",
+            "AU": ".com.au",
+            "CN": ".cn"
+          }
+
+          // Map GeoIP Country code to Amazon URL top level domain for POD book URLs.
+          const countryUrlMapPod = {
+            "GB": ".co.uk",
+            "DE": ".de",
+            "FR": ".fr",
+            "ES": ".es",
+            "IT": ".it",
+            "NL": ".de",
+            "JP": ".com",
+            "IN": ".com",
+            "CA": ".com",
+            "BR": ".com",
+            "MX": ".com",
+            "AU": ".com",
+            "CN": ".com"
+          }
+
+          //
+          function getAmazonHost(countryCode, print) {
+              let topDomain
+            if (print) {
+              topDomain = countryUrlMapPod[countryCode]
+            } else {
+              topDomain = countryUrlMap[countryCode]
+            }
+            if (topDomain) {
+                return 'www.amazon' + topDomain
+            } else {
+                return 'www.amazon.com'
+            }
+          }
+
+          function getAsin(uri) {
+            let asin = '';
+            let code = 'e';
+            let parts = uri.split('/');
+            if (parts.length > 3) {
+              code = parts[2];
+              asin = parts[3];
+            } else if (parts.length > 2) {
+              asin = parts[2];
+            } else {
+              return {
+                code: 'INVALID_PATH',
+                error: `'${uri}' is not a valid AZN shortcut path.`
+              }
+            }
+            parts = asin.split('.');
+            asin = parts[0]
+            return {
+              asin: asin,
+              code: code
+            }
+          }
+
+          exports.handler = async (event, context) => {
+              // Redirect to the correct amazon host for the country, with the same URL path that we're called with.
+              const request = event.Records[0].cf.request
+              if (request.headers) {
+                console.log(`Context: ${JSON.stringify(request.headers)}`)
+                  const countryHeader = request.headers['cloudfront-viewer-country'];
+                  if (countryHeader) {
+                    if (countryHeader && countryHeader[0] && countryHeader[0].value) {
+                  const asin = getAsin(request.uri);
+                  if (asin.error) {
+                    console.log(asin.error);
+                    return request;
+                  }
+                        const isPrint = asin.code === 'p';
+                  return {
+                        status: '301',
+                        statusDescription: 'Moved Permanently',
+                        headers: {
+                            'location': [{ value: 'https://' + getAmazonHost(countryHeader[0].value, isPrint) + '/dp/' + asin.asin }],
+                            'cache-control': [{ value: "no-cache, no-store, private" }]
+                        }
+                  }
+                    }
+                  }
+              }
+
+            return request;
+          };
+
+  OnAznVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnAzn.Arn
+
+  FeedbackTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !Ref FeedbackEmail
+          Protocol: email
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      TopicName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'l-publish']]
+
+  OnFeedback:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Save submitted feedback to an S3 bucket.'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'feedback']]
+      PackageType: Zip
+      Runtime: nodejs14.x
+      Role: !GetAtt LambdaFeedbackRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          const aws = require('aws-sdk');
+          const s3 = new aws.S3();
+
+          const MIN_INTERVAL_MS = 10 * 1000
+          let lastRun = null
+
+          exports.handler = async function (event, context) {
+              // Throttle one execution per min_interval_ms
+              if (lastRun) {
+                const sinceLastRun = Date.now() - lastRun
+                if (sinceLastRun < MIN_INTERVAL_MS) {
+                  return {
+                    status: '429',
+                    statusDescription: 'Throttled'
+                  }
+                }
+              }
+              const now = new Date()
+              lastRun = now.getTime()
+
+              const request = event.Records[0].cf.request;
+
+              // In CloudFront context, function name is qualified with a region name, separated by period
+              let functionName = null
+              if (context.functionName.indexOf('.') !== -1) {
+                const parts = context.functionName.split('.')
+                functionName = parts[1]
+              } else {
+                functionName = context.functionName
+              }
+
+              if (request.method === 'POST') {
+                const body = Buffer.from(request.body.data, 'base64').toString();
+                const params = {
+                  Bucket: functionName,
+                  Key:  'received/' + now.toISOString(),
+                  Body: body
+                }
+                return s3.putObject(params).promise()
+                  .then(data => {
+                    return {
+                      status: '200',
+                      statusDescription: 'OK'
+                    }
+                  })
+                  .catch(error => {
+                    console.error(`Failed write key ${params.Key} to S3 bucket ${params.Bucket}: ${JSON.stringify(error)}`)
+                    return {
+                      status: '400',
+                      statusDescription: 'Send failed. See log.'
+                    }
+                  })
+              }
+          };
+
+  OnFeedbackVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnFeedback.Arn
+
+  FeedbackPublisher:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'On schedule, read submitted feedback from an S3 bucket and send any new feedback to an SNS topic.'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'publisher']]
+      PackageType: Zip
+      Runtime: nodejs14.x
+      Timeout: 30
+      Role: !GetAtt FeedbackPublisherRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Environment:
+        Variables:
+          BUCKET: !Ref FeedbackData
+          TOPIC: !Ref FeedbackTopic
+      Code:
+        ZipFile: |
+          const aws = require('aws-sdk');
+          const s3 = new aws.S3();
+          const sns = new aws.SNS();
+
+          const MAX_DATA_LEN = 500 * 1024  // 500KB
+
+          exports.handler = async function (event, context) {
+              try {
+                  // Read from S3 bucket received folder
+                  const b = process.env.BUCKET
+                  const listData = await s3.listObjectsV2({ Bucket: b, Prefix: 'received' }).promise()
+                  console.log(`Found ${listData.KeyCount} received messages` + (listData.isTruncated ? ' (truncated)' : ''))
+                  await Promise.all(listData.Contents.map(async item => {
+                      try {
+                          // Get item content
+                          const subject = b + ': ' + item.Key.replace(/^received\//, '')
+                          const range = `bytes=0-${Math.min(item.Size, MAX_DATA_LEN)}`
+                          const content = await s3.getObject({ Bucket: b, Key: item.Key, Range: range }).promise()
+                          // Send to topic
+                          await sns.publish({ TopicArn: process.env.TOPIC, Message: content.Body.toString(), Subject: subject }).promise()
+                          // Move from recieved to sent folder
+                          const newKey = item.Key.replace(/^received/, 'sent')
+                          await s3.copyObject({ Bucket: b, CopySource: `/${b}/${item.Key}`, Key: newKey }).promise()
+                          await s3.deleteObject({ Bucket: b, Key: item.Key }).promise()
+                          console.log(`Sent message ${subject}, size: ${item.Size}`)
+                      } catch(error) {
+                        console.error(`Failed publish message ${item.Key} to topic ${process.env.TOPIC}: ${JSON.stringify(error)}`)
+                      }
+                  })) // For each recieved bucket item
+              } catch (error) {
+                console.error(`Failed to read feedback from bucket ${process.env.BUCKET}: ${JSON.stringify(error)}`)
+              }
+          };
+
+  FeedbackPubisherSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'Feedback-Publisher']]
+      RoleArn: !GetAtt FeedbackPublisherRole.Arn
+      ScheduleExpression: cron(0/15 * * * ? *)
+      Targets:
+        - Id: FeedbackPublisher
+          Arn: !GetAtt FeedbackPublisher.Arn
+
+  FeedbackPublisherPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt FeedbackPublisher.Arn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt FeedbackPubisherSchedule.Arn
+
+  LambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'lambda']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  LambdaFeedbackRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-feedback']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: S3Publish
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                Resource: !Join ['', [!GetAtt FeedbackData.Arn, '*']]
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  FeedbackPublisherRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-publish']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: S3ReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt FeedbackData.Arn, '*']]
+        - PolicyName: SnsPublish
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource: !Ref FeedbackTopic
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  Domain:
+    Type: 'AWS::Route53::HostedZone'
+    Condition: TopLevelDomain
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneTags:
+        - Key: Service
+          Value: !Ref 'AWS::StackName'
+
+  DomainToWebCache:
+    Type: 'AWS::Route53::RecordSetGroup'
+    Properties:
+      HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt WebCache.DomainName
+        - Name: !Ref DomainName
+          Type: AAAA
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt WebCache.DomainName
+        - Name: !Join ['.', ['www', !Ref DomainName]]
+          Type: A
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt WebCache.DomainName
+        - Name: !Join ['.', ['www', !Ref DomainName]]
+          Type: AAAA
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt WebCache.DomainName
+
+  UploadUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Join ['.', [!Ref DomainName, 'uploader']]
+      LoginProfile:
+        Password: !Ref UploaderPassword
+      Policies:
+        - PolicyName: AccessToBucketOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketLocation
+                Resource:
+                  - arn:aws:s3:::*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt WebData.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Join ['', [!GetAtt WebData.Arn, '/*']]
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  UploadUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref UploadUser
+
+Outputs:
+  AccessId:
+    Description: Access ID
+    Value: !Ref UploadUserAccessKey
+  AccessSecret:
+    Description: Access Secret
+    Value: !GetAtt UploadUserAccessKey.SecretAccessKey
