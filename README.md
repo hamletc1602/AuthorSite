@@ -18,12 +18,14 @@ This template creates all the infrastructure necessary to host a mostly static w
 
 What this template does NOT do, is provide any website code. You will need to upload the html files and images that describe your website (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)) to the site's S3 bucket.
 
+This fills a simillar role to AWS Amplify, but with less $/GB for data transfer since it works directly with Cloud Front, and it's designed for local file generation so you don't need to pay Amazon for build time.
+
 ## Requirements
 
  - You will need to have a registered domain, and host that domain with AWS in Route53.
  - You will need to provide a file named 'desktop/index.html' in the S3 bucket with the same domain name that you provided for the site.
 
-You can create multiple sites with this template on subdomains (ie. series1.authordo main.com, series2.authordomain.com), but you will need to register at least one top-level domain. A common use for this to to create a test site where you can try out new changes without impacting your live site.
+You can create multiple sites with this template on subdomains (ie. series1.authordomain.com, series2.authordomain.com), but you will need to register at least one top-level domain. A common use for this to to create a test site where you can try out new changes without impacting your live site.
 
 ## Costs
 
