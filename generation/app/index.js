@@ -549,9 +549,11 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
   Files.copyResourcesOverwrite('lib/script-src', Path.join(tempDir, 'script-src'), [
     'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
+  const absTempDir = tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir)
+  const absOutputDir = tempDir[0] == '/' ? outputDir : Path.join(__dirname, '..', outputDir)
   let stats = await webpack({
     mode: (config.debug ? 'development' : 'production'),
-    entry: Path.join(__dirname, '..', tempDir, 'script-src', 'index.jsx'),
+    entry: Path.join(absTempDir, 'script-src', 'index.jsx'),
     module: {
       rules: [
         {
@@ -559,7 +561,7 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
           exclude: /node_modules/,
           // Debug - Didn't seem to change anything...
           include: [
-            Path.resolve(Path.join(__dirname, '..', tempDir, 'script-src'))
+            Path.resolve(Path.join(absTempDir, 'script-src'))
           ],
           use: [{
             loader: 'echo-loader'  // Debug (but I'm not sure it's actually being invoked when babel-loader is present)
@@ -573,7 +575,7 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
       extensions: ['*', '.js', '.jsx']
     },
     output: {
-      path: Path.join(__dirname, '..', outputDir, `script`),
+      path: Path.join(absOutputDir, `script`),
       filename: (config.debug ? 'app.js' : 'app.min.js')
     }
   });
