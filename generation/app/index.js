@@ -231,7 +231,9 @@ const preparePageData = async (confDir, config, tempDir, options) => {
 
       if (pub.seriesName && pub.seriesName.length > 0) {
         pub.series = seriesMap[pub.seriesName]
-        if (pub.series) {
+        if (pub.series && pub.seriesIndex) {
+          if (!pub.series.books) { pub.series.books = [] }
+          pub.series.books[pub.seriesIndex] = pub
         } else {
           console.warn(`Missing config for series: ${pub.seriesName}.`)
         }
@@ -313,6 +315,32 @@ const preparePageData = async (confDir, config, tempDir, options) => {
         description: bookShare.description
       }
     }))
+
+    Object.keys(seriesMap).forEach(seriesName => {
+      const s = seriesMap[seriesName]
+      s.books.forEach((book, index) => {
+        if (index > 0) {
+          const prev = s.books[index - 1]
+          if (prev) {
+            book.seriesPrev = {
+              id: prev.id,
+              title: prev.title,
+              index: index - 1
+            }
+          }
+        }
+        if (index < (s.books.length - 1)) {
+          const next = s.books[index + 1]
+          if (next) {
+            book.seriesNext = {
+              id: next.id,
+              title: next.title,
+              index: index + 1
+            }
+          }
+        }
+      })
+    })
 
     console.debug(`Add books to authors and resolve author names in news data.`)
     data.postsByCat = {}
@@ -470,8 +498,10 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
     let content = itemTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
     Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
-    content = cachupTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
-    Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
+    if (elem.catchup && elem.series) {
+      content = catchupTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
+      Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
+    }
 
     // Write promos pages
     if (elem.promos) {

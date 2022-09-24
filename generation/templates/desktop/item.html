@@ -12,6 +12,9 @@
     {%else%}
       Book {%@root.book.seriesIndex%} of the <a href="/series/{%id%}">{%@root.book.seriesName%}</a> series
     {%/if%}
+    {%#@root.book.catchup%}
+      <span> ( </span><a href="/series/{%@root.book.series.id%}-catchup-{%@root.book.seriesIndex%}" target="_blank">A refresher on the story so far...</a> )
+    {%/@root.book.catchup%}
   </div>
   {%/book.series%}
 </div>
@@ -34,9 +37,6 @@
   <div class="summary">
     <div class="logline">{%breaklines book.logline%}</div>
     <div class="summaryText">{%breaklines book.blurb%}</div>
-    {%#book.catchup}
-    <div class="catchup"><a href="/series/{%@root.book.id%}-catchup-{%@root.book.seriesIndex%}" target="_blank">The story so far...</a></div>
-    {%/book.catchup%}
     <div class="linksWide">
       <div class="linksBoxWide">
         {%#book.distributors%}
