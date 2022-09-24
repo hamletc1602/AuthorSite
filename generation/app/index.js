@@ -71,7 +71,7 @@ const main = async (optionsStr) => {
 
     let confDir = appConfig.configPath
     let outputDir = appConfig.outputPath
-    let tempDir = "temp/"
+    let tempDir = appConfig.tempPath
     if (configName) {
       confDir = Path.join(confDir, configName)
       outputDir = Path.join(outputDir, configName)
