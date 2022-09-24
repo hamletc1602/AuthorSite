@@ -1,0 +1,61 @@
+{%#> page mainPage=true %}
+
+<div class="page-home contentNoPanel">
+<p>
+
+<div class="bookfeature">
+<div class="bookFeatureBlock">
+  <div class="distributorList bookFeatureTop">
+    <div class="distributorLink">
+      <span class="title">Buy now at:</span>
+      {%#feature.distributors%}
+        <a href="{%url%}" target="_blank" aria-label="{%name%}">
+        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+        </a>
+      {%/feature.distributors%}
+    </div>
+    {%> sharing feature %}
+  </div>
+
+  <div class="bookCover"><img src="{%@config.imagePath%}/{%feature.featureCoverImage%}"></div>
+  <div class="bookBlurbWrapper">
+    <div class="bookTitle">{%feature.title%}</div>
+    {%#if feature.seriesIndex%}
+    <div class="bookSeriesTitle">Book {%feature.seriesIndex%} of the {%feature.seriesName%} series</div>
+    {%/if%}
+    <div class="bookLogline" style="color: {%feature.loglineColor%};">{%feature.logline%}</div>
+    <div class="bookBlurb">{%breaklines feature.blurb%}</div>
+  </div>
+  <div class="distributorList bookFeatureBottom">
+    <div class="distributorLink">
+      <span class="title">Buy now at:</span>
+      {%#feature.distributors%}
+        <a href="{%url%}" target="_blank" aria-label="{%name%}">
+        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+        </a>
+      {%/feature.distributors%}
+    </div>
+    <div class="sharing">
+      {%> sharing feature %}
+    </div>
+  </div>
+</div>
+
+</div>
+
+<h1 class="" id="authors">Authors</h1>
+
+{%#groups%}
+  {%#if external%}
+  {%else%}
+    <h2><a href="{%@config.authorPath%}/{%id%}">{%name%}</a></h2>
+    <div id="{%id%}_pubs" class="booklist" data-overlayText="Buy Now/Coming Soon!"></div>
+    </p>
+  {%/if%}
+{%/groups%}
+
+</div>
+
+<div id="booksSlider"></div>
+
+{%/page%}

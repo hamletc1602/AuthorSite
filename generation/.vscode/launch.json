@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible Node.js debug attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Build",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            // This does not appear to be working, but, you can hover over
+            // npm targets in package.json and click 'debug this script'
+            "runtimeArgs": ["run-script", "build:debug"],
+            "port": 9229
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Deploy (DryRun)",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run-script", "deploy:debug:dryrun"],
+            "port": 9229
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Deploy2",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run-script", "deploy2:debug"],
+            "port": 9229
+        }
+
+    ]
+}

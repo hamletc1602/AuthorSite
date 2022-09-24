@@ -1,0 +1,366 @@
+$transparent: hsla(0,0%,0%,0);
+$headerImagePath: $host + "/headers/";
+
+/* Disabled text selection */
+@mixin disable-text-selection() {
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+/* Text outline */
+@mixin text-outline($color) {
+	text-shadow:
+		-1px -1px 0 $color,
+		1px -1px 0 $color,
+		-1px 1px 0 $color,
+		1px 1px 0 $color;
+}
+
+/* linear gradients for faded edges of center content area */
+@mixin content-gradients($contentBkColor, $boxShadowColor) {
+	background-color: $contentBkColor;
+	box-shadow: 0px 0px 5px $boxShadowColor;
+}
+
+/* Linear gradients for page background */
+/* Small Screen */
+@mixin background-gradients-SM($solid, $solidBottom, $imageName) {
+	$solidHeight: 100px;
+	$fadeHeight: 300px;
+	$footerSolidHeight: 65px;
+	$footerFadeHeight: 100px;
+	$headerImageUrlSM: $headerImagePath + $imageName + "SM.png";
+	$footerImageUrlSM: $headerImagePath + $imageName + "FooterSM.png";
+
+	/* CSS3 Standard */
+	background:
+		linear-gradient(to bottom, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $solidBottom 0px, $transparent 40px) no-repeat,
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Latest webkit (Chrome, etc) */
+	background:
+		-webkit-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Legacy webkit (Chrome, etc) */
+	background:
+		-webkit-gradient(linear, left top, left bottom, color-stop($solidHeight,$transparent), color-stop($fadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop($footerSolidHeight,$transparent), color-stop($footerFadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop(0px,$solidBottom), color-stop(40px,$transparent)),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Firefox */
+	background:
+		-moz-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* IE10+ */
+	background:
+		-ms-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	background-repeat: no-repeat;
+	background-position: center top, center bottom, center bottom, center top, center bottom, center bottom;
+}
+
+/* Medium Screen */
+@mixin background-gradients-MD($solid, $solidBottom, $imageName) {
+	$solidHeight: 200px;
+	$fadeHeight: 400px;
+	$footerSolidHeight: 100px;
+	$footerFadeHeight: 200px;
+	$headerImageUrlSM: $headerImagePath + $imageName + "SM.png";
+	$footerImageUrlSM: $headerImagePath + $imageName + "FooterSM.png";
+	$headerImageUrlMD: $headerImagePath + $imageName + "MD.png";
+	$footerImageUrlMD: $headerImagePath + $imageName + "FooterMD.png";
+
+	/* CSS3 Standard */
+	background:
+		linear-gradient(to bottom, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 65%) no-repeat,
+		linear-gradient(to top, $solidBottom 0px, $transparent 40px) no-repeat,
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Latest webkit (Chrome, etc) */
+	background:
+		-webkit-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 65%),
+		-webkit-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Legacy webkit (Chrome, etc) */
+	background:
+		-webkit-gradient(linear, left top, left bottom, color-stop($solidHeight,$transparent), color-stop($fadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop($footerSolidHeight,$transparent), color-stop($footerFadeHeight,$solid), color-stop(51%,$solid), color-stop(65%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop(0px,$solidBottom), color-stop(40px,$transparent)),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Firefox */
+	background:
+		-moz-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 65%),
+		-moz-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* IE10+ */
+	background:
+		-ms-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 65%),
+		-ms-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	background-repeat: no-repeat;
+	background-position: center top, center bottom, center bottom, center top, center bottom, center top, center bottom, center bottom;
+}
+
+/* Large Screen */
+@mixin background-gradients-LG($solid, $solidBottom, $imageName) {
+	$solidHeight: 200px;
+	$fadeHeight: 400px;
+	$footerSolidHeight: 100px;
+	$footerFadeHeight: 200px;
+	$headerImageUrlSM: $headerImagePath + $imageName + "SM.png";
+	$footerImageUrlSM: $headerImagePath + $imageName + "FooterSM.png";
+	$headerImageUrlMD: $headerImagePath + $imageName + "MD.png";
+	$footerImageUrlMD: $headerImagePath + $imageName + "FooterMD.png";
+	$headerImageUrlLG: $headerImagePath + $imageName + "LG.png";
+	$footerImageUrlLG: $headerImagePath + $imageName + "FooterLG.png";
+
+	/* CSS3 Standard */
+	background:
+		linear-gradient(to bottom, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $solidBottom 0px, $transparent 40px) no-repeat,
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		$solidBottom;
+	/* Latest webkit (Chrome, etc) */
+	background:
+		-webkit-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		$solidBottom;
+	/* Legacy webkit (Chrome, etc) */
+	background:
+		-webkit-gradient(linear, left top, left bottom, color-stop($solidHeight,$transparent), color-stop($fadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop($footerSolidHeight,$transparent), color-stop($footerFadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop(0px,$solidBottom), color-stop(40px,$transparent)),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		$solidBottom;
+	/* Firefox */
+	background:
+		-moz-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		$solidBottom;
+	/* IE10+ */
+	background:
+		-ms-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		$solidBottom;
+	background-repeat: no-repeat;
+	background-position: center top, center bottom, center bottom, center top, center bottom, center top, center bottom, center top, center bottom, center bottom;
+}
+
+/* Extra-Large Screen */
+@mixin background-gradients-XL($solid, $solidBottom, $imageName) {
+	$solidHeight: 200px;
+	$fadeHeight: 400px;
+	$footerSolidHeight: 100px;
+	$footerFadeHeight: 200px;
+	$headerImageUrlSM: $headerImagePath + $imageName + "SM.png";
+	$footerImageUrlSM: $headerImagePath + $imageName + "FooterSM.png";
+	$headerImageUrlMD: $headerImagePath + $imageName + "MD.png";
+	$footerImageUrlMD: $headerImagePath + $imageName + "FooterMD.png";
+	$headerImageUrlLG: $headerImagePath + $imageName + "LG.png";
+	$footerImageUrlLG: $headerImagePath + $imageName + "FooterLG.png";
+	$headerImageUrlXL: $headerImagePath + $imageName + "XL.png";
+	$footerImageUrlXL: $headerImagePath + $imageName + "FooterXL.png";
+
+	/* CSS3 Standard */
+	background:
+		linear-gradient(to bottom, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $solidBottom 0px, $transparent 40px) no-repeat,
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		url($headerImageUrlXL),
+		url($footerImageUrlXL),
+		$solidBottom;
+	/* Latest webkit (Chrome, etc) */
+	background:
+		-webkit-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		url($headerImageUrlXL),
+		url($footerImageUrlXL),
+		$solidBottom;
+	/* Legacy webkit (Chrome, etc) */
+	background:
+		-webkit-gradient(linear, left top, left bottom, color-stop($solidHeight,$transparent), color-stop($fadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop($footerSolidHeight,$transparent), color-stop($footerFadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop(0px,$solidBottom), color-stop(40px,$transparent)),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		url($headerImageUrlXL),
+		url($footerImageUrlXL),
+		$solidBottom;
+	/* Firefox */
+	background:
+		-moz-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		url($headerImageUrlXL),
+		url($footerImageUrlXL),
+		$solidBottom;
+	/* IE10+ */
+	background:
+		-ms-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		url($headerImageUrlMD),
+		url($footerImageUrlMD),
+		url($headerImageUrlLG),
+		url($footerImageUrlLG),
+		url($headerImageUrlXL),
+		url($footerImageUrlXL),
+		$solidBottom;
+	background-repeat: no-repeat;
+	background-position: center top, center bottom, center bottom, center top, center bottom, center top, center bottom, center top, center bottom, center top, center bottom, center bottom;
+}
+
+
+/* Linear gradients for page background using solid JPG image headers. */
+@mixin background-gradients-solid($solid, $solidBottom, $imageName) {
+	$solidHeight: 100px;
+	$fadeHeight: 300px;
+	$footerSolidHeight: 65px;
+	$footerFadeHeight: 100px;
+	$headerImageUrlSM: $headerImagePath + $imageName + ".jpg";
+	$footerImageUrlSM: $headerImagePath + $imageName + ".jpg";
+
+	/* CSS3 Standard */
+	background:
+		linear-gradient(to bottom, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%) no-repeat,
+		linear-gradient(to top, $solidBottom 0px, $transparent 40px) no-repeat,
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Latest webkit (Chrome, etc) */
+	background:
+		-webkit-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-webkit-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Legacy webkit (Chrome, etc) */
+	background:
+		-webkit-gradient(linear, left top, left bottom, color-stop($solidHeight,$transparent), color-stop($fadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop($footerSolidHeight,$transparent), color-stop($footerFadeHeight,$solid), color-stop(51%,$solid), color-stop(51%,$transparent)),
+		-webkit-gradient(linear, left bottom, left top, color-stop(0px,$solidBottom), color-stop(40px,$transparent)),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* Firefox */
+	background:
+		-moz-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-moz-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	/* IE10+ */
+	background:
+		-ms-linear-gradient(top, $transparent $solidHeight, $solid $fadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $transparent $footerSolidHeight, $solid $footerFadeHeight, $solid 51%, $transparent 51%),
+		-ms-linear-gradient(bottom, $solidBottom 0px, $transparent 40px),
+		url($headerImageUrlSM),
+		url($footerImageUrlSM),
+		$solidBottom;
+	background-repeat: no-repeat;
+	background-position: center top, center bottom, center bottom, center top, center bottom, center bottom;
+}

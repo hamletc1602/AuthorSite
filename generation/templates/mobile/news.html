@@ -1,0 +1,47 @@
+{%#> page newsPage=true %}
+
+<div class="page-news content">
+
+<link href="//cdn-images.mailchimp.com/embedcode/slim-10_7.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+	#mc_embed_signup_scroll {
+		display: flex;
+		flex-direction: row;
+		color: black;
+	}
+</style>
+<div id="mc_embed_signup">
+<form action="https://braevitae.us12.list-manage.com/subscribe/post?u=b4563c7514d63a0b7bf1e3c4f&amp;id=fa59ad41b8" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
+    <div id="mc_embed_signup_scroll">
+	<input type="email" value="" name="EMAIL" class="email" id="mce-EMAIL" placeholder="email address" required>
+    <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
+    <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_b4563c7514d63a0b7bf1e3c4f_fa59ad41b8" tabindex="-1" value=""></div>
+    <div><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button"></div>
+    </div>
+</form>
+</div>
+
+{%#if category%}
+<h1>Category: {%category.name%}</h1>
+{%/if%}
+
+{%#news%}
+<article id="post-{%id%}" class="post-{%id%} post type-{%type%} status-{%status%} format-{%format%} category-{%category.id%}">
+	<header class="entry-header">
+		<h2 class="entry-title">{%title%}</h2>
+		<div class="entry-meta">
+			<span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
+		</div>
+	</header>
+	<div class="entry-content">
+		<p>{%noescape content%}</p>
+	</div>
+	<footer class="entry-footer">
+		<span class="wp-cat-links">Posted in {%#category%}<a href="{%@config.newsPath%}/cat-{%id%}" rel="category">{%name%}</a>{%#if @last%}.{%else%}, {%/if%}{%/category%}</span>
+	</footer>
+</article>
+{%/news%}
+
+</div>
+
+{%/page%}

@@ -1,3 +1,9 @@
+# Author Site
+**/credentials.json
+site/**
+generation/temp/**
+
+
 # Logs
 logs
 *.log
