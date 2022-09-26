@@ -49,6 +49,16 @@ Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
 
 Resources:
+  UploaderPassword:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Ref DomainName
+      Description: Uploader password for admin lambda
+      SecretString: !Ref UploaderPassword
+    Tags:
+      - Key: 'Service'
+        Value: !Ref 'AWS::StackName'
+
   WebData:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -204,7 +214,7 @@ Resources:
       Description: 'Allow use of frlendly (no .html ending) URLs and route to mobile-specifc site pages for phones.'
       FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'edge']]
       PackageType: Zip
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Role: !GetAtt LambdaRole.Arn
       Tags:
         - Key: 'Service'
@@ -239,13 +249,123 @@ Resources:
     Properties:
       FunctionName: !GetAtt OnCache.Arn
 
+  OnAdmin:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Site admin interface'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          const aws = require('aws-sdk');
+          const s3 = new aws.S3();
+
+          const adminFiles = [
+            'admin.html'
+          ]
+
+          // TODO: Load this secret from secrets manager, from secret named for the site domain name.
+          const adminSecret = 'secret'
+
+          exports.handler = async (event, context) => {
+            // Get site name from function name
+            let functionName = null
+            let siteBucket = null
+            {
+              if (context.functionName.indexOf('.') !== -1) {
+                const parts = context.functionName.split('.')
+                functionName = parts[1]
+              } else {
+                functionName = context.functionName
+              }
+              const parts = functionName.split('-')
+              parts.pop()
+              const siteBucket = parts.join('.')
+            }
+
+            // Check S3 for admin UI files
+               // site bucket name is same as domain name
+            try {
+              await s3.headObject({
+                Bucket: siteBucket
+                Key: 'admin.html'
+              }).promise();
+            } catch (error) {
+              if (error.name === 'NotFound') { // Note with v3 AWS-SDK use error.code
+                // Copy all admin files from public bucket to here
+                await Promise.all(adminFiles.map(async key => {
+                  await s3.copyObject({ Bucket: siteBucket, CopySource: `/braevitae-pub/${key}`, Key: key }).promise()
+                }))
+              } else {
+                // TODO: Return error response
+                console.error(`Failed to get status of admin.html in S3 bucket ${iteBucket}: ${JSON.stringify(error)}`)
+                return {
+                  status: '400',
+                  statusDescription: 'Site provisioning failed. See logs.'
+                }
+              }
+            }
+
+            // Accept new config data posted from client
+               // TODO: Confirm uploader password
+               // TODO: Where to get password? (Secret named for the site?)
+            if (request.method === 'POST') {
+              const req = event.Records[0].cf.request
+              if (req.uri.indexOf('admin') === 0) {
+                if (req.headers.secret !== uploaderPassword) {
+                  return {
+                    status: '403',
+                    statusDescription: 'Invalid admin secret'
+                  }
+                }
+                const parts = req.uri.split('/')
+                parts.shift()
+                const adminPath = parts.join('/')
+                const body = Buffer.from(request.body.data, 'base64')
+                const params = {
+                  Bucket: functionName,
+                  Key:  'adminPath',
+                  Body: body
+                }
+                return s3.putObject(params).promise()
+                  .then(data => {
+                    return {
+                      status: '200',
+                      statusDescription: 'OK'
+                    }
+                  })
+                  .catch(error => {
+                    console.error(`Failed write key ${params.Key} to S3 bucket ${params.Bucket}: ${JSON.stringify(error)}`)
+                    return {
+                      status: '400',
+                      statusDescription: 'Send failed. See log.'
+                    }
+                  })
+              } // is admin path
+            }
+
+            // resolve request
+            return request;
+          };
+
+  OnAdminVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnAdmin.Arn
+
   OnAzn:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Use country-code header to translate ASIN URL to the correct country for the user''s locale.'
       FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'azn-url']]
       PackageType: Zip
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Role: !GetAtt LambdaRole.Arn
       Tags:
         - Key: 'Service'
@@ -376,7 +496,7 @@ Resources:
       Description: 'Save submitted feedback to an S3 bucket.'
       FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'feedback']]
       PackageType: Zip
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Role: !GetAtt LambdaFeedbackRole.Arn
       Tags:
         - Key: 'Service'
@@ -450,7 +570,7 @@ Resources:
       Description: 'On schedule, read submitted feedback from an S3 bucket and send any new feedback to an SNS topic.'
       FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'publisher']]
       PackageType: Zip
-      Runtime: nodejs14.x
+      Runtime: nodejs16.x
       Timeout: 30
       Role: !GetAtt FeedbackPublisherRole.Arn
       Tags:
