@@ -120,7 +120,7 @@ exports.loadTemplateDirect = (content) => {
 exports.createOutputDirs = (dirPathList) => {
     dirPathList.forEach(dirPath => {
         if ( ! Fs.existsSync(dirPath)) {
-            Fs.mkdirSync(dirPath)
+            this.ensurePath(dirPath)
         }
     });
 }

@@ -1,7 +1,5 @@
 'use strict'
 
-require('dotenv').config()
-
 const Util = require('util')
 const Handlebars = require('handlebars')
 const Files = require('./files')
@@ -47,16 +45,16 @@ Handlebars.registerHelper('versionUrl', (options) => {
     return new Handlebars.SafeString(ret + sepChar + Files.generateMd5ForFile(ret))
 })
 
-/**  */
-const main = async (optionsStr) => {
+/** Main Entry Point */
+const handler = async (event, context) => {
   const startTs = Date.now()
-
   try {
-    // Load command line options
-    let options = defaultOptions;
-    if (optionsStr) {
-      const loaded = JSON.parse(optionsStr);
-      options = Object.assign(options, loaded)
+    // Load options from Environment
+    const options = {
+      skipImages: process.env['skipImages'],
+      buildId: process.env['buildId'],
+      debug: process.env['debug'],
+      types: process.env['types'],
     }
 
     // Apply global options to libraries
@@ -104,7 +102,9 @@ const main = async (optionsStr) => {
     cleanDirs(tempDir)
     Files.createOutputDirs([outputDir, tempDir]);
 
-    for (const type of options.types) {
+    for (let type of options.types.split(",")) {
+      type = type.trim()
+      console.log(`======== Render site for ${type} ========`)
       const data = await preparePageData(confDir, config, tempDir, options);
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
       await renderReactComponents(config, tempDir, tempDir, options);
@@ -116,10 +116,23 @@ const main = async (optionsStr) => {
     // Finish
     let dur = Date.now() - startTs
     console.log(`Complete in ${dur / 1000}s`)
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        msg: `Complete in ${dur / 1000}s`
+      })
+    }
   } catch (err) {
     console.log(err.stack || err)
     if (err.details) {
       console.log(err.details)
+    }
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        msg: err.stack || err,
+        details: err.details
+      })
     }
   }
 }
@@ -543,14 +556,20 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: data.styleConfig.bkgndConfig }, tplData))
 }
 
-/** Compile React components and style for this config into an app package */
+/** Compile React components and style for this config into an app package
+
+TODO: Get webpack/babel build working from a tmp folder outside the main package structure. This appears to hinge on the babel
+   code being able to find all presets packages listed here from the tmp dir location, which is apparenly tricky when outside the
+   package dirs. Not a huge issue at the moment since we're find to create a tmp dir inside the package structure.
+
+*/
 const renderReactComponents = async (config, outputDir, tempDir, options) => {
-  console.log("Rendering React components for client side script.")
-  Files.copyResourcesOverwrite('lib/script-src', Path.join(tempDir, 'script-src'), [
-    'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
+  console.log(`Rendering React components for client side script. tempDir=${tempDir}, outputDir=${outputDir}`)
+  const absTempDir = (tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir))
+  const absOutputDir = (outputDir[0] == '/' ? outputDir : Path.join(__dirname, '..', outputDir))
+  Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
+    '.babelrc.json', 'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
-  const absTempDir = tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir)
-  const absOutputDir = tempDir[0] == '/' ? outputDir : Path.join(__dirname, '..', outputDir)
   let stats = await webpack({
     mode: (config.debug ? 'development' : 'production'),
     entry: Path.join(absTempDir, 'script-src', 'index.jsx'),
@@ -559,15 +578,21 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
         {
           test: /\.(js|jsx)$/,
           exclude: /node_modules/,
-          // Debug - Didn't seem to change anything...
-          include: [
-            Path.resolve(Path.join(absTempDir, 'script-src'))
-          ],
-          use: [{
-            loader: 'echo-loader'  // Debug (but I'm not sure it's actually being invoked when babel-loader is present)
-          },{
-            loader: 'babel-loader'
-          }]
+          // include: [
+          //   Path.resolve(Path.join(absTempDir, 'script-src'))
+          // ],
+          use: [
+            {
+              loader: 'babel-loader',
+              options: {
+                presets: [
+                  "env",
+                  "react",
+                  "stage-2"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -857,5 +882,18 @@ function webpack(config) {
   })
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Entrypoint
-main(...process.argv.slice(2))
+if ( ! process.env.AWS_EXECUTION_ENV) {
+  require('dotenv').config()
+
+  // Load command line options into environment vars
+  const args = process.argv.slice(2)
+  for (let i = 0; i < args.length; i += 2) {
+    process.env[args[i]] = args[i + 1]
+  }
+
+  return handler({}).then(() => {
+  })
+}

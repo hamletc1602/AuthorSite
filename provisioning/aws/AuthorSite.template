@@ -49,15 +49,12 @@ Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
 
 Resources:
-  UploaderPassword:
+  UploaderPasswordSecret:
     Type: 'AWS::SecretsManager::Secret'
     Properties:
       Name: !Ref DomainName
       Description: Uploader password for admin lambda
       SecretString: !Ref UploaderPassword
-    Tags:
-      - Key: 'Service'
-        Value: !Ref 'AWS::StackName'
 
   WebData:
     Type: 'AWS::S3::Bucket'
@@ -358,6 +355,27 @@ Resources:
     Type: AWS::Lambda::Version
     Properties:
       FunctionName: !GetAtt OnAdmin.Arn
+
+  BuildSite:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Worker that builds the site from config in S3 and publishes the site back to S3'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'builder']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'autosite/builders/AuthorSite.zip'
+
+  BuildSiteVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt BuildSite.Arn
 
   OnAzn:
     Type: 'AWS::Lambda::Function'
