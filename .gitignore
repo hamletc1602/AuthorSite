@@ -1,7 +1,7 @@
 # tmp dir (needs to be inside package for webpack/babel build
 generation/tmp/**
-# Deploy package (This is the default dest. Only created on demand)
-generation/authorsite.zip
+# Deploy packages
+*.zip
 
 # Logs
 logs

@@ -62,8 +62,19 @@ const handler = async (event, context) => {
 
     // load app config and Env. vars that control app state.
     const appConfig = await Files.loadYaml("conf.yaml")
-    const configName = process.env.npm_config_authorsite_site
-    const configDebug = process.env.npm_config_authorsite_debug
+    let configName = null
+    let configDebug = null
+  if (context) {
+      configDomain = process.env.domainName
+      configTestDomain = process.env.testDomainName
+      // TODO: This assumes a specific form of domain name. like 'braevitae.com' - generalize this, or make site name and top-level
+      // domain separate fields in CloudFormation script?
+      configName = configDomain.split(".")[0]
+      configDebug = process.env.debug
+      } else {
+      configName = process.env.npm_config_authorsite_site
+      configDebug = process.env.npm_config_authorsite_debug
+    }
 
     console.log(`Loading and processing configuration data for ${configName}`)
 
@@ -91,17 +102,50 @@ const handler = async (event, context) => {
       config.debug = true
     }
 
-    // Resolve file refs for conf afer local is applied, but before enccoding and loading
+    // When in AWS, copy all site template files from S3 to the local disk
+    if (context) {
+      const AWS = require('aws-sdk');
+      const S3Sync = require('s3-sync-client')
+      const s3 = new AWS.S3();
+      const { TransferMonitor } = require('s3-sync-client');
+      const mime = require('mime');
+      const s3SyncClient = new S3Sync({ client: s3Client })
+      const monitor = new TransferMonitor();
+      let prevP = null
+      monitor.on('progress', p => {
+          if (prevP && prevP.count.current !== p.count.current) {
+              console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
+          }
+          prevP = p
+      });
+      try {
+          const syncConfig = {
+              monitor: monitor,
+              del: true, // Delete dest objects if source deleted.
+              maxConcurrentTransfers: 16,
+          }
+          if (options.force !== undefined) {
+              syncConfig.sizeOnly = !options.force
+          }
+          await s3SyncClient.sync('s3://braevitae-pub/AutoSite/site-config/' + configName, confDir, syncConfig);
+      } catch (e) {
+          console.error(`Website config sync failed: ${JSON.stringify(e)}`)
+      }
+    }
+
+    // Resolve file refs for conf after local is applied, but before enccoding and loading
     // other properties files.
     await resolveFileRefs(confDir, config, config);
 
     // Encrypt some selected config properties for use on the public website pages
+    // TODO: Will no longer be needed once all sites are converted to AWS mail handler
     encodeProps(["email"], config.feedback);
 
     // clean any old files
     cleanDirs(tempDir)
     Files.createOutputDirs([outputDir, tempDir]);
 
+    //
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
@@ -111,6 +155,48 @@ const handler = async (event, context) => {
       const files = await mergeToOutput(tempDir, Path.join(outputDir, type))
       const filesUpdated = files.filter(file => file.updated)
       console.log(`${filesUpdated.length} Files merged to output`)
+    }
+
+    // Push completed build back to S3 (Test site)
+    if (context) {
+      const AWS = require('aws-sdk');
+      const s3 = new AWS.S3();
+      const { TransferMonitor } = require('s3-sync-client');
+      const mime = require('mime');
+      const s3SyncClient = new S3Sync({ client: s3Client })
+      const monitor = new TransferMonitor();
+      let prevP = null
+      monitor.on('progress', p => {
+          if (prevP && prevP.count.current !== p.count.current) {
+              console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
+          }
+          prevP = p
+      });
+      try {
+          const syncConfig = {
+              monitor: monitor,
+              del: true, // Delete dest objects if source deleted.
+              maxConcurrentTransfers: 16,
+              commandInput: {
+                  ACL: 'private',
+                  CacheControl: `max-age=${config.deploy.maxAgeBrowser},s-maxage=${config.deploy.maxAgeCloudFront}`,
+                  ContentType: (input) => {
+                      const type = mime.getType(input.Key) || 'text/html'
+                      console.log(`Upload file: ${input.Key} as type ${type}`)
+                      return type
+                  },
+              },
+              filters: [
+                  { exclude: (key) => { key.indexOf('.DS_Store.') !== -1 } }
+              ]
+          }
+          if (options.force !== undefined) {
+              syncConfig.sizeOnly = !options.force
+          }
+          await s3SyncClient.sync(outputDir, 's3://' + configTestDomain, syncConfig);
+      } catch (e) {
+          console.error(`Website sync failed: ${JSON.stringify(e)}`)
+      }
     }
 
     // Finish
@@ -568,7 +654,7 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
   const absTempDir = (tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir))
   const absOutputDir = (outputDir[0] == '/' ? outputDir : Path.join(__dirname, '..', outputDir))
   Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
-    '.babelrc.json', 'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
+    'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
   let stats = await webpack({
     mode: (config.debug ? 'development' : 'production'),
@@ -881,6 +967,10 @@ function webpack(config) {
     })
   })
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+exports.handler = handler
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
