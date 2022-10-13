@@ -49,12 +49,13 @@ Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
 
 Resources:
-  UploaderPasswordSecret:
-    Type: 'AWS::SecretsManager::Secret'
-    Properties:
-      Name: !Ref DomainName
-      Description: Uploader password for admin lambda
-      SecretString: !Ref UploaderPassword
+  # Likely no longer need this placeholder, now we're using custom provisioning lambda
+  # UploaderPasswordSecret:
+  #   Type: 'AWS::SecretsManager::Secret'
+  #   Properties:
+  #     Name: !Ref DomainName
+  #     Description: Uploader password for admin lambda
+  #     SecretString: !Ref UploaderPassword
 
   WebData:
     Type: 'AWS::S3::Bucket'
@@ -70,6 +71,51 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
+  TestWebData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['.', ['test', !Ref DomainName]]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  # Bucket name matches the related admin lambda function
+  AdminData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  # Bucket name closely related to admin lambda function
+  AdminUiData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'adminUI']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  # Bucket name matches the related feedback lambda function
   FeedbackData:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -90,6 +136,18 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: Limit bucket access to CloudFront
 
+  TestWebDataAccess:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Limit bucket access to CloudFront
+
+  AdminDataAccess:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Limit bucket access to CloudFront
+
   WebDataAccessPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -104,10 +162,53 @@ Resources:
               - 's3:GetObject'
             Resource: !Join ['', [!GetAtt WebData.Arn, '/*']]
 
+  TestWebDataAccessPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TestWebData
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref TestWebDataAccess]]
+            Action:
+              - 's3:GetObject'
+            Resource: !Join ['', [!GetAtt TestWebData.Arn, '/*']]
+
+  AdminDataAccessPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AdminUiData
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref AdminDataAccess]]
+            Action:
+              - 's3:GetObject'
+            Resource: !Join ['', [!GetAtt AdminUiData.Arn, '/*']]
+
+  ## TODO: Add object expiry for logs buckets - 6 months?
   WebCacheLogs:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Join ['', [!Ref DomainName, '-logs']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  TestWebCacheLogs:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Join ['.', ['test', !Join ['', [!Ref DomainName, '-logs']]]]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -130,6 +231,23 @@ Resources:
         - DomainName: !Ref DomainName
           HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
         - DomainName: !Join ['.', ['www', !Ref DomainName]]
+          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  TestCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      CertificateTransparencyLoggingPreference: ENABLED
+      DomainName: !Join ['.', ['test', !Ref DomainName]]
+      ValidationMethod: DNS
+      SubjectAlternativeNames:
+        - !Join ['.', ['www', 'test', !Ref DomainName]]
+      DomainValidationOptions:
+        - DomainName: !Join ['.', ['test', !Ref DomainName]]
+          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+        - DomainName: !Join ['.', ['www', 'test', !Ref DomainName]]
           HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
       Tags:
         - Key: 'Service'
@@ -202,13 +320,16 @@ Resources:
               - PATCH
               - POST
               - PUT
-            TargetOriginId: WebData
+            TargetOriginId: AdminUiData
             ViewerProtocolPolicy: allow-all
             ForwardedValues:
               QueryString: true
             LambdaFunctionAssociations:
               - EventType: viewer-request
-                LambdaFunctionARN: !Ref OnAdmin
+                LambdaFunctionARN: !Ref OnAdminVersion
+                IncludeBody: true
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnCacheVersion
                 IncludeBody: true
         CustomErrorResponses:
           - ErrorCachingMinTTL: 300
@@ -217,6 +338,96 @@ Resources:
             ResponsePagePath: '/index.html'
         Logging:
           Bucket: !GetAtt WebCacheLogs.DomainName
+          Prefix: ''
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  TestWebCache:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: TestWebData
+            DomainName: !GetAtt TestWebData.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref TestWebDataAccess]]
+        Aliases:
+          - !Join ['.', ['test', !Ref DomainName]]
+          - !Join ['.', ['www', 'test', !Ref DomainName]]
+        ViewerCertificate:
+          AcmCertificateArn: !Ref TestCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1
+        DefaultCacheBehavior:
+          TargetOriginId: TestWebData
+          ViewerProtocolPolicy: allow-all
+          ForwardedValues:
+            QueryString: false
+            Headers:
+              - CloudFront-Is-Mobile-Viewer
+          LambdaFunctionAssociations:
+            - EventType: origin-request
+              LambdaFunctionARN: !Ref OnCacheVersion
+        CacheBehaviors:
+          - PathPattern: azn/*
+            TargetOriginId: TestWebData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+              Headers:
+                - CloudFront-Viewer-Country
+            LambdaFunctionAssociations:
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnAznVersion
+          - PathPattern: feedback/*
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: TestWebData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+              Headers:
+                - CloudFront-Viewer-Country
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !Ref OnFeedbackVersion
+                IncludeBody: true
+          - PathPattern: admin*
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: AdminUiData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: true
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !Ref OnAdminVersion
+                IncludeBody: true
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnCacheVersion
+                IncludeBody: true
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: '/index.html'
+        Logging:
+          Bucket: !GetAtt TestWebCacheLogs.DomainName
           Prefix: ''
       Tags:
         - Key: 'Service'
@@ -242,52 +453,6 @@ Resources:
     Type: AWS::Lambda::Version
     Properties:
       FunctionName: !GetAtt OnCache.Arn
-
-  OnAdmin:
-    Type: 'AWS::Lambda::Function'
-    Properties:
-      Description: 'Site admin interface'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
-      PackageType: Zip
-      Runtime: nodejs16.x
-      Role: !GetAtt LambdaRole.Arn
-      Tags:
-        - Key: 'Service'
-          Value: !Ref 'AWS::StackName'
-      Handler: index.handler
-      Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/AdminUI/autosite-admin.zip'
-
-  OnAdminVersion:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !GetAtt OnAdmin.Arn
-
-  BuildSite:
-    Type: 'AWS::Lambda::Function'
-    Properties:
-      Description: 'Worker that builds the site from config in S3 and publishes the site back to S3'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'builder']]
-      PackageType: Zip
-      Runtime: nodejs16.x
-      Role: !GetAtt LambdaRole.Arn
-      Timeout: 60
-      Tags:
-        - Key: 'Service'
-          Value: !Ref 'AWS::StackName'
-      Handler: app/index.handler
-      Environment:
-        Variables:
-          siteDomain: !Ref DomainName
-      Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/builders/authorsite.zip'
-
-  BuildSiteVersion:
-    Type: AWS::Lambda::Version
-    Properties:
-      FunctionName: !GetAtt BuildSite.Arn
 
   OnAzn:
     Type: 'AWS::Lambda::Function'
@@ -380,6 +545,102 @@ Resources:
       FunctionName: !GetAtt FeedbackPublisher.Arn
       Principal: events.amazonaws.com
       SourceArn: !GetAtt FeedbackPubisherSchedule.Arn
+
+  OnAdmin:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Site admin interface'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt AdminRole.Arn
+      Timeout: 5
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/AdminUI/autosite-admin.zip'
+
+  OnAdminVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnAdmin.Arn
+
+  BuildSite:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Worker that builds the site from config in S3 and publishes the site back to S3'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'builder']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt AdminRole.Arn
+      Timeout: 90
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: app/index.handler
+      Environment:
+        Variables:
+          siteDomain: !Ref DomainName
+          publicBucket: 'braevitae-pub'
+          adminBucket: !Ref AdminData
+          testSiteBucket: !Ref TestWebData
+          siteBucket: !Ref WebData
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/builders/authorsite.zip'
+
+  BuildSiteVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt BuildSite.Arn
+
+  LambdaInvokeFromAdminPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt S3NotificationLambdaFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Ref AdminData
+
+  ProvisionSite:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Provisioning worker that builds the initial site framework'
+      FunctionName: !Join ['-',[!Ref DomainName]],'provisioner']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt AdminRole.Arn
+      Timeout: 30
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.provision
+      Environment:
+        Variables:
+          siteDomain: !Ref DomainName
+          publicBucket: 'braevitae-pub'
+          adminBucket: !Ref AdminData
+          testSiteBucket: !Ref TestWebData
+          siteBucket: !Ref WebData
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/AdminUI/autosite-admin.zip'
+
+  ProvisionSiteTrigger:
+    Type: 'Custom::LambdaTrigger'
+    Properties:
+      ServiceToken: !GetAtt ProvisionSite.Arn
+      SiteBuilderArn: !GetAtt BuildSite.Arn
+      PubilcBucket: 'braevitae-pub'
+      AdminBucket: !Ref AdminData
+      AdminUiBucket: !Ref AdminUiData
+      UploaderPassword: !Ref UploaderPassword
+      MaxAgeBrowser: 86400
+      MaxAgeCloudFront: 60
 
   LambdaRole:
     Type: 'AWS::IAM::Role'
@@ -501,11 +762,94 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
+  AdminRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-admin']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - events.amazonaws.com
+                - secretsmanager.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: WebDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt WebData.Arn, '*']]
+        - PolicyName: TestWebDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: SecretsManager
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'secretsmanager:GetSecretValue'
+                Resource: !Ref UploaderPasswordSecret
+        - PolicyName: S3Trigger
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetBucketNotification'
+                  - 's3:PutBucketNotification'
+                Resource: !Ref AdminData
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
   Domain:
     Type: 'AWS::Route53::HostedZone'
     Condition: TopLevelDomain
     Properties:
       Name: !Ref DomainName
+      HostedZoneTags:
+        - Key: Service
+          Value: !Ref 'AWS::StackName'
+
+  TestDomain:
+    Type: 'AWS::Route53::HostedZone'
+    Properties:
+      Name: !Join ['.', ['test', !Ref DomainName]]
       HostedZoneTags:
         - Key: Service
           Value: !Ref 'AWS::StackName'
@@ -518,23 +862,49 @@ Resources:
         - Name: !Ref DomainName
           Type: A
           AliasTarget:
-            HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+            HostedZoneId: 'Z2FDTNDATAQYW2'
             DNSName: !GetAtt WebCache.DomainName
         - Name: !Ref DomainName
           Type: AAAA
           AliasTarget:
-            HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+            HostedZoneId: 'Z2FDTNDATAQYW2'
             DNSName: !GetAtt WebCache.DomainName
         - Name: !Join ['.', ['www', !Ref DomainName]]
           Type: A
           AliasTarget:
-            HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+            HostedZoneId: 'Z2FDTNDATAQYW2'
             DNSName: !GetAtt WebCache.DomainName
         - Name: !Join ['.', ['www', !Ref DomainName]]
           Type: AAAA
           AliasTarget:
-            HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
-            DNSName: !Join ['.', ['www', !Ref DomainName]]
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt WebCache.DomainName
+
+  TestDomainToWebCache:
+    Type: 'AWS::Route53::RecordSetGroup'
+    Properties:
+      HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      RecordSets:
+        - Name: !Join ['.', ['test', !Ref DomainName]]
+          Type: A
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt TestWebCache.DomainName
+        - Name: !Join ['.', ['test', !Ref DomainName]]
+          Type: AAAA
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt TestWebCache.DomainName
+        - Name: !Join ['.', ['www', 'test', !Ref DomainName]]
+          Type: A
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt TestWebCache.DomainName
+        - Name: !Join ['.', ['www', 'test', !Ref DomainName]]
+          Type: AAAA
+          AliasTarget:
+            HostedZoneId: 'Z2FDTNDATAQYW2'
+            DNSName: !GetAtt TestWebCache.DomainName
 
   UploadUser:
     Type: AWS::IAM::User
@@ -564,6 +934,27 @@ Resources:
                   - s3:PutObject
                 Resource:
                   - !Join ['', [!GetAtt WebData.Arn, '/*']]
+        - PolicyName: AccessToTestBucketOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketLocation
+                Resource:
+                  - arn:aws:s3:::*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt TestWebData.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Join ['', [!GetAtt TestWebData.Arn, '/*']]
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
