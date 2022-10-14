@@ -49,14 +49,6 @@ Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
 
 Resources:
-  # Likely no longer need this placeholder, now we're using custom provisioning lambda
-  # UploaderPasswordSecret:
-  #   Type: 'AWS::SecretsManager::Secret'
-  #   Properties:
-  #     Name: !Ref DomainName
-  #     Description: Uploader password for admin lambda
-  #     SecretString: !Ref UploaderPassword
-
   WebData:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -96,6 +88,19 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      # TODO: This notification config is failing, with S3 responding 'invalid parameter' ?? Need to fix so site build can be automatic on config data change
+      #     but for now, can be invoked manually from admin UI.
+      # NotificationConfiguration:
+      #   LambdaConfigurations:
+      #     - Event: 's3:ObjectCreated:*'
+      #       Function: !GetAtt BuildSite.Arn
+      #     - Event: 's3:ObjectRemoved:*'
+      #       Function: !GetAtt BuildSite.Arn
+      #       # Filter:
+      #       #   S3Key:
+      #       #     Rules:
+      #       #       - Name: prefix
+      #       #         Value: 'config/'
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -104,7 +109,7 @@ Resources:
   AdminUiData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'adminUI']]
+      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-ui']]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -142,7 +147,7 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: Limit bucket access to CloudFront
 
-  AdminDataAccess:
+  AdminUiDataAccess:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
@@ -176,7 +181,7 @@ Resources:
               - 's3:GetObject'
             Resource: !Join ['', [!GetAtt TestWebData.Arn, '/*']]
 
-  AdminDataAccessPolicy:
+  AdminUiDataAccessPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref AdminUiData
@@ -185,12 +190,11 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref AdminDataAccess]]
+              AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref AdminUiDataAccess]]
             Action:
               - 's3:GetObject'
             Resource: !Join ['', [!GetAtt AdminUiData.Arn, '/*']]
 
-  ## TODO: Add object expiry for logs buckets - 6 months?
   WebCacheLogs:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -201,6 +205,11 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupRule
+            Status: Enabled
+            ExpirationInDays: 90
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -215,6 +224,11 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupRule
+            Status: Enabled
+            ExpirationInDays: 30
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -264,6 +278,10 @@ Resources:
             DomainName: !GetAtt WebData.DomainName
             S3OriginConfig:
               OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref WebDataAccess]]
+          - Id: AdminUiData
+            DomainName: !GetAtt AdminUiData.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref AdminUiDataAccess]]
         Aliases:
           - !Ref DomainName
           - !Join ['.', ['www', !Ref DomainName]]
@@ -354,6 +372,10 @@ Resources:
             DomainName: !GetAtt TestWebData.DomainName
             S3OriginConfig:
               OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref TestWebDataAccess]]
+          - Id: AdminUiData
+            DomainName: !GetAtt AdminUiData.DomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref AdminUiDataAccess]]
         Aliases:
           - !Join ['.', ['test', !Ref DomainName]]
           - !Join ['.', ['www', 'test', !Ref DomainName]]
@@ -558,10 +580,10 @@ Resources:
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
-      Handler: index.handler
+      Handler: admin.handler
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/AdminUI/autosite-admin.zip'
+        S3Key: 'AutoSite/provision/lambda.zip'
 
   OnAdminVersion:
     Type: AWS::Lambda::Version
@@ -575,7 +597,7 @@ Resources:
       FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'builder']]
       PackageType: Zip
       Runtime: nodejs16.x
-      Role: !GetAtt AdminRole.Arn
+      Role: !GetAtt BuildSiteRole.Arn
       Timeout: 90
       Tags:
         - Key: 'Service'
@@ -585,7 +607,9 @@ Resources:
         Variables:
           siteDomain: !Ref DomainName
           publicBucket: 'braevitae-pub'
-          adminBucket: !Ref AdminData
+          # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
+          #adminBucket: !Ref AdminData
+          adminBucket: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
       Code:
@@ -600,17 +624,17 @@ Resources:
   LambdaInvokeFromAdminPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
-      FunctionName: !GetAtt S3NotificationLambdaFunction.Arn
+      FunctionName: !GetAtt BuildSite.Arn
       Action: 'lambda:InvokeFunction'
       Principal: s3.amazonaws.com
       SourceAccount: !Ref 'AWS::AccountId'
-      SourceArn: !Ref AdminData
+      SourceArn: !GetAtt AdminData.Arn
 
   ProvisionSite:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Provisioning worker that builds the initial site framework'
-      FunctionName: !Join ['-',[!Ref DomainName]],'provisioner']]
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'provisioner']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
@@ -634,10 +658,14 @@ Resources:
     Type: 'Custom::LambdaTrigger'
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
-      SiteBuilderArn: !GetAtt BuildSite.Arn
-      PubilcBucket: 'braevitae-pub'
+      PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
+      WebDataBucket: !Ref WebData
+      TestWebDataBucket: !Ref TestWebData
+      WebLogsBucket: !Ref WebCacheLogs
+      TestWebLogsBucket: !Ref TestWebCacheLogs
+      FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 60
@@ -775,11 +803,23 @@ Resources:
                 - lambda.amazonaws.com
                 - edgelambda.amazonaws.com
                 - events.amazonaws.com
-                - secretsmanager.amazonaws.com
             Action:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+        - PolicyName: AdminDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
         - PolicyName: WebDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -793,6 +833,59 @@ Resources:
                  - 's3:GetObjectTagging'
                  - 's3:PutObjectTagging'
                 Resource: !Join ['', [!GetAtt WebData.Arn, '*']]
+        - PolicyName: TestWebDataRead
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:GetObjectTagging'
+                Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  BuildSiteRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-builder']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AdminDataRead
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:GetObjectTagging'
+                # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
+                #Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
+                Resource: !Join ['', ['arn:aws:s3:::', !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']], '*']]
         - PolicyName: TestWebDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -806,23 +899,6 @@ Resources:
                  - 's3:GetObjectTagging'
                  - 's3:PutObjectTagging'
                 Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
-        - PolicyName: SecretsManager
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'secretsmanager:GetSecretValue'
-                Resource: !Ref UploaderPasswordSecret
-        - PolicyName: S3Trigger
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 's3:GetBucketNotification'
-                  - 's3:PutBucketNotification'
-                Resource: !Ref AdminData
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

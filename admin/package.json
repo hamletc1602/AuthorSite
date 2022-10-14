@@ -25,8 +25,9 @@
     "unzipper": "^0.10.11"
   },
   "bundleDependencies": [
+    "cfn-lambda",
     "s3-sync-client",
-    "unzipper",
-    "mime"
+    "mime",
+    "unzipper"
   ]
 }
