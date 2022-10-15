@@ -1,7 +1,6 @@
 # tmp dir (needs to be inside package for webpack/babel build
-generator/tmp/*
-# Deploy packages
-*.zip
+**/tmp/*
+target/**
 
 # Logs
 logs
