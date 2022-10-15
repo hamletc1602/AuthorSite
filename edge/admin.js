@@ -6,36 +6,32 @@ const maxAgeBrowser = 60 * 60 * 24
 const maxAgeCloudFront = 60
 
 exports.handler = async (event, context) => {
-  // Get site name from function name
-  let functionName = null
-  {
-    if (context.functionName.indexOf('.') !== -1) {
-      const parts = context.functionName.split('.')
-      functionName = parts[1]
-    } else {
-      functionName = context.functionName
-    }
-  }
-
-  const adminBucket = functionName
-  let uploaderPassword = null
-  try {
-    uploaderPassword = (await s3.getObject({ Bucket: adminBucket, Key: 'admin_secret', }).promise()).toString()
-  } catch (error) {
-    console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
-    return {
-      status: '400',
-      statusDescription: 'Missing critical site configuration. See logs.'
-    }
-  }
-
   // Accept new config data posted from client (only if the provided pasword matches the admin PW secret)
   const req = event.Records[0].cf.request
   if (req.method === 'POST') {
     if (req.uri.indexOf('admin') === 0) {
+      // Get site name from function name
+      let functionName = null
+      {
+        if (context.functionName.indexOf('.') !== -1) {
+          const parts = context.functionName.split('.')
+          functionName = parts[1]
+        } else {
+          functionName = context.functionName
+        }
+      }
 
-      // TODO: Move setup above into here, so this function does nothing on GET calls, only POST
-
+      const adminBucket = functionName
+      let uploaderPassword = null
+      try {
+        uploaderPassword = (await s3.getObject({ Bucket: adminBucket, Key: 'admin_secret', }).promise()).toString()
+      } catch (error) {
+        console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
+        return {
+          status: '400',
+          statusDescription: 'Missing critical site configuration. See logs.'
+        }
+      }
 
       if (req.headers.secret !== uploaderPassword) {
         return {
@@ -55,7 +51,10 @@ exports.handler = async (event, context) => {
           ret = uploadResource(parts.join('/'), adminBucket, req)
           break
         default:
-
+          ret = {
+            status: '404',
+            statusDescription: `Unknown admin acion: ${action}`
+          }
       }
       return ret
     } // is admin path

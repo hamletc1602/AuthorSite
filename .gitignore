@@ -1,5 +1,5 @@
 # tmp dir (needs to be inside package for webpack/babel build
-generation/tmp/**
+generator/tmp/*
 # Deploy packages
 *.zip
 

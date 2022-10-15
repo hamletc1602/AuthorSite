@@ -630,6 +630,31 @@ Resources:
       SourceAccount: !Ref 'AWS::AccountId'
       SourceArn: !GetAtt AdminData.Arn
 
+  AdminWorker:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Provisioning worker that builds the initial site framework'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt AdminRole.Arn
+      Timeout: 30
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: index.handler
+      Environment:
+        Variables:
+          siteDomain: !Ref DomainName
+          publicBucket: 'braevitae-pub'
+          adminBucket: !Ref AdminData
+          adminUiBucket: !Ref AdminUiData
+          testSiteBucket: !Ref TestWebData
+          siteBucket: !Ref WebData
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/provision/autosite-admin.zip'
+
   ProvisionSite:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -642,22 +667,18 @@ Resources:
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
-      Handler: index.provision
+      Handler: index.handler
       Environment:
         Variables:
-          siteDomain: !Ref DomainName
-          publicBucket: 'braevitae-pub'
-          adminBucket: !Ref AdminData
-          testSiteBucket: !Ref TestWebData
-          siteBucket: !Ref WebData
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/AdminUI/autosite-admin.zip'
+        S3Key: 'AutoSite/provision/autosite-provisoner.zip'
 
   ProvisionSiteTrigger:
     Type: 'Custom::LambdaTrigger'
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
+      SiteTemplate: 'Author',
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData

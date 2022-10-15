@@ -1,0 +1,20 @@
+<!--
+- Show details of currently deployed site files (Or show there's none)
+  - Original site template name / Pick a template from the list
+  - Create/Update site button (Builds to test site)
+  - Customizations?
+
+- Date of last config change
+- Date last published, and publish status
+- Publish button (Move from test to main site) (This is an overwrite - Irreversible, for now)
+-->
+<p class="properties">
+  {{#display}}
+    <div>{{name}}: {{value}}</div>
+  {{/display}}
+</p>
+<p class="buttons">
+  {{#buttons}}
+    <button id="{{id}}" class="button">{{name}}</button>
+  {{/buttons}}
+</p>
