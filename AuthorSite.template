@@ -529,6 +529,17 @@ Resources:
     Properties:
       FunctionName: !GetAtt OnFeedback.Arn
 
+  StateQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Join ['', [!Join ['-',!Split ['.',!Ref DomainName]], '.fifo']]
+      FifoQueue: true
+      MessageRetentionPeriod: 259200  # 3 Days
+      ReceiveMessageWaitTimeSeconds: 0  # Ensure short polling
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
   FeedbackPublisher:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -546,6 +557,7 @@ Resources:
         Variables:
           BUCKET: !Ref FeedbackData
           TOPIC: !Ref FeedbackTopic
+          stateQueueUrl: !Ref StateQueue
       Code:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/provision/lambda.zip'
@@ -612,6 +624,7 @@ Resources:
           adminBucket: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
+          stateQueueUrl: !Ref StateQueue
       Code:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/builders/authorsite.zip'
@@ -651,6 +664,7 @@ Resources:
           adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
+          stateQueueUrl: !Ref StateQueue
           maxAgeBrowser: 86400
           maxAgeCloudFront: 60
       Code:
@@ -688,7 +702,7 @@ Resources:
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
-      MaxAgeBrowser: 0
+      MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
 
   LambdaRole:
@@ -873,6 +887,16 @@ Resources:
                  - 'lambda:InvokeFunction'
                  - 'lambda:InvokeAsync'
                 Resource: !Join ['', [!Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
+        - PolicyName: StatusQueueAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'sqs:ReceiveMessage'
+                 - 'sqs:SendMessage'
+                 - 'sqs:GetQueueAttributes'
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17
@@ -948,14 +972,6 @@ Resources:
     Condition: TopLevelDomain
     Properties:
       Name: !Ref DomainName
-      HostedZoneTags:
-        - Key: Service
-          Value: !Ref 'AWS::StackName'
-
-  TestDomain:
-    Type: 'AWS::Route53::HostedZone'
-    Properties:
-      Name: !Join ['.', ['test', !Ref DomainName]]
       HostedZoneTags:
         - Key: Service
           Value: !Ref 'AWS::StackName'

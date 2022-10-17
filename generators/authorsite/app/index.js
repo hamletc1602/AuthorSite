@@ -102,14 +102,21 @@ const handler = async (event, context) => {
       config.debug = true
     }
 
-    // When in AWS, copy all site template files from S3 to the local disk
+    // When in AWS, will need to:
+    // - copy all site template files from S3 to the local disk before build
+    // - Send status updates to the status queue (SQS)
+    // - copy all site template files from local disk back to S3 (Test site) after build
     if (context) {
       const AWS = require('aws-sdk');
       const S3Sync = require('s3-sync-client')
       const s3 = new AWS.S3();
       const { TransferMonitor } = require('s3-sync-client');
+
+      var sqs = new AWS.SQS();
+
       const mime = require('mime');
       const s3SyncClient = new S3Sync({ client: s3Client })
+
       const monitor = new TransferMonitor();
       let prevP = null
       monitor.on('progress', p => {

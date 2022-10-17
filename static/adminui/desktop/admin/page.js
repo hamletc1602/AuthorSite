@@ -1,5 +1,6 @@
 let authSecret = null
 let lastETag = null
+let maxPollingLoopCount = 30  // Default refresh each 30s
 
 onload = function() {
   // Event handlers
@@ -8,10 +9,25 @@ onload = function() {
   }
   //
   refresh('admin')
-  // Attempt to refresh all page sections every second
+  // Variable speed page refresh
+  let pollLoopCount = 0
   setInterval(function() {
-    refresh('admin')
-  }, 3000)
+    if (pollLoopCount >= maxPollingLoopCount) {
+      refresh('admin')
+      pollLoopCount = 0
+    }
+    ++pollLoopCount
+  }, 1000)
+}
+
+/** Start refresh each second */
+function startFastPolling() {
+  maxPollingLoopCount = 1
+}
+
+/** Return to refresh each 30 seconds */
+function endFastPolling() {
+  maxPollingLoopCount = 30
 }
 
 /** refresh one dynamic section of the page. */
