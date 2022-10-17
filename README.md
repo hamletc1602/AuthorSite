@@ -78,3 +78,7 @@ Deleting the stack will fail until all buckets are empty.
 ### Temporary Failure deleting Lambda functions
 
 The first attempt to delete the stack will likely fail, since AWS holds on to Lambda functions that have been part of a Lambda@Edge, even though the @Edge regisration has been deleted already. When this happens, simply wait about an hour and delete the stack again. It should succeed this time.
+
+### Diagram of the Stack
+(Some resources exlcluded for clarity)
+![Diagram](vizualization/AuthorSite.template.png)
