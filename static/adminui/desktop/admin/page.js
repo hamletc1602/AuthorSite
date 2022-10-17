@@ -11,7 +11,7 @@ onload = function() {
   // Attempt to refresh all page sections every second
   setInterval(function() {
     refresh('admin')
-  }, 1000)
+  }, 3000)
 }
 
 /** refresh one dynamic section of the page. */
@@ -55,7 +55,7 @@ function sendCommand(id, name, params) {
     headers: new Headers({
       'Authorization': 'BASIC ' + btoa('admin:' + authSecret)
     }),
-    body: JSON.stringify(body)
+    body: JSON.stringify(params)
   }).then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);

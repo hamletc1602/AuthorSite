@@ -651,6 +651,8 @@ Resources:
           adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
+          maxAgeBrowser: 86400
+          maxAgeCloudFront: 60
       Code:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/provision/autosite-admin.zip'
@@ -686,8 +688,8 @@ Resources:
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
-      MaxAgeBrowser: 86400
-      MaxAgeCloudFront: 60
+      MaxAgeBrowser: 0
+      MaxAgeCloudFront: 0
 
   LambdaRole:
     Type: 'AWS::IAM::Role'
@@ -870,7 +872,7 @@ Resources:
                 Action:
                  - 'lambda:InvokeFunction'
                  - 'lambda:InvokeAsync'
-                Resource: !Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function:', !Join ['-',!Split ['.',!Ref DomainName]], '*']]
+                Resource: !Join ['', [!Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

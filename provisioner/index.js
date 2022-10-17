@@ -95,13 +95,13 @@ const cfnDeleteHandler = async (requestId, params) => {
 
 /** Delete all objects from the named bucket. */
 const deleteAllObjectsFromBucket = async (s3, bucketName) => {
-  const data = await s3.listObjects({ Bucket: bucketName });
+  const data = await s3.listObjects({ Bucket: bucketName }).promise();
   let objects = data.Contents;
   await Promise.all(objects.map(obj => {
     return s3.deleteObject({
       Bucket: bucketName,
       Key: obj.Key,
-    })
+    }).promise()
   }))
 }
 

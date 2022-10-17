@@ -1,10 +1,14 @@
 const AWS = require('aws-sdk');
 
 const s3 = new AWS.S3();
-const lambda = new AWS.Lambda({ region: process.env.AWS_REGION });
+const targetRegion = 'us-east-1'
+const lambda = new AWS.Lambda({ region: targetRegion });
 
+/**
+  - Add file data received from the client to the admin bucket.
+  - Forward admin actions to backend worker lambdas.
+*/
 exports.handler = async (event, context) => {
-  // Accept new config data posted from client (only if the provided pasword matches the admin PW secret)
   //console.log('Event: ' + JSON.stringify(event))
   const req = event.Records[0].cf.request
   console.log(`Method: ${req.method}, URI: ${req.uri}`)
@@ -22,14 +26,15 @@ exports.handler = async (event, context) => {
       }
       console.log(`POST request recieved. Func name: ${functionName}`)
 
-      // Get the lambda function ARN prefix, so we cna use it to construct ARNs for other lambdas to invoke
+      // Get the lambda function ARN prefix, so we can use it to construct ARNs for other lambdas to invoke
       // Eg. arn:aws:lambda:us-east-1:376845798252:function:demo2-braevitae-com- ...
       // NOTE: This code assumes the specific part of the name of this lambda has no '-' in it!
       let arnPrefix = null
       {
-        const parts = context.invokedFunctionArn.split("-")
+        const awsAccountId = context.invokedFunctionArn.split(':')[4]
+        const parts = functionName.split('-')
         parts.pop()
-        arnPrefix = parts.join('-')
+        arnPrefix = `arn:aws:lambda:${targetRegion}:${awsAccountId}:function:${parts.join('-')}`
       }
 
       const adminBucket = functionName
