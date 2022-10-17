@@ -1,40 +1,47 @@
 #!/bin/bash
 wdir=$(pwd)
 
-# package admin worker lambda
+# Initial build machine setup:
+# npm i handlebars -g
+
+echo clean old target files
+rm -rf target/AutoSite/provision/*
+rm -rf target/AutoSite/builders/*
+
+echo package admin worker lambda
 cd admin
 npm i >/dev/null
 npm run pack >/dev/null
 mv autosite-admin.zip $wdir/target/AutoSite/provision
 cd $wdir
 
-# package provisioner plugin lambda
+echo package provisioner plugin lambda
 cd provisioner
 npm i >/dev/null
 npm run pack >/dev/null
 mv autosite-provisioner.zip $wdir/target/AutoSite/provision
 cd $wdir
 
-# Package edge lambdas
+echo Package edge lambdas
 cd edge
-zip -qr $wdir/target/AutoSite/provision/lambdas.zip *
+zip -qr $wdir/target/AutoSite/provision/lambda.zip *
 cd $wdir
 
-# package site generator lambda
+echo package site generator lambda
 cd generators/authorsite
 npm i >/dev/null
 npm run pack >/dev/null
 mv authorsite.zip $wdir/target/AutoSite/builders
 cd $wdir
 
-# Compile UI templates into admin UI source
-handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/desktop/admin.handlebars.js
-#handlebars static/admin/templates/mobile/admin.handlebars -f static/adminui/mobile/admin.handlebars.js
+echo Compile UI templates into admin UI source
+handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/desktop/admin/admin.handlebars.js
+#handlebars static/admin/templates/mobile/admin.handlebars -f static/adminui/mobile/admin/admin.handlebars.js
 
-# Package admin UI files
+echo Package admin UI files
 cd static/adminui
 zip -qr $wdir/target/AutoSite/provision/adminui.zip *
 cd $wdir
 
-# Copy CFN provisioning template
+echo Copy CFN provisioning template
 cp AuthorSite.template target/AutoSite

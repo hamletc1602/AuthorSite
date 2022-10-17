@@ -1,6 +1,9 @@
+# All target files
+target/**
 # tmp dir (needs to be inside package for webpack/babel build
 **/tmp/*
-target/**
+# Handlebars compiled templates
+**/*.handlebars.js
 
 # Logs
 logs

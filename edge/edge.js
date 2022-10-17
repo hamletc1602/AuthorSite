@@ -1,25 +1,29 @@
 //
 exports.onCache = async (event, context) => {
-    const cf = event.Records[0].cf;
-    const request = cf.request;
-    let suffix = '.html';
-    // If the path already contains a '.', use default behaviour.'
-    if (request.uri === '/' || request.uri.indexOf('.') !== -1) {
-        suffix = '';
-    }
-    let typeDir = 'desktop';
+  const cf = event.Records[0].cf;
+  const request = cf.request;
+  let suffix = '.html';
+  // If the path already contains a '.', use default behaviour.'
+  if (request.uri === '/' || request.uri.indexOf('.') !== -1) {
+      suffix = '';
+  }
+  let typeDir = '';
+  // If path ends in .json (data file) skip mobile/desktop switch
+  if (request.uri.indexOf('.json') !== request.uri.length - 5) {
+    typeDir = '/desktop';
     if (request.headers) {
       console.log(`Context: ${JSON.stringify(request.headers)}`)
         const mobileHeader = request.headers['cloudfront-is-mobile-viewer'];
         if (mobileHeader && mobileHeader[0] && mobileHeader[0].value) {
             if (mobileHeader[0].value === 'true') {
-              typeDir = 'mobile';
+              typeDir = '/mobile';
             }
         }
     }
-    request.uri = '/' + typeDir + request.uri + suffix;
-    return request;
-  };
+  }
+  request.uri = typeDir + request.uri + suffix;
+  return request;
+};
 
 //
 exports.onAzn = async (event, context) => {
@@ -47,8 +51,7 @@ exports.onAzn = async (event, context) => {
         }
       }
   }
-
-return request;
+  return request;
 };
 
 // Map GeoIP Country code to Amazon URL top level domain.

@@ -329,7 +329,7 @@ Resources:
               - EventType: viewer-request
                 LambdaFunctionARN: !Ref OnFeedbackVersion
                 IncludeBody: true
-          - PathPattern: admin*
+          - PathPattern: admin/*
             AllowedMethods:
               - DELETE
               - GET
@@ -423,7 +423,7 @@ Resources:
               - EventType: viewer-request
                 LambdaFunctionARN: !Ref OnFeedbackVersion
                 IncludeBody: true
-          - PathPattern: admin*
+          - PathPattern: admin/*
             AllowedMethods:
               - DELETE
               - GET
@@ -668,17 +668,15 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
       Handler: index.handler
-      Environment:
-        Variables:
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/autosite-provisoner.zip'
+        S3Key: 'AutoSite/provision/autosite-provisioner.zip'
 
   ProvisionSiteTrigger:
     Type: 'Custom::LambdaTrigger'
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
-      SiteTemplate: 'Author',
+      SiteTemplate: 'Author'
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
@@ -864,6 +862,15 @@ Resources:
                  - 's3:ListBucket'
                  - 's3:GetObjectTagging'
                 Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: InvokeWorkerLambdas
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'lambda:InvokeFunction'
+                 - 'lambda:InvokeAsync'
+                Resource: !Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function:', !Join ['-',!Split ['.',!Ref DomainName]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

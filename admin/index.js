@@ -11,6 +11,7 @@ const s3 = new AWS.S3();
 */
 exports.handler = async (event, context) => {
   //
+  const publicBucket = process.env.publicBucket
   const adminBucket = process.env.adminBucket
   const adminUiBucket = process.env.adminUiBucket
   const siteBucket = process.env.siteBucket
@@ -23,21 +24,21 @@ exports.handler = async (event, context) => {
       const parts = req.uri.split('/')
       parts.shift() // admin
       const action = parts.shift()
-      let ret = null
-      switch (action) {
-        case 'deploy':
-          ret = await deploySite(parts.join('/'), testSiteBucket, siteBucket)
-          break
-        case 'refreshUi':
-          ret = await compileUiTemplates(parts.join('/'), adminBucket, adminUiBucket)
-          break
-        default:
-          ret = {
-            status: '404',
-            statusDescription: `Unknown admin acion: ${action}`
-          }
+      if (action === 'command') {
+        const command = parts.shift()
+        let ret = null
+        switch (command) {
+          case 'publish':
+            ret = await deploySite(parts.join('/'), testSiteBucket, siteBucket)
+            break
+          default:
+            ret = {
+              status: '404',
+              statusDescription: `Unknown admin acion: ${action}`
+            }
+        }
+        return ret
       }
-      return ret
     }
   }
   return req
@@ -46,27 +47,4 @@ exports.handler = async (event, context) => {
 /** Copy entire Test site to Live Site. */
 const deploySite = async (path, testSiteBucket, siteBucket) => {
   // Sync all test site files to prod site, deleting missing files (Full overwrite)
-}
-
-/** Compile the UI precompiled templates from admin bucket template code and save them to the UI bucket. */
-const compileUiTemplates = async (path, adminBucket, adminUiBucket) => {
-  try {
-    compileTemplate(adminBucket, adminUiBucket, 'desktop/admin')
-    compileTemplate(adminBucket, adminUiBucket, 'mobile/admin')
-    return {
-      status: '200',
-      statusDescription: `Refresh UI Success`
-    }
-  } catch (error) {
-    return {
-      status: '500',
-      statusDescription: `Refresh UI failed: ${JSON.stringify(error)}`
-    }
-  }
-}
-
-const compileTemplate = async (adminBucket, uiBucket, templateName) => {
-  const tpl = await s3.getObject({ Bucket: adminBucket, Key: `templates/${templateName}.handlebars` }).promise()
-  const pre = Handlebars.precompile(desktopTpl);
-  await s3.putObject({ Bucket: uiBucket, Key: `${templateName}.handlebars.js`, Body: Buffer.from(pre) }).promise()
 }

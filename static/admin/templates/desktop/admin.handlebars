@@ -15,6 +15,12 @@
 </p>
 <p class="buttons">
   {{#buttons}}
-    <button id="{{id}}" class="button">{{name}}</button>
+    <button id="admin-cmd-{{id}}" class="button">{{name}}</button>
   {{/buttons}}
 </p>
+<script>
+  // Register command handlers for all buttons. They call a global function defined in page.js.
+  {{#buttons}}
+    document.getElementById('admin-cmd-{{id}}').onclick = function(ev) { sendCommand('admin-cmd-{{id}}', '{{id}}') }
+  {{/buttons}}
+</script>
