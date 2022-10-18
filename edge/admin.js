@@ -185,7 +185,9 @@ exports.handler = async (event, context) => {
           await s3.putObject({
             Bucket: adminUiBucket,
             Key: 'admin/admin.json',
-            Body: Buffer.from(JSON.stringify(state))
+            Body: Buffer.from(JSON.stringify(state)),
+            CacheControl: 'no-cache,s-maxage=0',
+            ContentType: 'application/json',
           }).promise()
 
           console.log(`Delete ${sqsResp.Messages.length} merged messages`)
