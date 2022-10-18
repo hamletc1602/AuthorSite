@@ -1,26 +1,38 @@
-<!--
-- Show details of currently deployed site files (Or show there's none)
-  - Original site template name / Pick a template from the list
-  - Create/Update site button (Builds to test site)
-  - Customizations?
-
-- Date of last config change
-- Date last published, and publish status
-- Publish button (Move from test to main site) (This is an overwrite - Irreversible, for now)
--->
+<p class="display">
+  {{#with display}}
+    <div><span class="header">Generate</span>: <span>{{#if building}}{{/if}}</span></div>
+    <div><span class="header">Publish</span>: <span>{{#if deploying}}Publishing file {{deployFileCurrent}} of {{deployFileTotal}}{{/if}}</span></div>
+  {{/with}}
+</p>
 <p class="properties">
-  {{#display}}
+  {{#each properties}}
     <div>{{name}}: {{value}}</div>
-  {{/display}}
+  {{/each}}
 </p>
 <p class="buttons">
-  {{#buttons}}
+  {{#each buttons}}
     <button id="admin-cmd-{{id}}" class="button">{{name}}</button>
-  {{/buttons}}
+  {{/each}}
+</p>
+<p class="logs build">
+  <h3>Generator Log</h3>
+  {{#with logs}}
+    {{#each build}}
+      <div>{{msg}}</div>
+    {{/each}}
+  {{/with}}
+</p>
+<p class="logs publish">
+  <h3>Publisher Log</h3>
+  {{#with logs}}
+    {{#each deploy}}
+      <div>{{msg}}</div>
+    {{/each}}
+  {{/with}}
 </p>
 <script>
   // Register command handlers for all buttons. They call a global function defined in page.js.
-  {{#buttons}}
+  {{#each buttons}}
     document.getElementById('admin-cmd-{{id}}').onclick = function(ev) { sendCommand('admin-cmd-{{id}}', '{{id}}') }
-  {{/buttons}}
+  {{/each}}
 </script>

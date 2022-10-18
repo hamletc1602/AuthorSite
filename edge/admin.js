@@ -16,7 +16,7 @@ let stateCache = null
   - Forward admin actions to backend worker lambdas.
 */
 exports.handler = async (event, context) => {
-  //console.log('Event: ' + JSON.stringify(event))
+  console.log('Event: ' + JSON.stringify(event))
   const req = event.Records[0].cf.request
   console.log(`Method: ${req.method}, URI: ${req.uri}`)
 
@@ -37,6 +37,7 @@ exports.handler = async (event, context) => {
   }
   console.log(`Method: ${req.method}, Func name: ${functionName}, Root name: ${rootName}`)
   const adminBucket = functionName
+  const adminUiBucket = adminBucket + '-ui'
 
   // POST Handling
   if (req.method === 'POST') {
@@ -129,65 +130,80 @@ exports.handler = async (event, context) => {
         //     in sets a flag to disable state updates for the other one, and other Admin is set to read-only mode??)
         let state = stateCache
         if ( ! state) {
-          console.log('Using cached state.')
-          state = await s3.getObject({ Bucket: adminBucket, Key: 'admin/admin.json' }).promise().Body.toString()
+          console.log('Get state from bucket')
+          const resp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
+          const stateStr = resp.Body.toString()
+          state = JSON.parse(stateStr)
         }
 
-        // Clean up any old (>24 hours) log messages across all logs
-        Object.keys(state.logs).forEach(key => {
-          const log = state.logs[key]
-          const currMs = Date.now()
-          const msgCount = log.messages.length
-          log.messages = log.messages.filter(msg => {
-            return (currMs - msg.time) < MSin24Hours
+        console.log(`Clean up any old (>24 hours) log messages across all logs.`)
+        console.log(`State: ${JSON.stringify(state)}`)
+        if (state.logs) {
+          Object.keys(state.logs).forEach(key => {
+            const log = state.logs[key]
+            const currMs = Date.now()
+            const msgCount = log.length
+            state.logs[key] = log.filter(msg => {
+              return (currMs - msg.time) < MSin24Hours
+            })
+            const cleaned = msgCount - log.length
+            if (cleaned > 0) {
+              console.log(`Cleaned ${cleaned} messages from ${key} log.`)
+            }
           })
-          const cleaned = msgCount - log.messages.length
-          if (cleaned > 0) {
-            console.log(`Cleaned ${cleaned} messages from ${key} log.`)
-          }
-        })
+        }
 
-        // Get all messages from the status queue
+        console.log(`Get all messages from the status queue: ${stateQueueUrl}`)
         const sqsResp = await sqs.receiveMessage({
           QueueUrl: stateQueueUrl,
           AttributeNames: ['ApproximateNumberOfMessages'],
           MaxNumberOfMessages: 10,
-          MessageAttributeNames: 'All'
+          MessageAttributeNames: ['All']
           //VisibilityTimeout: 'NUMBER_VALUE', // Assuming these will default to the queue settings? If not, may need to set them explicitly?
           //WaitTimeSeconds: 'NUMBER_VALUE'
         }).promise()
+        if (sqsResp.Messages) {
+          console.log(`Received ${sqsResp.Messages.length} messages.`)
+          sqsResp.Messages.forEach(msg => {
+            let msgObj = null
+            try {
+              msgObj = JSON.parse(msg.Body)
+            } catch(error) {
+              console.log('Failed to parse message: ' + msg.Body + ' Error: ' + JSON.stringify(error))
+            }
+            try {
+              mergeState(state, msgObj)
+            } catch(error) {
+              console.log('Failed to merge message. Error: ' + JSON.stringify(error))
+            }
+          })
 
-        // Combine the current json + new messages into a current state representation.
-        console.log(`Merge ${sqsResp.messages.length} new messages into state.`)
-        sqsResp.Messages.forEach(msg => {
-          mergeState(state, msg)
-        })
+          // Update global cache
+          stateCache = state
 
-        // Update global cache
-        stateCache = state
+          console.log(`Save the state (admin.json)`)
+          await s3.putObject({
+            Bucket: adminUiBucket,
+            Key: 'admin/admin.json',
+            Body: Buffer.from(JSON.stringify(state))
+          }).promise()
 
-        // Save the state (admin.json)
-        await s3.putObject({
-          Bucket: adminBucket,
-          Key: 'admin/admin.json',
-          Body: Buffer.from(state, 'base64').toString()
-        }).promise()
-
-        // Delete merged messages
-        const msgsForDelete = sqsResp.Messages.map(msg => {
-          return {
-            Id: msg.MessageId,
-            ReceiptHandle: msg.ReceiptHandle
+          console.log(`Delete ${sqsResp.Messages.length} merged messages`)
+          const msgsForDelete = sqsResp.Messages.map(msg => {
+            return {
+              Id: msg.MessageId,
+              ReceiptHandle: msg.ReceiptHandle
+            }
+          })
+          const deleteResp = await sqs.deleteMessageBatch({
+            QueueUrl: stateQueueUrl,
+            Entries: msgsForDelete
+          }).promise()
+          if (deleteResp.Failed && deleteResp.Failed.length > 0) {
+            console.log(`Failed to delete some processed messages: ${JSON.stringify(deleteResp.Failed)}`)
+          } else {
+            console.log(`Deleted all processed messages.`)
           }
-        })
-        deleteResp = await sqs.deleteMessageBatch({
-          QueueUrl: stateQueueUrl,
-          Entries: msgsForDelete
-        }).promise()
-        if (deleteResp.Failed && deleteResp.Failed.length > 0) {
-          console.log(`Failed to delete some processed messages: ${JSON.stringify(deleteResp.Failed)}`)
-        } else {
-          console.log(`Deleted all processed messages.`)
         }
       } catch(error) {
         const msg = 'Failed to get messages or update status data: ' + JSON.stringify(error)
@@ -209,16 +225,23 @@ const mergeState = (state, message) => {
   //    Log messages will have a current time in MS set when they are generated at the source (time)
   //    And a receipt time (rcptTime) is added here, in case of any major clock differences or processing
   //    hangups.
-  Object.keys(state.logs).forEach(key => {
-    const log = state.logs[key]
-    if (message.logs[key]) {
-      const rcptTime = Date.now()
-      message.logs[key].messages.forEach(logMsg => {
-        logMsg.rcptTime = rcptTime
-        log.messages.push(logMsg)
-      })
-    }
-  })
+  console.log(`Merge into state: ${JSON.stringify(message)}`)
+  if (message.logs) {
+    Object.keys(message.logs).forEach(key => {
+      const log = message.logs[key]
+      if (log) {
+        const rcptTime = Date.now()
+        if ( ! state.logs[key]) {
+          state.logs[key] = []
+        }
+        const stateLog = state.logs[key]
+        log.forEach(logMsg => {
+          logMsg.rcptTime = rcptTime
+          stateLog.push(logMsg)
+        })
+      }
+    })
+  }
   // Display properties
   state.display = Object.assign(state.display, message.display)
 }

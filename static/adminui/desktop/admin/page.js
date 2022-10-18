@@ -45,6 +45,10 @@ function refresh(sectionName) {
         // transform to html and insert into page
         var data = await response.json()
         var template = Handlebars.templates[sectionName]
+        if ( ! (data.display.deploying || data.display.building)) {
+          // If niether deploying or building, turn off fast polling
+          endFastPolling()
+        }
         setInnerHtml(document.getElementById(sectionName + 'Section'), template(data))
       }
     })
@@ -70,12 +74,12 @@ function sendCommand(id, name, params) {
     cache: 'no-cache',
     headers: new Headers({
       'Authorization': 'BASIC ' + btoa('admin:' + authSecret)
-    }),
-    body: JSON.stringify(params)
+    })
   }).then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
     console.log(response.status + ': ' + JSON.stringify(response))
+    startFastPolling()
   })
 }

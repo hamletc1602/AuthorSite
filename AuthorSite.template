@@ -896,7 +896,8 @@ Resources:
                  - 'sqs:ReceiveMessage'
                  - 'sqs:SendMessage'
                  - 'sqs:GetQueueAttributes'
-                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
+                 - 'sqs:DeleteMessage'
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

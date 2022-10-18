@@ -1,0 +1,106 @@
+{
+    "Records": [
+        {
+            "cf": {
+                "config": {
+                    "distributionDomainName": "d1wa3pk2shj6xt.cloudfront.net",
+                    "distributionId": "EF62F3DNBHFJQ",
+                    "eventType": "viewer-request",
+                    "requestId": "JkG2vEtQaMGczlwV7Doc90b2zma9Nzc-x7YANoRHYnfrC1GEszrOBg=="
+                },
+                "request": {
+                    "body": {
+                        "action": "read-only",
+                        "data": "",
+                        "encoding": "base64",
+                        "inputTruncated": false
+                    },
+                    "clientIp": "68.146.48.142",
+                    "headers": {
+                        "host": [
+                            {
+                                "key": "Host",
+                                "value": "demo2.braevitae.com"
+                            }
+                        ],
+                        "user-agent": [
+                            {
+                                "key": "User-Agent",
+                                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36"
+                            }
+                        ],
+                        "sec-ch-ua": [
+                            {
+                                "key": "sec-ch-ua",
+                                "value": "\"Chromium\";v=\"104\", \" Not A;Brand\";v=\"99\", \"Google Chrome\";v=\"104\""
+                            }
+                        ],
+                        "dnt": [
+                            {
+                                "key": "DNT",
+                                "value": "1"
+                            }
+                        ],
+                        "sec-ch-ua-mobile": [
+                            {
+                                "key": "sec-ch-ua-mobile",
+                                "value": "?0"
+                            }
+                        ],
+                        "sec-ch-ua-platform": [
+                            {
+                                "key": "sec-ch-ua-platform",
+                                "value": "\"macOS\""
+                            }
+                        ],
+                        "accept": [
+                            {
+                                "key": "Accept",
+                                "value": "*/*"
+                            }
+                        ],
+                        "sec-fetch-site": [
+                            {
+                                "key": "Sec-Fetch-Site",
+                                "value": "same-origin"
+                            }
+                        ],
+                        "sec-fetch-mode": [
+                            {
+                                "key": "Sec-Fetch-Mode",
+                                "value": "cors"
+                            }
+                        ],
+                        "sec-fetch-dest": [
+                            {
+                                "key": "Sec-Fetch-Dest",
+                                "value": "empty"
+                            }
+                        ],
+                        "referer": [
+                            {
+                                "key": "Referer",
+                                "value": "https://demo2.braevitae.com/admin/index"
+                            }
+                        ],
+                        "accept-encoding": [
+                            {
+                                "key": "Accept-Encoding",
+                                "value": "gzip, deflate, br"
+                            }
+                        ],
+                        "accept-language": [
+                            {
+                                "key": "Accept-Language",
+                                "value": "en,en-US;q=0.9,fr;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5"
+                            }
+                        ]
+                    },
+                    "method": "GET",
+                    "querystring": "",
+                    "uri": "/admin/admin.json"
+                }
+            }
+        }
+    ]
+}

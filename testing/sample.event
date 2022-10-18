@@ -1,0 +1,14 @@
+{
+    "time": 1666051061373,
+    "display": {
+        "deploying": true
+    },
+    "logs": {
+        "deploy": [
+            {
+                "time": 1666051061373,
+                "msg": "Deploy started."
+            }
+        ]
+    }
+}

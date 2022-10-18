@@ -27,12 +27,13 @@ cd edge
 zip -qr $wdir/target/AutoSite/provision/lambda.zip *
 cd $wdir
 
-echo package site generator lambda
-cd generators/authorsite
-npm i >/dev/null
-npm run pack >/dev/null
-mv authorsite.zip $wdir/target/AutoSite/builders
-cd $wdir
+echo SKIP site gerator packaging, for now.
+# echo package site generator lambda
+# cd generators/authorsite
+# npm i >/dev/null
+# npm run pack >/dev/null
+# mv authorsite.zip $wdir/target/AutoSite/builders
+# cd $wdir
 
 echo Compile UI templates into admin UI source
 handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/desktop/admin/admin.handlebars.js

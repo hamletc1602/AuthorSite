@@ -1,0 +1,15 @@
+{
+    "template": "Author",
+    "display": {},
+    "logs": {},
+    "properties": [],
+    "buttons": [{
+      "id": "build",
+      "name": "Create Site",
+      "enabled": true
+    },{
+      "id": "publish",
+      "name": "Publish",
+      "enabled": false
+    }]
+}

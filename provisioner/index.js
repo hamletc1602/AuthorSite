@@ -33,8 +33,9 @@ const cfnCreateHandler = async (params) => {
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
         template: params.SiteTemplate,
-        properties: [{
-        }],
+        display: {},
+        logs: {},
+        properties: [],
         buttons: [{
           id: 'build',
           name: 'Create Site',
@@ -95,14 +96,20 @@ const cfnDeleteHandler = async (requestId, params) => {
 
 /** Delete all objects from the named bucket. */
 const deleteAllObjectsFromBucket = async (s3, bucketName) => {
-  const data = await s3.listObjects({ Bucket: bucketName }).promise();
-  let objects = data.Contents;
-  await Promise.all(objects.map(obj => {
-    return s3.deleteObject({
-      Bucket: bucketName,
-      Key: obj.Key,
-    }).promise()
-  }))
+  try {
+    const data = await s3.listObjects({ Bucket: bucketName }).promise();
+    console.log('List bucket result: ' + JSON.stringify(data))
+    let objects = data.Contents;
+    await Promise.all(objects.map(obj => {
+      console.log('Each list result: ' + JSON.stringify(obj))
+      return s3.deleteObject({
+        Bucket: bucketName,
+        Key: obj.Key,
+      }).promise()
+    }))
+  } catch(error) {
+    console.log(`Failed to delete contents of ${bucketName}: ${JSON.stringify(error)}`)
+  }
 }
 
 exports.handler = CfnLambda({
