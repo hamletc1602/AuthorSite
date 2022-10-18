@@ -1,3 +1,6 @@
+# Install:
+# npm i -g @mhlabs/cfn-diagram
+
 cfn-dia draw.io -c -t AuthorSite.template -o vizualization/AuthorSite.template.drawio \
 --exclude-types 'AWS::CloudFront::CloudFrontOriginAccessIdentity' 'AWS::Lambda::Version' 'Custom::LambdaTrigger'
 
