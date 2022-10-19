@@ -602,6 +602,19 @@ Resources:
     Properties:
       FunctionName: !GetAtt OnAdmin.Arn
 
+  BuildSiteNMLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'build-site']]
+      Description: Node Modules dir for build site lambda
+      CompatibleArchitectures:
+        - 'x86_64'
+      CompatibleRuntimes:
+        - 'Node.js 16'
+      Content:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/builders/authorsite.node_modules.layer.zip'
+
   BuildSite:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -628,6 +641,8 @@ Resources:
       Code:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/builders/authorsite.zip'
+      Layers:
+        - !Ref BuildSiteNMLayer
 
   BuildSiteVersion:
     Type: AWS::Lambda::Version
@@ -642,6 +657,19 @@ Resources:
       Principal: s3.amazonaws.com
       SourceAccount: !Ref 'AWS::AccountId'
       SourceArn: !GetAtt AdminData.Arn
+
+  AdminWorkerNMLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      Description: Node Modules dir for admin worker lambda
+      CompatibleArchitectures:
+        - 'x86_64'
+      CompatibleRuntimes:
+        - 'Node.js 16'
+      Content:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/provision/admin.node_modules.layer.zip'
 
   AdminWorker:
     Type: 'AWS::Lambda::Function'
@@ -670,6 +698,8 @@ Resources:
       Code:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/provision/autosite-admin.zip'
+      Layers:
+        - !Ref AdminWorkerNMLayer
 
   ProvisionSite:
     Type: 'AWS::Lambda::Function'

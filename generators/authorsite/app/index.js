@@ -7,6 +7,7 @@ const Style = require('./style')
 const Image = require('./image')
 const Path = require('path')
 const Webpack = require("webpack")
+const { fstat } = require('fs')
 
 const defaultOptions = {
   buildId: Date.now(),
@@ -61,17 +62,22 @@ const handler = async (event, context) => {
     Image.setSkip(options.skipImages);
 
     // load app config and Env. vars that control app state.
-    const appConfig = await Files.loadYaml("conf.yaml")
+    let appConfig = null
+    if (context) {
+      appConfig = await Files.loadYaml("conf.aws.yaml")
+    } else {
+      appConfig = await Files.loadYaml("conf.local.yaml")
+    }
     let configName = null
     let configDebug = null
-  if (context) {
-      configDomain = process.env.domainName
-      configTestDomain = process.env.testDomainName
-      // TODO: This assumes a specific form of domain name. like 'braevitae.com' - generalize this, or make site name and top-level
+    if (context) {
+      // TODO: This assumes a specific form of domain name. like '**.{domain}.*' - generalize this, or make site name and top-level
       // domain separate fields in CloudFormation script?
-      configName = configDomain.split(".")[0]
-      configDebug = process.env.debug
-      } else {
+      const configDomain = process.env.siteDomain
+      const parts = configDomain.split(".")
+      configName = parts[parts.length - 2] // 2nd last element
+      configDebug = process.env.debug //TODO: Will need admin checkbox for debug on/off, and pass it in on build call
+    } else {
       configName = process.env.npm_config_authorsite_site
       configDebug = process.env.npm_config_authorsite_debug
     }
@@ -92,20 +98,7 @@ const handler = async (event, context) => {
 
     console.log(`Using buildId: ${options.buildId}`)
 
-    // The core configuration file that drives the entire generation process
-    const config = await Files.loadJson(confDir + "/conf.json", { build: options.buildId, yyyy: year })
-    config.outputDir = tempDir;
-    config.tempDir = tempDir;
-
-    // Force debug to true in config if it's supplied at runtime
-    if (options.debug || configDebug == 'true') {
-      config.debug = true
-    }
-
-    // When in AWS, will need to:
-    // - copy all site template files from S3 to the local disk before build
-    // - Send status updates to the status queue (SQS)
-    // - copy all site template files from local disk back to S3 (Test site) after build
+    // When in AWS, will need to copy all site template files from S3 to the local disk before build
     if (context) {
       const AWS = require('aws-sdk');
       const S3Sync = require('s3-sync-client')
@@ -114,30 +107,44 @@ const handler = async (event, context) => {
 
       var sqs = new AWS.SQS();
 
+      Files.ensurePath(confDir)
+      Files.ensurePath(outputDir)
+      Files.ensurePath(tempDir)
+
       const mime = require('mime');
-      const s3SyncClient = new S3Sync({ client: s3Client })
+      const s3SyncClient = new S3Sync({ client: s3 })
 
       const monitor = new TransferMonitor();
       let prevP = null
       monitor.on('progress', p => {
-          if (prevP && prevP.count.current !== p.count.current) {
-              console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
-          }
-          prevP = p
+        if (prevP && prevP.count.current !== p.count.current) {
+            console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
+        }
+        prevP = p
       });
       try {
-          const syncConfig = {
-              monitor: monitor,
-              del: true, // Delete dest objects if source deleted.
-              maxConcurrentTransfers: 16,
-          }
-          if (options.force !== undefined) {
-              syncConfig.sizeOnly = !options.force
-          }
-          await s3SyncClient.sync('s3://braevitae-pub/AutoSite/site-config/' + configName, confDir, syncConfig);
+        const syncConfig = {
+            monitor: monitor,
+            del: true, // Delete dest objects if source deleted.
+            maxConcurrentTransfers: 16,
+        }
+        if (options.force !== undefined) {
+            syncConfig.sizeOnly = !options.force
+        }
+        await s3SyncClient.sync('s3://braevitae-pub/AutoSite/site-config/' + configName, confDir, syncConfig);
       } catch (e) {
           console.error(`Website config sync failed: ${JSON.stringify(e)}`)
       }
+    }
+
+    // The core configuration file that drives the entire generation process
+    const config = await Files.loadJson(confDir + "/conf.json", { build: options.buildId, yyyy: year })
+    config.outputDir = tempDir;
+    config.tempDir = tempDir;
+
+    // Force debug to true in config if it's supplied at runtime
+    if (options.debug || configDebug == 'true') {
+      config.debug = true
     }
 
     // Resolve file refs for conf after local is applied, but before enccoding and loading
@@ -162,47 +169,49 @@ const handler = async (event, context) => {
       const files = await mergeToOutput(tempDir, Path.join(outputDir, type))
       const filesUpdated = files.filter(file => file.updated)
       console.log(`${filesUpdated.length} Files merged to output`)
-    }
 
-    // Push completed build back to S3 (Test site)
-    if (context) {
-      const AWS = require('aws-sdk');
-      const s3 = new AWS.S3();
-      const { TransferMonitor } = require('s3-sync-client');
-      const mime = require('mime');
-      const s3SyncClient = new S3Sync({ client: s3Client })
-      const monitor = new TransferMonitor();
-      let prevP = null
-      monitor.on('progress', p => {
-          if (prevP && prevP.count.current !== p.count.current) {
-              console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
-          }
-          prevP = p
-      });
-      try {
+      // Push completed build back to S3 (Test site)
+      if (context) {
+        const AWS = require('aws-sdk');
+        const s3 = new AWS.S3();
+        const S3Sync = require('s3-sync-client')
+        const { TransferMonitor } = require('s3-sync-client');
+        const mime = require('mime');
+        const s3SyncClient = new S3Sync({ client: s3 })
+        const monitor = new TransferMonitor();
+        let prevP = null
+        monitor.on('progress', p => {
+            if (prevP && prevP.count.current !== p.count.current) {
+                console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
+            }
+            prevP = p
+        });
+        try {
           const syncConfig = {
-              monitor: monitor,
-              del: true, // Delete dest objects if source deleted.
-              maxConcurrentTransfers: 16,
-              commandInput: {
-                  ACL: 'private',
-                  CacheControl: `max-age=${config.deploy.maxAgeBrowser},s-maxage=${config.deploy.maxAgeCloudFront}`,
-                  ContentType: (input) => {
-                      const type = mime.getType(input.Key) || 'text/html'
-                      console.log(`Upload file: ${input.Key} as type ${type}`)
-                      return type
-                  },
+            monitor: monitor,
+            del: true, // Delete dest objects if source deleted.
+            maxConcurrentTransfers: 16,
+            commandInput: {
+              ACL: 'private',
+              CacheControl: `max-age=${config.deploy.maxAgeBrowser},s-maxage=${config.deploy.maxAgeCloudFront}`,
+              ContentType: (input) => {
+                const type = mime.getType(input.Key) || 'text/html'
+                console.log(`Upload file: ${input.Key} as type ${type}`)
+                return type
               },
-              filters: [
-                  { exclude: (key) => { key.indexOf('.DS_Store.') !== -1 } }
-              ]
+            },
+            filters: [
+              { exclude: (key) => { key.indexOf('.DS_Store.') !== -1 } }
+            ]
           }
           if (options.force !== undefined) {
-              syncConfig.sizeOnly = !options.force
+            syncConfig.sizeOnly = !options.force
           }
-          await s3SyncClient.sync(outputDir, 's3://' + configTestDomain, syncConfig);
-      } catch (e) {
-          console.error(`Website sync failed: ${JSON.stringify(e)}`)
+          const testSiteBucket = process.env.testSiteBucket
+          await s3SyncClient.sync(outputDir, `s3://${testSiteBucket}/${type}`, syncConfig);
+        } catch (e) {
+            console.error(`Website sync failed: ${JSON.stringify(e)}`)
+        }
       }
     }
 

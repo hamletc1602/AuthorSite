@@ -4,6 +4,8 @@ target/**
 **/tmp/*
 # Handlebars compiled templates
 **/*.handlebars.js
+# Zip files in general
+**/*.zip
 
 # Logs
 logs

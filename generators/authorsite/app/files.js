@@ -8,7 +8,6 @@ const StripHtmlComments = require('strip-html-comments')
 const Md5File = require("md5-file")
 const Yaml = require('yaml');
 const fileCompare = require('filecompare');
-const { compare } = require('filecompare/lib');
 
 const compareReadSize = 4096;
 const compareBufferSize = 8192;
@@ -27,7 +26,7 @@ exports.loadJson = (filepath, config) => {
         reject(err)
       } else {
         try {
-          //console.debug("Load template: " + filepath)
+          // console.debug("Load template: " + filepath)
           content = StripJsonComments(content)
           Delimiters(Handlebars, ['{%', '%}'])
           if (config) {
@@ -54,7 +53,7 @@ exports.loadLargeData = (filepath, config) => {
         reject(err)
       } else {
         try {
-          //console.log("Load template: " + filepath)
+          // console.log("Load template: " + filepath)
           Delimiters(Handlebars, ['{%', '%}'])
           if (config) {
             // If config is provied, treat the file as a template

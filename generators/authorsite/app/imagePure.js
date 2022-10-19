@@ -54,7 +54,7 @@ exports.addOverlay = function(srcImg, overlayImg, vAlign, hAlign) {
         for (let iy = 0; iy < overlayImg.height; ++iy) {
             const pix = overlayImg.getPixelRGBA_separate(ix, iy);
             if (pix[3] > 0) {
-                destPixSep = mergePixels(pix, srcImg.getPixelRGBA_separate(ix, iy))
+                const destPixSep = mergePixels(pix, srcImg.getPixelRGBA_separate(ix, iy))
                 srcImg.setPixelRGBA_i(ix + startX, iy + startY, destPixSep[0], destPixSep[1], destPixSep[2], destPixSep[3])
             }
         }
