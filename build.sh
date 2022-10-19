@@ -8,6 +8,7 @@ echo clean old target and temp files
 rm -rf target/AutoSite/provision/*
 rm -rf target/AutoSite/builders/*
 rm -rf generators/authorsite/tmp/*
+rm -rf **/node_modules/*
 
 echo package admin worker lambda
 cd admin

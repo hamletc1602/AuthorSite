@@ -688,9 +688,7 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
               loader: 'babel-loader',
               options: {
                 presets: [
-                  "env",
-                  "react",
-                  "stage-2"
+                  "@babel/preset-env", "@babel/preset-react"
                 ]
               }
             }
