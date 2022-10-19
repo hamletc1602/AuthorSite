@@ -11,7 +11,7 @@ rm -rf generators/authorsite/tmp/*
 
 echo package admin worker lambda
 cd admin
-rm -rf node_modules/*
+rm -rf node_modules
 rm -f admin-worker.zip layer.zip
 npm run install-for-aws >/dev/null
 npm run pack >/dev/null
@@ -22,7 +22,7 @@ cd $wdir
 
 echo package provisioner plugin lambda
 cd provisioner
-rm -rf node_modules/*
+rm -rf node_modules
 rm -f provisioner.zip layer.zip
 npm run install-for-aws >/dev/null
 npm run pack >/dev/null
@@ -38,7 +38,7 @@ cd $wdir
 
 echo package site generator lambda
 cd generators/authorsite
-rm -rf node_modules/*
+rm -rf node_modules
 rm -f authorsite.zip layer.zip
 npm run install-for-aws >/dev/null
 npm run pack >/dev/null
