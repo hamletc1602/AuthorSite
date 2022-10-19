@@ -45,6 +45,12 @@ npm run pack >/dev/null
 mv authorsite.zip $wdir/target/AutoSite/builders
 npm run pack-layer >/dev/null
 mv layer.zip $wdir/target/AutoSite/builders/authorsite.layer.zip
+# echo Insert node-saas binding into zip file
+# mkdir -p tmp/node_modules/node-sass/vendor/linux-x64-93
+# cp ../lib/linux-x64-93_binding.node tmp/node_modules/node-sass/vendor/linux-x64-93/binding.node
+# cd tmp
+# zip -r ../authorsite.zip node_modules/*
+# cd ..
 cd $wdir
 
 echo Compile UI templates into admin UI source

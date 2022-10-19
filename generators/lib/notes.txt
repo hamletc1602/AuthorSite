@@ -1,0 +1,2 @@
+Some packages requite OS specific binding files that don't get installed by default when building on different architecture,
+so I'm shimming-in the AWS expected binding file - There's likely a better way to do this? (pass an expected environment flag to NPM??)
