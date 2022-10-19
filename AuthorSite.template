@@ -613,7 +613,7 @@ Resources:
         - 'Node.js 16'
       Content:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/builders/authorsite.node_modules.layer.zip'
+        S3Key: 'AutoSite/builders/authorsite.layer.zip'
 
   BuildSite:
     Type: 'AWS::Lambda::Function'
@@ -669,7 +669,7 @@ Resources:
         - 'Node.js 16'
       Content:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/admin.node_modules.layer.zip'
+        S3Key: 'AutoSite/provision/admin-worker.layer.zip'
 
   AdminWorker:
     Type: 'AWS::Lambda::Function'
@@ -697,9 +697,22 @@ Resources:
           maxAgeCloudFront: 60
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/autosite-admin.zip'
+        S3Key: 'AutoSite/provision/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
+
+  ProvisionerNMLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      Description: Node Modules dir for admin worker lambda
+      CompatibleArchitectures:
+        - 'x86_64'
+      CompatibleRuntimes:
+        - 'Node.js 16'
+      Content:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/provision/provisioner.layer.zip'
 
   ProvisionSite:
     Type: 'AWS::Lambda::Function'
@@ -716,7 +729,9 @@ Resources:
       Handler: index.handler
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/autosite-provisioner.zip'
+        S3Key: 'AutoSite/provision/provisioner.zip'
+      Layers:
+        - !Ref ProvisionerNMLayer
 
   ProvisionSiteTrigger:
     Type: 'Custom::LambdaTrigger'

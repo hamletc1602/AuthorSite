@@ -111,7 +111,6 @@ const handler = async (event, context) => {
       Files.ensurePath(outputDir)
       Files.ensurePath(tempDir)
 
-      const mime = require('mime');
       const s3SyncClient = new S3Sync({ client: s3 })
 
       const monitor = new TransferMonitor();
@@ -124,9 +123,10 @@ const handler = async (event, context) => {
       });
       try {
         const syncConfig = {
-            monitor: monitor,
-            del: true, // Delete dest objects if source deleted.
-            maxConcurrentTransfers: 16,
+          //dryRun: true,
+          monitor: monitor,
+          del: true, // Delete dest objects if source deleted.
+          maxConcurrentTransfers: 16
         }
         if (options.force !== undefined) {
             syncConfig.sizeOnly = !options.force
