@@ -88,30 +88,27 @@ const handler = async (event, context) => {
 
     let year = new Date().getFullYear()
     let confDir = appConfig.configPath
-    //let outputDir = appConfig.outputPath
     let tempDir = appConfig.tempPath
     if (configName) {
       confDir = Path.join(confDir, configName)
-      //outputDir = Path.join(outputDir, configName)
       tempDir = Path.join(tempDir, configName)
     }
     Files.ensurePath(confDir)
-    //Files.ensurePath(outputDir)
     Files.ensurePath(tempDir)
 
     // When in AWS, will need to copy all site template files from S3 to the local disk before build
-    const Aws = null
+    let Aws = null
     if (context) {
       try {
         const sdk = require('aws-sdk')
         Aws = new AwsUtils({
-          s3: sdk.S3(),
-          sqs: sdk.SQS(),
+          files: Files,
+          s3: new sdk.S3(),
+          sqs: new sdk.SQS(),
         })
-        console.log(`Pull config files from AWS for ${configName}.`)
         await Aws.pull('braevitae-pub', `AutoSite/site-config/${configName}/`, confDir)
       } catch (e) {
-        console.error(`Pull of config for ${type} failed: ${JSON.stringify(e)}`)
+        console.error(`Pull of config failed: ${JSON.stringify(e)}`)
       }
     }
 
@@ -131,16 +128,12 @@ const handler = async (event, context) => {
 
     // clean any old files
     cleanDirs(tempDir)
-    //cleanDirs(outputDir)
-    //Files.createOutputDirs([outputDir, tempDir]);
     Files.createOutputDirs([tempDir]);
 
     //
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
-      //console.log(config)
-      //console.log(`=========================================`)
       const data = await preparePageData(confDir, config, tempDir, options);
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
       await renderReactComponents(config, tempDir, tempDir, options);
@@ -148,7 +141,7 @@ const handler = async (event, context) => {
         // Push completed build back to S3 (Test site)
         try {
           const testSiteBucket = process.env.testSiteBucket
-          Aws.mergeToS3(tempDir, testSiteBucket, type, (event => {
+          await Aws.mergeToS3(tempDir, testSiteBucket, type, (event => {
             console.log(mergeEventToString(event))
           }))
         } catch (e) {
@@ -195,7 +188,7 @@ const mergeEventToString = (event) => {
   if (event.updated) { action = 'Updated' }
   if (event.added) { action = 'Added' }
   if (event.deleted) { action = 'Deleted' }
-  return `${action} ${destFile}`
+  return `${action} ${event.destFile}`
 }
 
 /** Prepare data used when rendering page templates */
@@ -632,6 +625,15 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
   Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
     'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
+
+  let nodeModulesPath = require.resolve('babel-loader')
+  {
+    let parts = nodeModulesPath.split(Path.sep)
+    parts = parts.slice(0, parts.findIndex(p => p === 'node_modules') + 1)
+    nodeModulesPath = parts.join(Path.sep)
+  }
+  console.log('node_modules path: ' + nodeModulesPath)
+
   let stats = await webpack({
     mode: (config.debug ? 'development' : 'production'),
     entry: Path.join(absTempDir, 'script-src', 'index.jsx'),
@@ -655,7 +657,10 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
     },
     resolve: {
       extensions: ['*', '.js', '.jsx'],
-      modules: [Path.join(__dirname, '../node_modules')]
+      modules: [nodeModulesPath],
+    },
+    resolveLoader: {
+      modules: [nodeModulesPath],
     },
     output: {
       path: Path.join(absOutputDir, `script`),
@@ -673,7 +678,7 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
 
 /** Merge all temp files to the output dir, only replacing output files if the hashes differ. */
 const mergeToOutput = async (sourceDir, destDir) => {
-  console.log(`Merging ${sourceDir} and ${destDir}.`)
+  console.log(`Merging ${sourceDir} to ${destDir}.`)
   Files.ensurePath(destDir)
   const excludes = ['.DS_Store', 'script-src']
   const sourceFiles = await Files.listDir(sourceDir, excludes);
@@ -948,7 +953,7 @@ exports.handler = handler
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Entrypoint
 if ( ! process.env.AWS_EXECUTION_ENV) {
-  require('dotenv').config()
+  //require('dotenv').config()
 
   // Load command line options into environment vars
   const args = process.argv.slice(2)

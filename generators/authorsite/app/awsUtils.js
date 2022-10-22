@@ -5,6 +5,7 @@ function AwsUtils(options) {
   if (!(this instanceof AwsUtils)) {
     return new AwsUtils(options);
   }
+  this.files = options.files
   this.s3 = options.s3
   this.sqs = options.sqs
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
@@ -13,9 +14,13 @@ function AwsUtils(options) {
 
 /** Get all files from an S3 bucket and save them to disk */
 AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
+    console.log(`Start pull of config from ${bucket}/${keyPrefix} to ${destDir}`)
     const list = await this.list(bucket)
+    //console.log(`Found ${list.length} items`)
     const filtered = list.filter(item => item.Key.indexOf(keyPrefix) === 0)
-    const batchedList = this.batch(filtered)
+    //console.log(`Filtered to ${filtered.length} items matching ${keyPrefix}*`)
+    const batchedList = this.batch(filtered, 32)
+    //console.log(`Get in ${batchedList.length} batches of 32 (or less)`)
     await this.saveFiles(bucket, keyPrefix, batchedList, destDir)
 }
 
@@ -68,11 +73,11 @@ AwsUtils.prototype.batch = function(list, size) {
 AwsUtils.prototype.saveFiles = async function(bucket, keyPrefix, batchedList, destDir) {
   for (let i = 0; i < batchedList.length; ++i) {
     await Promise.all(batchedList[i].map(async item => {
-      const obj = await this.get(bucket, item.key)
-      console.log(`Downloading: ${item.Key}`)
+      const obj = await this.get(bucket, item.Key)
+      //console.log(`Downloading: ${item.Key}`)
       const filePath = destDir + '/' + item.Key.substring(keyPrefix.length)
-      Files.ensurePath(filePath)
-      await Files.saveFile(filePath, obj.Body)
+      this.files.ensurePath(filePath)
+      await this.files.saveFile(filePath, obj.Body)
     }))
   }
 }
@@ -97,10 +102,9 @@ AwsUtils.prototype.delete = async function(bucket, key) {
 
 /** Merge all temp files to the output dir, only replacing output files if the hashes differ. */
 AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix, monitor) {
-  console.log(`Merging ${sourceDir} and ${destBucket}/${destPrefix}.`)
-  Files.ensurePath(destDir)
+  console.log(`Merging ${sourceDir} to ${destBucket}/${destPrefix}.`)
   const excludes = ['.DS_Store', 'script-src']
-  const sourceFiles = await Files.listDir(sourceDir, excludes)
+  const sourceFiles = await this.files.listDir(sourceDir, excludes)
   const destFiles = await this.listDir(destBucket, destPrefix)
   // Add/Replace any dest keys where the source and dest hash don't match
   const destFilesMap = destFiles.reduce(function(map, obj) {
@@ -109,8 +113,8 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
   }, {});
   await Promise.all(sourceFiles.map(async sourceFile => {
     const destFile = destFilesMap[sourceFile.relPath]
-    if ( !destFile || !(Files.generateMd5ForFile(sourceFile.path) !== destFile.hash)) {
-      const content = await Files.loadFileBinary(sourceFile.path)
+    if ( !destFile || !(this.files.generateMd5ForFile(sourceFile.path) !== destFile.hash)) {
+      const content = await this.files.loadFileBinary(sourceFile.path)
       const type = mime.getType(sourceFile.path) || 'text/html'
       await this.put(destBucket, destFile.path, type, content)
       if (destFile) {
@@ -142,7 +146,6 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
       })
     }
   }))
-  return ret
 }
 
 //
