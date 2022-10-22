@@ -469,7 +469,7 @@ Resources:
       Handler: edge.onCache
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/lambda.zip'
+        S3Key: 'AutoSite/lambdas/edge.zip'
 
   OnCacheVersion:
     Type: AWS::Lambda::Version
@@ -490,7 +490,7 @@ Resources:
       Handler: edge.onAzn
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/lambda.zip'
+        S3Key: 'AutoSite/lambdas/edge.zip'
 
   OnAznVersion:
     Type: AWS::Lambda::Version
@@ -522,7 +522,7 @@ Resources:
       Handler: feedback.onFeedback
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/lambda.zip'
+        S3Key: 'AutoSite/lambdas/edge.zip'
 
   OnFeedbackVersion:
     Type: AWS::Lambda::Version
@@ -560,7 +560,7 @@ Resources:
           stateQueueUrl: !Ref StateQueue
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/lambda.zip'
+        S3Key: 'AutoSite/lambdas/edge.zip'
 
   FeedbackPubisherSchedule:
     Type: AWS::Events::Rule
@@ -595,7 +595,7 @@ Resources:
       Handler: admin.handler
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/lambda.zip'
+        S3Key: 'AutoSite/lambdas/edge.zip'
 
   OnAdminVersion:
     Type: AWS::Lambda::Version
@@ -613,7 +613,7 @@ Resources:
         - 'Node.js 16'
       Content:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/builders/authorsite.layer.zip'
+        S3Key: 'AutoSite/layers/authorsite.layer.zip'
 
   BuildSite:
     Type: 'AWS::Lambda::Function'
@@ -640,7 +640,7 @@ Resources:
           stateQueueUrl: !Ref StateQueue
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/builders/authorsite.zip'
+        S3Key: 'AutoSite/lambdas/authorsite.zip'
       Layers:
         - !Ref BuildSiteNMLayer
 
@@ -669,7 +669,7 @@ Resources:
         - 'Node.js 16'
       Content:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/admin-worker.layer.zip'
+        S3Key: 'AutoSite/layers/admin-worker.layer.zip'
 
   AdminWorker:
     Type: 'AWS::Lambda::Function'
@@ -697,7 +697,7 @@ Resources:
           maxAgeCloudFront: 60
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/admin-worker.zip'
+        S3Key: 'AutoSite/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
 
@@ -712,7 +712,7 @@ Resources:
         - 'Node.js 16'
       Content:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/provisioner.layer.zip'
+        S3Key: 'AutoSite/layers/provisioner.layer.zip'
 
   ProvisionSite:
     Type: 'AWS::Lambda::Function'
@@ -729,7 +729,7 @@ Resources:
       Handler: index.handler
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/provision/provisioner.zip'
+        S3Key: 'AutoSite/lambdas/provisioner.zip'
       Layers:
         - !Ref ProvisionerNMLayer
 

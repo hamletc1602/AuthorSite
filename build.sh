@@ -5,52 +5,35 @@ wdir=$(pwd)
 # npm i handlebars -g
 
 echo clean old target and temp files
-rm -rf target/AutoSite/provision/*
-rm -rf target/AutoSite/builders/*
-rm -rf generators/authorsite/tmp/*
+rm -rf target/AutoSite/lambdas/*
 
 echo package admin worker lambda
 cd admin
 rm -rf node_modules
-rm -f admin-worker.zip layer.zip
+rm -f admin-worker.zip
 npm run install-for-aws >/dev/null
-npm run pack >/dev/null
-mv admin-worker.zip $wdir/target/AutoSite/provision
-npm run pack-layer >/dev/null
-mv layer.zip $wdir/target/AutoSite/provision/admin-worker.layer.zip
+zip -qr $wdir/target/AutoSite/lambdas/admin-worker.zip * -x "node_modules/*"
 cd $wdir
 
 echo package provisioner plugin lambda
 cd provisioner
 rm -rf node_modules
-rm -f provisioner.zip layer.zip
+rm -f provisioner.zip
 npm run install-for-aws >/dev/null
-npm run pack >/dev/null
-mv provisioner.zip $wdir/target/AutoSite/provision
-npm run pack-layer >/dev/null
-mv layer.zip $wdir/target/AutoSite/provision/provisioner.layer.zip
+zip -qr $wdir/target/AutoSite/lambdas/provisioner.zip * -x "node_modules/*"
 cd $wdir
 
 echo Package edge lambdas
 cd edge
-zip -qr $wdir/target/AutoSite/provision/lambda.zip *
+zip -qr $wdir/target/AutoSite/lambdas/edge.zip *
 cd $wdir
 
 echo package site generator lambda
 cd generators/authorsite
 rm -rf node_modules
-rm -f authorsite.zip layer.zip
+rm -f authorsite.zip
 npm run install-for-aws >/dev/null
-npm run pack >/dev/null
-mv authorsite.zip $wdir/target/AutoSite/builders
-npm run pack-layer >/dev/null
-mv layer.zip $wdir/target/AutoSite/builders/authorsite.layer.zip
-# echo Insert node-saas binding into zip file
-# mkdir -p tmp/node_modules/node-sass/vendor/linux-x64-93
-# cp ../lib/linux-x64-93_binding.node tmp/node_modules/node-sass/vendor/linux-x64-93/binding.node
-# cd tmp
-# zip -r ../authorsite.zip node_modules/*
-# cd ..
+zip -qr $wdir/target/AutoSite/lambdas/authorsite.zip * -x "node_modules/*"
 cd $wdir
 
 echo Compile UI templates into admin UI source
@@ -58,6 +41,7 @@ handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/des
 #handlebars static/admin/templates/mobile/admin.handlebars -f static/adminui/mobile/admin/admin.handlebars.js
 
 echo Package admin UI files
+rm -f target/AutoSite/provision/adminui.zip
 cd static/adminui
 zip -qr $wdir/target/AutoSite/provision/adminui.zip *
 cd $wdir

@@ -28,5 +28,12 @@
     "mime": "^3.0.0",
     "s3-sync-client": "^3.0.3",
     "unzipper": "^0.10.11"
-  }
+  },
+  "bundleDependencies": [
+    "@aws-sdk/client-s3",
+    "handlebars",
+    "mime",
+    "s3-sync-client",
+    "unzipper"
+  ]
 }

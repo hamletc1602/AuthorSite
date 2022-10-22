@@ -7,11 +7,10 @@ const Style = require('./style')
 const Image = require('./image')
 const Path = require('path')
 const Webpack = require("webpack")
-const { fstat } = require('fs')
 
 const defaultOptions = {
   buildId: Date.now(),
-  types: ['desktop', 'mobile'],
+  types: 'desktop,mobile',
   skipImages: false
 }
 
@@ -51,12 +50,12 @@ const handler = async (event, context) => {
   const startTs = Date.now()
   try {
     // Load options from Environment
-    const options = {
-      skipImages: process.env['skipImages'],
-      buildId: process.env['buildId'],
-      debug: process.env['debug'],
-      types: process.env['types'],
-    }
+    let options = {}
+    addEnv(options, 'skipImages')
+    addEnv(options, 'buildId')
+    addEnv(options, 'debug')
+    addEnv(options, 'types')
+    options = Object.assign(defaultOptions, options)
 
     // Apply global options to libraries
     Image.setSkip(options.skipImages);
@@ -83,7 +82,11 @@ const handler = async (event, context) => {
     }
 
     console.log(`Loading and processing configuration data for ${configName}`)
+    if (options.buildId) {
+      console.log(`Using buildId: ${options.buildId}`)
+    }
 
+    let year = new Date().getFullYear()
     let confDir = appConfig.configPath
     let outputDir = appConfig.outputPath
     let tempDir = appConfig.tempPath
@@ -92,49 +95,15 @@ const handler = async (event, context) => {
       outputDir = Path.join(outputDir, configName)
       tempDir = Path.join(tempDir, configName)
     }
-
-    //
-    let year = new Date().getFullYear()
-
-    console.log(`Using buildId: ${options.buildId}`)
+    Files.ensurePath(confDir)
+    Files.ensurePath(outputDir)
+    Files.ensurePath(tempDir)
 
     // When in AWS, will need to copy all site template files from S3 to the local disk before build
     if (context) {
-      const AWS = require('aws-sdk');
-      const S3Sync = require('s3-sync-client')
-      const s3 = new AWS.S3();
-      const { TransferMonitor } = require('s3-sync-client');
-
-      var sqs = new AWS.SQS();
-
-      Files.ensurePath(confDir)
-      Files.ensurePath(outputDir)
-      Files.ensurePath(tempDir)
-
-      const s3SyncClient = new S3Sync({ client: s3 })
-
-      const monitor = new TransferMonitor();
-      let prevP = null
-      monitor.on('progress', p => {
-        if (prevP && prevP.count.current !== p.count.current) {
-            console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
-        }
-        prevP = p
-      });
-      try {
-        const syncConfig = {
-          //dryRun: true,
-          monitor: monitor,
-          del: true, // Delete dest objects if source deleted.
-          maxConcurrentTransfers: 16
-        }
-        if (options.force !== undefined) {
-            syncConfig.sizeOnly = !options.force
-        }
-        await s3SyncClient.sync('s3://braevitae-pub/AutoSite/site-config/' + configName, confDir, syncConfig);
-      } catch (e) {
-          console.error(`Website config sync failed: ${JSON.stringify(e)}`)
-      }
+      const Aws = require('./aws');
+      console.log(`Pull config files from AWS for ${configName}.`)
+      await Aws.pull('braevitae-pub', `AutoSite/site-config/${configName}/`, confDir)
     }
 
     // The core configuration file that drives the entire generation process
@@ -151,10 +120,6 @@ const handler = async (event, context) => {
     // other properties files.
     await resolveFileRefs(confDir, config, config);
 
-    // Encrypt some selected config properties for use on the public website pages
-    // TODO: Will no longer be needed once all sites are converted to AWS mail handler
-    encodeProps(["email"], config.feedback);
-
     // clean any old files
     cleanDirs(tempDir)
     Files.createOutputDirs([outputDir, tempDir]);
@@ -163,6 +128,8 @@ const handler = async (event, context) => {
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
+      //console.log(config)
+      //console.log(`=========================================`)
       const data = await preparePageData(confDir, config, tempDir, options);
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
       await renderReactComponents(config, tempDir, tempDir, options);
@@ -237,6 +204,14 @@ const handler = async (event, context) => {
       })
     }
   }
+}
+
+/** Add property to the opts object ONLY if the env var is defined. */
+const addEnv = (opts, name) => {
+  if (process.env[name] !== undefined) {
+    opts[name] = process.env[name]
+  }
+  return opts
 }
 
 /** Prepare data used when rendering page templates */
@@ -492,7 +467,11 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   // For adding global config data to template resolution.
   const tplData = { data: { config: Object.assign({}, config, options) }}
 
-  console.log(`Loading page template from ${config.templatesDir}`)
+  if (config.templatesDir) {
+    console.log(`Loading page templates from custom: ${config.templatesDir}.`)
+  } else {
+    console.log('Loading page templates.')
+  }
 
   // Template for all pages Header and Footer
   const pageTpl = await Files.loadTemplate(config.templatesDir, templateType, 'page.html')
@@ -526,7 +505,8 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   Files.copyResourcesOverwrite(Path.join(confDir, 'style'), Path.join(outputDir, 'style'))
   Files.copyResourcesOverwrite(Path.join(confDir, 'image'), Path.join(outputDir, 'image'))
   Files.copyResourcesOverwrite(Path.join(confDir, "favicon.ico"), Path.join(outputDir, 'favicon.ico'))
-  Files.copyResourcesIfNotExist('node_modules/slick-carousel/slick', Path.join(outputDir,'style'), ['slick.css','slick-theme.css'])
+  // Disable this temporarily - Is it really needed, since we're no longer using this package?
+  //Files.copyResourcesIfNotExist('node_modules/slick-carousel/slick', Path.join(outputDir,'style'), ['slick.css','slick-theme.css'])
 
   //
   console.log("Rendering pages.")
@@ -658,13 +638,7 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: data.styleConfig.bkgndConfig }, tplData))
 }
 
-/** Compile React components and style for this config into an app package
-
-TODO: Get webpack/babel build working from a tmp folder outside the main package structure. This appears to hinge on the babel
-   code being able to find all presets packages listed here from the tmp dir location, which is apparenly tricky when outside the
-   package dirs. Not a huge issue at the moment since we're find to create a tmp dir inside the package structure.
-
-*/
+/** Compile React components and style for this config into an app package */
 const renderReactComponents = async (config, outputDir, tempDir, options) => {
   console.log(`Rendering React components for client side script. tempDir=${tempDir}, outputDir=${outputDir}`)
   const absTempDir = (tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir))
@@ -681,6 +655,8 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
           test: /\.(js|jsx)$/,
           exclude: /node_modules/,
           // include: [
+          //   Path.resolve('.'),
+          //   Path.resolve(absTempDir),
           //   Path.resolve(Path.join(absTempDir, 'script-src'))
           // ],
           use: [
