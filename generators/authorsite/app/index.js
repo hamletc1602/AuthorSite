@@ -1,8 +1,8 @@
 'use strict'
 
-const Util = require('util')
 const Handlebars = require('handlebars')
 const Files = require('./files')
+const AwsUtils = require('./awsUtils')
 const Style = require('./style')
 const Image = require('./image')
 const Path = require('path')
@@ -88,27 +88,36 @@ const handler = async (event, context) => {
 
     let year = new Date().getFullYear()
     let confDir = appConfig.configPath
-    let outputDir = appConfig.outputPath
+    //let outputDir = appConfig.outputPath
     let tempDir = appConfig.tempPath
     if (configName) {
       confDir = Path.join(confDir, configName)
-      outputDir = Path.join(outputDir, configName)
+      //outputDir = Path.join(outputDir, configName)
       tempDir = Path.join(tempDir, configName)
     }
     Files.ensurePath(confDir)
-    Files.ensurePath(outputDir)
+    //Files.ensurePath(outputDir)
     Files.ensurePath(tempDir)
 
     // When in AWS, will need to copy all site template files from S3 to the local disk before build
+    const Aws = null
     if (context) {
-      const Aws = require('./aws');
-      console.log(`Pull config files from AWS for ${configName}.`)
-      await Aws.pull('braevitae-pub', `AutoSite/site-config/${configName}/`, confDir)
+      try {
+        const sdk = require('aws-sdk')
+        Aws = new AwsUtils({
+          s3: sdk.S3(),
+          sqs: sdk.SQS(),
+        })
+        console.log(`Pull config files from AWS for ${configName}.`)
+        await Aws.pull('braevitae-pub', `AutoSite/site-config/${configName}/`, confDir)
+      } catch (e) {
+        console.error(`Pull of config for ${type} failed: ${JSON.stringify(e)}`)
+      }
     }
 
     // The core configuration file that drives the entire generation process
     const config = await Files.loadJson(confDir + "/conf.json", { build: options.buildId, yyyy: year })
-    config.outputDir = tempDir;
+    //config.outputDir = tempDir;
     config.tempDir = tempDir;
 
     // Force debug to true in config if it's supplied at runtime
@@ -122,7 +131,9 @@ const handler = async (event, context) => {
 
     // clean any old files
     cleanDirs(tempDir)
-    Files.createOutputDirs([outputDir, tempDir]);
+    //cleanDirs(outputDir)
+    //Files.createOutputDirs([outputDir, tempDir]);
+    Files.createOutputDirs([tempDir]);
 
     //
     for (let type of options.types.split(",")) {
@@ -133,51 +144,15 @@ const handler = async (event, context) => {
       const data = await preparePageData(confDir, config, tempDir, options);
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
       await renderReactComponents(config, tempDir, tempDir, options);
-      const files = await mergeToOutput(tempDir, Path.join(outputDir, type))
-      const filesUpdated = files.filter(file => file.updated)
-      console.log(`${filesUpdated.length} Files merged to output`)
-
-      // Push completed build back to S3 (Test site)
       if (context) {
-        const AWS = require('aws-sdk');
-        const s3 = new AWS.S3();
-        const S3Sync = require('s3-sync-client')
-        const { TransferMonitor } = require('s3-sync-client');
-        const mime = require('mime');
-        const s3SyncClient = new S3Sync({ client: s3 })
-        const monitor = new TransferMonitor();
-        let prevP = null
-        monitor.on('progress', p => {
-            if (prevP && prevP.count.current !== p.count.current) {
-                console.log(`Transferring file ${p.count.current} of ${p.count.total}`)
-            }
-            prevP = p
-        });
+        // Push completed build back to S3 (Test site)
         try {
-          const syncConfig = {
-            monitor: monitor,
-            del: true, // Delete dest objects if source deleted.
-            maxConcurrentTransfers: 16,
-            commandInput: {
-              ACL: 'private',
-              CacheControl: `max-age=${config.deploy.maxAgeBrowser},s-maxage=${config.deploy.maxAgeCloudFront}`,
-              ContentType: (input) => {
-                const type = mime.getType(input.Key) || 'text/html'
-                console.log(`Upload file: ${input.Key} as type ${type}`)
-                return type
-              },
-            },
-            filters: [
-              { exclude: (key) => { key.indexOf('.DS_Store.') !== -1 } }
-            ]
-          }
-          if (options.force !== undefined) {
-            syncConfig.sizeOnly = !options.force
-          }
           const testSiteBucket = process.env.testSiteBucket
-          await s3SyncClient.sync(outputDir, `s3://${testSiteBucket}/${type}`, syncConfig);
+          Aws.mergeToS3(tempDir, testSiteBucket, type, (event => {
+            console.log(mergeEventToString(event))
+          }))
         } catch (e) {
-            console.error(`Website sync failed: ${JSON.stringify(e)}`)
+          console.error(`Sync to test site for ${type} failed: ${JSON.stringify(e)}`)
         }
       }
     }
@@ -212,6 +187,15 @@ const addEnv = (opts, name) => {
     opts[name] = process.env[name]
   }
   return opts
+}
+
+/**  */
+const mergeEventToString = (event) => {
+  let action = null
+  if (event.updated) { action = 'Updated' }
+  if (event.added) { action = 'Added' }
+  if (event.deleted) { action = 'Deleted' }
+  return `${action} ${destFile}`
 }
 
 /** Prepare data used when rendering page templates */
@@ -505,8 +489,10 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   Files.copyResourcesOverwrite(Path.join(confDir, 'style'), Path.join(outputDir, 'style'))
   Files.copyResourcesOverwrite(Path.join(confDir, 'image'), Path.join(outputDir, 'image'))
   Files.copyResourcesOverwrite(Path.join(confDir, "favicon.ico"), Path.join(outputDir, 'favicon.ico'))
-  // Disable this temporarily - Is it really needed, since we're no longer using this package?
-  //Files.copyResourcesIfNotExist('node_modules/slick-carousel/slick', Path.join(outputDir,'style'), ['slick.css','slick-theme.css'])
+  //console.log(require.resolve('slick-carousel/slick/slick.css'))
+  Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick.css'), Path.join(outputDir, 'style', 'slick.css'))
+  //console.log(require.resolve('slick-carousel/slick/slick-theme.css'))
+  Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick-theme.css'), Path.join(outputDir, 'style', 'slick-theme.css'))
 
   //
   console.log("Rendering pages.")
@@ -641,8 +627,8 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
 /** Compile React components and style for this config into an app package */
 const renderReactComponents = async (config, outputDir, tempDir, options) => {
   console.log(`Rendering React components for client side script. tempDir=${tempDir}, outputDir=${outputDir}`)
-  const absTempDir = (tempDir[0] == '/' ? tempDir : Path.join(__dirname, '..', tempDir))
-  const absOutputDir = (outputDir[0] == '/' ? outputDir : Path.join(__dirname, '..', outputDir))
+  const absTempDir = (tempDir[0] === '/' ? tempDir : Path.join(__dirname, '..', tempDir))
+  const absOutputDir = (outputDir[0] === '/' ? outputDir : Path.join(__dirname, '..', outputDir))
   Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
     'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
@@ -654,11 +640,6 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
         {
           test: /\.(js|jsx)$/,
           exclude: /node_modules/,
-          // include: [
-          //   Path.resolve('.'),
-          //   Path.resolve(absTempDir),
-          //   Path.resolve(Path.join(absTempDir, 'script-src'))
-          // ],
           use: [
             {
               loader: 'babel-loader',
@@ -673,7 +654,8 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
       ]
     },
     resolve: {
-      extensions: ['*', '.js', '.jsx']
+      extensions: ['*', '.js', '.jsx'],
+      modules: [Path.join(__dirname, '../node_modules')]
     },
     output: {
       path: Path.join(absOutputDir, `script`),

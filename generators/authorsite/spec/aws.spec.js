@@ -1,23 +1,46 @@
 const Sinon = require('sinon')
-const AWSLib = require('aws-sdk');
+const AwsUtils = require('../app/awsUtils')
 
 describe("AWS", function() {
-    let AWS = null
 
-    const fakeItems1 = [{
-        Bucket: 'bucket',
-        Key: 'one'
-      },{
-        Bucket: 'bucket',
-        Key: 'two'
-      }]
+  // Mock AWS client functions
+  const fakeS3 = {
+    listObjects: promiseWrap(async (params) => {
+      if (params.Marker) {
+        return {
+          Contents: fakeItems2,
+          IsTruncated: false
+        }
+      } else {
+        return {
+          Contents: fakeItems1,
+          IsTruncated: true
+        }
+      }
+    }),
+    getObject: promiseWrap(Sinon.fake.resolves({ Key: '1' })),
+    putObject: promiseWrap(Sinon.fake.resolves())
+  }
 
-      const fakeItems2 = [{
+  const AWS = new AwsUtils({
+    s3: fakeS3,
+    sqs: null
+  })
+
+  const fakeItems1 = [{
+      Bucket: 'bucket',
+      Key: 'one'
+    },{
+      Bucket: 'bucket',
+      Key: 'two'
+    }]
+
+    const fakeItems2 = [{
         Bucket: 'bucket',
         Key: 'three'
       }]
 
-      const fakeItems = [...fakeItems1, ...fakeItems2]
+    const fakeItems = [...fakeItems1, ...fakeItems2]
 
     function promiseWrap(subFunc) {
       return function() {
@@ -26,34 +49,6 @@ describe("AWS", function() {
         }
       }
     }
-
-    beforeEach(() => {
-        // Mock AWS client functions
-        Sinon.stub(AWSLib, 'S3').returns({
-          listObjects: promiseWrap(async (params) => {
-            if (params.Marker) {
-              return {
-                Contents: fakeItems2,
-                IsTruncated: false
-              }
-            } else {
-              return {
-                Contents: fakeItems1,
-                IsTruncated: true
-              }
-            }
-          }),
-          getObject: promiseWrap(Sinon.fake.resolves({ Key: '1' })),
-          putObject: promiseWrap(Sinon.fake.resolves())
-        })
-
-        // Require module under test AFTER mocking
-        AWS = require('../app/aws')
-    });
-
-    afterEach(() => {
-        Sinon.restore()
-    })
 
     it("batch an even array into groups of two", function() {
         const result = AWS.batch([1,2,3,4,5,6], 2)
