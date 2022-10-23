@@ -241,8 +241,12 @@ exports.loadFileBinary = (filepath) => {
   })
 }
 
-exports.generateMd5ForFile = (filePath) => {
-    Md5File.sync(filePath);
+exports.getMd5ForFile = (filePath) => {
+  return Md5File.sync(filePath);
+}
+
+exports.getETagForFile = (filePath) => {
+  return '"' + Md5File.sync(filePath) + '"';
 }
 
 exports.loadYaml = (filepath) => {

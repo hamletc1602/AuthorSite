@@ -13,6 +13,7 @@ const defaultOptions = {
   types: 'desktop,mobile',
   skipImages: false
 }
+const memCache = {}
 
 // Template processing helpers
 
@@ -42,19 +43,36 @@ Handlebars.registerHelper('versionUrl', (options) => {
     // Also - Will need to make sure all output files (images, css, script) are pushed to the output dirs
     // _before_ the rest of the HTML template processing, so this helper can find the file content to
     // hash in the right directory.
-    return new Handlebars.SafeString(ret + sepChar + Files.generateMd5ForFile(ret))
+    return new Handlebars.SafeString(ret + sepChar + Files.getMd5ForFile(ret))
 })
 
 /** Main Entry Point */
 const handler = async (event, context) => {
   const startTs = Date.now()
+  let options = {}
+  let Aws = {
+    // Mock function in case we're not running in AWS Lambda
+    displayUpdate: function(params, msg) {
+      console.log(JSON.stringify(params) + ' ' + msg)
+    }
+  }
+
+  //
   try {
+    // Mem Cache warmup
+    if (memCache.init) {
+      console.log("Warm cache")
+    } else {
+      console.log("Cold cache")
+      memCache.init = true
+    }
+
     // Load options from Environment
-    let options = {}
     addEnv(options, 'skipImages')
-    addEnv(options, 'buildId')
-    addEnv(options, 'debug')
     addEnv(options, 'types')
+    addEnv(options, 'adminBucket')
+    addEnv(options, 'stateQueueUrl')
+    addEnv(options, 'testSiteBucket')
     options = Object.assign(defaultOptions, options)
 
     // Apply global options to libraries
@@ -81,10 +99,7 @@ const handler = async (event, context) => {
       configDebug = process.env.npm_config_authorsite_debug
     }
 
-    console.log(`Loading and processing configuration data for ${configName}`)
-    if (options.buildId) {
-      console.log(`Using buildId: ${options.buildId}`)
-    }
+    console.log(`Loading and processing configuration data for ${configName}. BuildId: ${options.buildId}`)
 
     let year = new Date().getFullYear()
     let confDir = appConfig.configPath
@@ -97,7 +112,6 @@ const handler = async (event, context) => {
     Files.ensurePath(tempDir)
 
     // When in AWS, will need to copy all site template files from S3 to the local disk before build
-    let Aws = null
     if (context) {
       try {
         const sdk = require('aws-sdk')
@@ -105,8 +119,10 @@ const handler = async (event, context) => {
           files: Files,
           s3: new sdk.S3(),
           sqs: new sdk.SQS(),
+          stateQueueUrl: options.stateQueueUrl
         })
-        await Aws.pull('braevitae-pub', `AutoSite/site-config/${configName}/`, confDir)
+        Aws.displayUpdate({ building: true }, `Website build ${options.buildId} started`)
+        await Aws.pull(options.adminBucket, 'site-config/', confDir)
       } catch (e) {
         console.error(`Pull of config failed: ${JSON.stringify(e)}`)
       }
@@ -134,18 +150,25 @@ const handler = async (event, context) => {
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
+      Aws.displayUpdate({ building: true }, `Render website for ${type}`)
       const data = await preparePageData(confDir, config, tempDir, options);
+      Aws.displayUpdate({ building: true }, `Generating server content`)
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
+      Aws.displayUpdate({ building: true }, `Generating client side code`)
       await renderReactComponents(config, tempDir, tempDir, options);
       if (context) {
         // Push completed build back to S3 (Test site)
+        Aws.displayUpdate({ building: true }, `Push site content to ${options.testSiteBucket}`)
         try {
-          const testSiteBucket = process.env.testSiteBucket
-          await Aws.mergeToS3(tempDir, testSiteBucket, type, (event => {
-            console.log(mergeEventToString(event))
-          }))
+          await Aws.mergeToS3(tempDir, options.testSiteBucket, type, {
+            push: event => {
+              console.log(mergeEventToString(event))
+            }
+          })
         } catch (e) {
-          console.error(`Sync to test site for ${type} failed: ${JSON.stringify(e)}`)
+          const msg = `Sync to test site for ${type} failed: ${JSON.stringify(e)}`
+          console.error(msg)
+          Aws.displayUpdate({ building: true }, msg)
         }
       }
     }
@@ -153,6 +176,7 @@ const handler = async (event, context) => {
     // Finish
     let dur = Date.now() - startTs
     console.log(`Complete in ${dur / 1000}s`)
+    Aws.displayUpdate({ building: false }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -164,6 +188,7 @@ const handler = async (event, context) => {
     if (err.details) {
       console.log(err.details)
     }
+    Aws.displayUpdate({ building: false }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
     return {
       statusCode: 500,
       body: JSON.stringify({
@@ -188,7 +213,13 @@ const mergeEventToString = (event) => {
   if (event.updated) { action = 'Updated' }
   if (event.added) { action = 'Added' }
   if (event.deleted) { action = 'Deleted' }
-  return `${action} ${event.destFile}`
+  if (event.destFile) {
+    return `${action} ${event.destFile}`
+  } else if (event.sourceFile) {
+    return `${action} ${event.sourceFile}`
+  } else {
+    return JSON.stringify(event)
+  }
 }
 
 /** Prepare data used when rendering page templates */
@@ -482,9 +513,7 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   Files.copyResourcesOverwrite(Path.join(confDir, 'style'), Path.join(outputDir, 'style'))
   Files.copyResourcesOverwrite(Path.join(confDir, 'image'), Path.join(outputDir, 'image'))
   Files.copyResourcesOverwrite(Path.join(confDir, "favicon.ico"), Path.join(outputDir, 'favicon.ico'))
-  //console.log(require.resolve('slick-carousel/slick/slick.css'))
   Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick.css'), Path.join(outputDir, 'style', 'slick.css'))
-  //console.log(require.resolve('slick-carousel/slick/slick-theme.css'))
   Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick-theme.css'), Path.join(outputDir, 'style', 'slick-theme.css'))
 
   //
@@ -625,15 +654,12 @@ const renderReactComponents = async (config, outputDir, tempDir, options) => {
   Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
     'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
-
   let nodeModulesPath = require.resolve('babel-loader')
   {
     let parts = nodeModulesPath.split(Path.sep)
     parts = parts.slice(0, parts.findIndex(p => p === 'node_modules') + 1)
     nodeModulesPath = parts.join(Path.sep)
   }
-  console.log('node_modules path: ' + nodeModulesPath)
-
   let stats = await webpack({
     mode: (config.debug ? 'development' : 'production'),
     entry: Path.join(absTempDir, 'script-src', 'index.jsx'),
@@ -683,7 +709,6 @@ const mergeToOutput = async (sourceDir, destDir) => {
   const excludes = ['.DS_Store', 'script-src']
   const sourceFiles = await Files.listDir(sourceDir, excludes);
   const destFiles = await Files.listDir(destDir, excludes);
-  //console.log(`Looking at ${sourceFiles.length} source files and ${destFiles.length} dest files.`)
   const destFilesMap = destFiles.reduce(function(map, obj) {
     map[obj.relPath] = obj;
     return map;
@@ -692,10 +717,8 @@ const mergeToOutput = async (sourceDir, destDir) => {
     const destFile = destFilesMap[sourceFile.relPath];
     if ( !destFile || !(await Files.compare(sourceFile.path, destFile.path))) {
       if (destFile) {
-        //console.log(`${sourceFile.path} => ${destFile.path}`)
         await Files.copy(sourceFile.path, destFile.path)
       } else {
-        //console.log(`${sourceFile.path} => <missing>`)
         const newPath = Path.join(destDir, sourceFile.relPath)
         Files.ensurePath(newPath)
         await Files.copy(sourceFile.path, newPath)
