@@ -236,6 +236,7 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
 
 /** Send an update to the site SQS queue. */
 AwsUtils.prototype.displayUpdate = async function(params, logStr) {
+  console.log(`Send display upate ${JSON.stringify(params)}: ${logStr}`)
   try {
     const msg = {
       time: Date.now(),
@@ -249,10 +250,15 @@ AwsUtils.prototype.displayUpdate = async function(params, logStr) {
         }]
       }
     }
-    return this.sqs.sendMessage({
+    console.log('Here1')
+    const ret = await this.sqs.sendMessage({
       QueueUrl: this.stateQueueUrl,
-      MessageBody: JSON.stringify(msg)
-    })
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    console.log('Here2')
+    console.log('Sent display update', ret)
+    return ret
   } catch (error) {
     console.error(`Failed to send display update: ${JSON.stringify(error)}`)
   }

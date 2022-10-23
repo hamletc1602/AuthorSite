@@ -159,8 +159,6 @@ exports.handler = async (event, context) => {
           AttributeNames: ['ApproximateNumberOfMessages'],
           MaxNumberOfMessages: 10,
           MessageAttributeNames: ['All']
-          //VisibilityTimeout: 'NUMBER_VALUE', // Assuming these will default to the queue settings? If not, may need to set them explicitly?
-          //WaitTimeSeconds: 'NUMBER_VALUE'
         }).promise()
         if (sqsResp.Messages) {
           console.log(`Received ${sqsResp.Messages.length} messages.`)
@@ -258,7 +256,7 @@ const deploySite = async (path, adminBucket, adminWorkerArn) => {
     const respData = await lambda.invoke({
       FunctionName: adminWorkerArn,
       InvocationType: 'Event',
-      Payload: JSON.stringify({})
+      Payload: JSON.stringify({ command: 'publish' })
     }).promise()
     console.log(`Aync Invoked ${adminWorkerArn}, response: ${JSON.stringify(respData)}`)
     return {
