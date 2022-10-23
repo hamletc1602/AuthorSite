@@ -34,21 +34,6 @@ exports.handler = async (event, context) => {
   }
 }
 
-const deployLog = (logStr) => {
-  const msg = {
-    logs: {
-      deploy: [{
-        time: Date.now(),
-        msg: logStr
-      }]
-    }
-  }
-  sqs.sendMessage({
-    QueueUrl: stateQueueUrl,
-    MessageBody: JSON.stringify(msg)
-  })
-}
-
 const displayUpdate = (params, logStr) => {
   try {
     console.log(`Display update: ${JSON.stringify(params)}  Msg: ${logStr}`)
