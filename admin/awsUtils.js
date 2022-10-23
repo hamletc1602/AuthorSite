@@ -184,11 +184,12 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
     await Promise.all(batch.map(async sourceFile => {
       try {
         const destFile = destFilesMap[sourceFile.relPath]
-        if ( !destFile || (sourceFile.hash != destFile.hash)) {
-          const content = await this.get(sourceBucket, sourceFile.path).Body
+        if ( !destFile || (sourceFile.hash !== destFile.hash)) {
+          const content = await this.get(sourceBucket, sourceFile.path)
+          //console.log('file metadata: ', content)
           const type = mime.getType(sourceFile.path) || 'text/html'
           const destPath = destPrefix + sourceFile.relPath
-          await this.put(destBucket, destPath, type, content)
+          await this.put(destBucket, destPath, type, content.Body)
           if (destFile) {
             monitor.push({
               updated: true,
@@ -201,6 +202,11 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
               sourceFile: sourceFile.path,
             })
           }
+        } else {
+          monitor.push({
+            unchanged: true,
+            sourceFile: sourceFile.path,
+          })
         }
       } catch (e) {
         console.error(`Failed to transfer ${sourceFile.path}`, e)
@@ -229,7 +235,7 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
 }
 
 /** Send an update to the site SQS queue. */
-AwsUtils.prototype.displayUpdate = async (params, logStr) => {
+AwsUtils.prototype.displayUpdate = async function(params, logStr) {
   try {
     const msg = {
       time: Date.now(),
@@ -243,11 +249,10 @@ AwsUtils.prototype.displayUpdate = async (params, logStr) => {
         }]
       }
     }
-    const resp = await this.sqs.sendMessage({
+    return this.sqs.sendMessage({
       QueueUrl: this.stateQueueUrl,
       MessageBody: JSON.stringify(msg)
-    }).promise()
-    console.debug(`Sent display upate. Resp: ${JSON.stringify(resp)}`)
+    })
   } catch (error) {
     console.error(`Failed to send display update: ${JSON.stringify(error)}`)
   }

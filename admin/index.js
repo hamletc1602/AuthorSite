@@ -1,5 +1,4 @@
 const sdk = require('aws-sdk');
-const Mime = require('mime')
 const AwsUtils = require('./awsUtils')
 
 const publicBucket = process.env.publicBucket
@@ -38,21 +37,30 @@ exports.handler = async (event, context) => {
 
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
+  let updatedCount = 0
+  let addedCount = 0
+  let deletedCount = 0
+  let unchangedCount = 0
   try {
-    console.log(`Args: ${testSiteBucket} ${siteBucket}`)
     // Sync all test site files to prod site, deleting missing files (Full overwrite)
     aws.displayUpdate({ deploying: true }, 'Starting deploy...')
     await aws.mergeBuckets(testSiteBucket, '', siteBucket, '', {
         push: event => {
-          console.log(mergeEventToString(event))
+          if (event.updated) { updatedCount++ }
+          if (event.added) { addedCount++ }
+          if (event.deleted) { deletedCount++ }
+          if (event.unchanged) { unchangedCount++ }
+          //console.log(mergeEventToString(event))
         }
       })
   } catch (e) {
-      const msg = `Website sync failed: ${JSON.stringify(e)}`
+      const msg = `Deploy failed: ${JSON.stringify(e)}`
       console.error(msg)
       aws.displayUpdate({ deployError: JSON.stringify(e) }, msg)
   } finally {
-    aws.displayUpdate({ deploying: false }, 'Deploy complete.')
+    const msg = `Deploy complete: Updated: ${updatedCount}, Added: ${addedCount}, Deleted: ${deletedCount}, Unchanged: ${unchangedCount}`
+    console.log(msg)
+    aws.displayUpdate({ deploying: false }, msg)
   }
 }
 
