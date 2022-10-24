@@ -1,38 +1,51 @@
 <p class="display">
   {{#with display}}
-    <div><span class="header">Generate</span>: <span>{{#if building}}{{/if}}</span></div>
-    <div><span class="header">Publish</span>: <span>{{#if deploying}}Publishing file {{deployFileCurrent}} of {{deployFileTotal}}{{/if}}</span></div>
+    <div>
+      <button id="admin-cmd-build" class="action">Generate</button>
+      <span class="message">{{#if building}}{{stepMsg}}{{/if}}</span>
+      <a href="https://test.{{@root.domain}}/" target="_blank"><span class="popout">Test Site</span></a>
+    </div>
+    <div>
+      <button id="admin-cmd-publish" class="action">Publish</button>
+      <span class="message">{{#if deploying}}Added: {{added}} Updated: {{updated}} Deleted: {{deleted}} of {{total}}{{/if}}</span>
+      <a href="https://{{@root.domain}}/" target="_blank"><span class="popout">Site</span></a>
+    </div>
   {{/with}}
 </p>
-<p class="properties">
-  {{#each properties}}
-    <div>{{name}}: {{value}}</div>
-  {{/each}}
-</p>
-<p class="buttons">
-  {{#each buttons}}
-    <button id="admin-cmd-{{id}}" class="button">{{name}}</button>
-  {{/each}}
-</p>
-<p class="logs build">
-  <h3>Generator Log</h3>
+<details class="logs">
   {{#with logs}}
-    {{#each build}}
+  <summary>
+    {{#each latest}}
       <div>{{msg}}</div>
     {{/each}}
-  {{/with}}
-</p>
-<p class="logs publish">
-  <h3>Publisher Log</h3>
-  {{#with logs}}
-    {{#each deploy}}
+  </summary>
+  <p class="logs">
+    {{#each all}}
       <div>{{msg}}</div>
     {{/each}}
+  </p>
   {{/with}}
-</p>
+</details>
+{{#with config}}
+<div class="configuration">
+  <div class="tabs">
+    {{#each tabs}}
+      <div id="tab-button-{{id}}" class="tabButton">{{name}}</div>
+    {{/each}}
+  </div>
+  {{#each tabs}}
+  <div id="tabs-panel-{{id}}" class="tabsPanel"></div>
+    Config controls for {{name}} go here!
+
+  </div>
+  {{/each}}
+</div>
+{{/with}}
 <script>
   // Register command handlers for all buttons. They call a global function defined in page.js.
-  {{#each buttons}}
-    document.getElementById('admin-cmd-{{id}}').onclick = function(ev) { sendCommand('admin-cmd-{{id}}', '{{id}}') }
+  document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
+  document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }
+  {{#each tabs}}
+    document.getElementById('tab-button-{{id}}').onclick = function(ev) { activateTab('admin-tab-{{id}}', '{{id}}') }
   {{/each}}
 </script>

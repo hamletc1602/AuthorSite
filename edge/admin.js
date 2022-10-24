@@ -139,18 +139,15 @@ exports.handler = async (event, context) => {
         console.log(`Clean up any old (>24 hours) log messages across all logs.`)
         console.log(`State: ${JSON.stringify(state)}`)
         if (state.logs) {
-          Object.keys(state.logs).forEach(key => {
-            const log = state.logs[key]
-            const currMs = Date.now()
-            const msgCount = log.length
-            state.logs[key] = log.filter(msg => {
-              return (currMs - msg.time) < MSin24Hours
-            })
-            const cleaned = msgCount - log.length
-            if (cleaned > 0) {
-              console.log(`Cleaned ${cleaned} messages from ${key} log.`)
-            }
+          const currMs = Date.now()
+          const msgCount = state.logs.length
+          state.logs = state.logs.filter(msg => {
+            return (currMs - msg.time) < MSin24Hours
           })
+          const cleaned = msgCount - state.logs.length
+          if (cleaned > 0) {
+            console.log(`Cleaned ${cleaned} messages from ${key} log.`)
+          }
         }
 
         console.log(`Get all messages from the status queue: ${stateQueueUrl}`)
@@ -227,21 +224,17 @@ const mergeState = (state, message) => {
   //    hangups.
   console.log(`Merge into state: ${JSON.stringify(message)}`)
   if (message.logs) {
-    Object.keys(message.logs).forEach(key => {
-      const log = message.logs[key]
-      if (log) {
-        const rcptTime = Date.now()
-        if ( ! state.logs[key]) {
-          state.logs[key] = []
-        }
-        const stateLog = state.logs[key]
-        log.forEach(logMsg => {
-          logMsg.rcptTime = rcptTime
-          stateLog.push(logMsg)
-        })
-      }
+    const rcptTime = Date.now()
+    if ( ! state.logs) {
+      state.logs = []
+    }
+    log.forEach(logMsg => {
+      logMsg.rcptTime = rcptTime
+      state.logs.push(logMsg)
     })
   }
+  // replace the latest logs with the last 3 messages
+  state.latest = state.logs.slice(-3)
   // Display properties
   state.display = Object.assign(state.display, message.display)
 }

@@ -33,18 +33,9 @@ const cfnCreateHandler = async (params) => {
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
         template: params.SiteTemplate,
+        domain: params.SiteDomain,
         display: {},
-        logs: {},
-        properties: [],
-        buttons: [{
-          id: 'build',
-          name: 'Create Site',
-          enabled: true
-        },{
-          id: 'publish',
-          name: 'Publish',
-          enabled: false
-        }]
+        logs: {}
       }))
     }).promise()
 
@@ -63,8 +54,8 @@ const cfnCreateHandler = async (params) => {
     }))
 
     // Copy default site template selected by the user from braevitae-pub to this site's bucket.
-    console.log(`Copy default site template ${params.SiteType} from braevitae-pub to ${params.AdminBucket}`)
-    const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: `AutoSite/site-config/${params.SiteType}.zip` });
+    console.log(`Copy default site template ${params.SiteTemplate} from braevitae-pub to ${params.AdminBucket}`)
+    const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: `AutoSite/site-config/${params.SiteTemplate}.zip` });
     await Promise.all(siteConfigDir.files.map(async file => {
       console.log(`Copying ${file.path}`)
       await s3.putObject({

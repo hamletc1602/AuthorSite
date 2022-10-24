@@ -44,7 +44,7 @@ Parameters:
   FeedbackEmail:
     Type: String
     Description: Recipient address for feedback emails.
-  SiteType:
+  SiteTemplate:
     Type: String
     Description: The default site template to select from the list of available templates.
 
@@ -741,7 +741,8 @@ Resources:
     Type: 'Custom::LambdaTrigger'
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
-      SiteTemplate: 'Author'
+      SiteTemplate: !Ref SiteTemplate
+      SiteDomain: !Ref DomainName
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
@@ -753,7 +754,6 @@ Resources:
       UploaderPassword: !Ref UploaderPassword
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
-      SiteType: !Ref SiteType
 
   LambdaRole:
     Type: 'AWS::IAM::Role'

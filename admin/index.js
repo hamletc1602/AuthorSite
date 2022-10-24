@@ -37,30 +37,33 @@ exports.handler = async (event, context) => {
 
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
-  let updatedCount = 0
-  let addedCount = 0
-  let deletedCount = 0
-  let unchangedCount = 0
+  const counts = {
+    updated: 0,
+    added: 0,
+    deleted: 0,
+    unchanged: 0
+  }
   try {
     // Sync all test site files to prod site, deleting missing files (Full overwrite)
-    await aws.displayUpdate({ deploying: true }, 'Starting deploy...')
+    await aws.displayUpdate(Object.assign(counts, { deploying: true }), 'publish', 'Starting deploy...')
     await aws.mergeBuckets(testSiteBucket, '', siteBucket, '', {
-        push: event => {
-          if (event.updated) { updatedCount++ }
-          if (event.added) { addedCount++ }
-          if (event.deleted) { deletedCount++ }
-          if (event.unchanged) { unchangedCount++ }
+        push: async event => {
+          if (event.updated) { counts.updated++ }
+          if (event.added) { counts.added++ }
+          if (event.deleted) { counts.deleted++ }
+          if (event.unchanged) { counts.unchanged++ }
           //console.log(mergeEventToString(event))
+          await aws.displayUpdate(Object.assign(counts, { deploying: true, total: event.total }), 'publish')
         }
       })
   } catch (e) {
       const msg = `Deploy failed: ${JSON.stringify(e)}`
       console.error(msg)
-      await aws.displayUpdate({ deployError: JSON.stringify(e) }, msg)
+      await aws.displayUpdate(Object.assign(counts, { deployError: JSON.stringify(e) }), 'publish', msg)
   } finally {
     const msg = `Deploy complete: Updated: ${updatedCount}, Added: ${addedCount}, Deleted: ${deletedCount}, Unchanged: ${unchangedCount}`
     console.log(msg)
-    await aws.displayUpdate({ deploying: false }, msg)
+    await aws.displayUpdate(Object.assign(counts, { deploying: false }), 'publish', msg)
   }
 }
 

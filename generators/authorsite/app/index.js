@@ -121,7 +121,7 @@ const handler = async (event, context) => {
           sqs: new sdk.SQS(),
           stateQueueUrl: options.stateQueueUrl
         })
-        await Aws.displayUpdate({ building: true }, `Website build ${options.buildId} started`)
+        await displayUpdate(Aws, { building: true }, 'build', `Website build ${options.buildId} started`)
         await Aws.pull(options.adminBucket, 'site-config/', confDir)
       } catch (e) {
         console.error(`Pull of config failed: ${JSON.stringify(e)}`)
@@ -150,15 +150,15 @@ const handler = async (event, context) => {
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
-      await Aws.displayUpdate({ building: true }, `Render website for ${type}`)
+      await displayUpdate(Aws, { building: true }, `Render website for ${type}`)
       const data = await preparePageData(confDir, config, tempDir, options);
-      await Aws.displayUpdate({ building: true }, `Generating server content`)
+      await displayUpdate(Aws, { building: true }, `Generating server content`)
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
-      await Aws.displayUpdate({ building: true }, `Generating client side code`)
+      await displayUpdate(Aws, { building: true }, `Generating client side code`)
       await renderReactComponents(config, tempDir, tempDir, options);
       if (context) {
         // Push completed build back to S3 (Test site)
-        await Aws.displayUpdate({ building: true }, `Push site content to ${options.testSiteBucket}`)
+        await displayUpdate(Aws, { building: true }, `Push site content to ${options.testSiteBucket}`)
         try {
           await Aws.mergeToS3(tempDir, options.testSiteBucket, type, {
             push: event => {
@@ -168,7 +168,7 @@ const handler = async (event, context) => {
         } catch (e) {
           const msg = `Sync to test site for ${type} failed: ${JSON.stringify(e)}`
           console.error(msg)
-          await Aws.displayUpdate({ building: true }, msg)
+          await displayUpdate(Aws, { building: true }, msg)
         }
       }
     }
@@ -176,7 +176,7 @@ const handler = async (event, context) => {
     // Finish
     let dur = Date.now() - startTs
     console.log(`Complete in ${dur / 1000}s`)
-    await Aws.displayUpdate({ building: false }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
+    await displayUpdate(Aws, { building: false }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -188,7 +188,7 @@ const handler = async (event, context) => {
     if (err.details) {
       console.log(err.details)
     }
-    await Aws.displayUpdate({ building: false }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
+    await displayUpdate(Aws, { building: false }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
     return {
       statusCode: 500,
       body: JSON.stringify({
@@ -205,6 +205,13 @@ const addEnv = (opts, name) => {
     opts[name] = process.env[name]
   }
   return opts
+}
+
+const displayUpdate = async (Aws, params, logMsg) => {
+  // TOOD: step message and log message will likely diverge in future, with step msg. as an explicit parameter.
+  // This is a quick hack to show something in the UI.
+  params.stepMsg = logMsg
+  await displayUpdate(Aws, params, 'build', logMsg)
 }
 
 /**  */

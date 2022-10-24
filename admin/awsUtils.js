@@ -191,19 +191,22 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
           const destPath = destPrefix + sourceFile.relPath
           await this.put(destBucket, destPath, type, content.Body)
           if (destFile) {
-            monitor.push({
+            await monitor.push({
+              total: sourceFiles.length,
               updated: true,
               sourceFile: sourceFile.path,
               destFile: destFile ? destFile.path : null
             })
           } else {
-            monitor.push({
+            await monitor.push({
+              total: sourceFiles.length,
               added: true,
               sourceFile: sourceFile.path,
             })
           }
         } else {
-          monitor.push({
+          await monitor.push({
+            total: sourceFiles.length,
             unchanged: true,
             sourceFile: sourceFile.path,
           })
@@ -223,7 +226,7 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
       const sourceFile = sourceFilesMap[destFile.relPath];
       if ( !sourceFile) {
         await this.delete(destBucket, destFile.path)
-        monitor.push({
+        await monitor.push({
           deleted: false,
           destFile: destFile.path
         })
@@ -235,19 +238,18 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
 }
 
 /** Send an update to the site SQS queue. */
-AwsUtils.prototype.displayUpdate = async function(params, logStr) {
+AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
   try {
     const msg = {
       time: Date.now(),
       display: params
     }
     if (logStr) {
-      msg.logs = {
-        deploy: [{
-          time: Date.now(),
-          msg: logStr
-        }]
-      }
+      msg.logs = [{
+        time: Date.now(),
+        type: logType,
+        msg: logStr
+      }]
     }
     const ret = await this.sqs.sendMessage({
       QueueUrl: this.stateQueueUrl,
