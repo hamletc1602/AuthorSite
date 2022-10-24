@@ -43,7 +43,7 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   let unchangedCount = 0
   try {
     // Sync all test site files to prod site, deleting missing files (Full overwrite)
-    aws.displayUpdate({ deploying: true }, 'Starting deploy...')
+    await aws.displayUpdate({ deploying: true }, 'Starting deploy...')
     await aws.mergeBuckets(testSiteBucket, '', siteBucket, '', {
         push: event => {
           if (event.updated) { updatedCount++ }
@@ -56,11 +56,11 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   } catch (e) {
       const msg = `Deploy failed: ${JSON.stringify(e)}`
       console.error(msg)
-      aws.displayUpdate({ deployError: JSON.stringify(e) }, msg)
+      await aws.displayUpdate({ deployError: JSON.stringify(e) }, msg)
   } finally {
     const msg = `Deploy complete: Updated: ${updatedCount}, Added: ${addedCount}, Deleted: ${deletedCount}, Unchanged: ${unchangedCount}`
     console.log(msg)
-    aws.displayUpdate({ deploying: false }, msg)
+    await aws.displayUpdate({ deploying: false }, msg)
   }
 }
 

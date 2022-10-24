@@ -62,6 +62,18 @@ const cfnCreateHandler = async (params) => {
       }).promise()
     }))
 
+    // Copy default site template selected by the user from braevitae-pub to this site's bucket.
+    console.log(`Copy default site template ${params.SiteType} from braevitae-pub to ${params.AdminBucket}`)
+    const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: `AutoSite/site-config/${params.SiteType}.zip` });
+    await Promise.all(siteConfigDir.files.map(async file => {
+      console.log(`Copying ${file.path}`)
+      await s3.putObject({
+        Bucket: params.AdminBucket,
+        Key: 'site-config/' + file.path,
+        Body: await file.buffer()
+      }).promise()
+    }))
+
     //
     return {}
   } catch (error) {

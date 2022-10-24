@@ -44,6 +44,9 @@ Parameters:
   FeedbackEmail:
     Type: String
     Description: Recipient address for feedback emails.
+  SiteType:
+    Type: String
+    Description: The default site template to select from the list of available templates.
 
 Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
@@ -534,8 +537,9 @@ Resources:
     Properties:
       QueueName: !Join ['', [!Join ['-',!Split ['.',!Ref DomainName]], '.fifo']]
       FifoQueue: true
-      MessageRetentionPeriod: 259200  # 3 Days
+      MessageRetentionPeriod: 1209600  # 14 Days
       ReceiveMessageWaitTimeSeconds: 0  # Ensure short polling
+      ContentBasedDeduplication: true
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -749,6 +753,7 @@ Resources:
       UploaderPassword: !Ref UploaderPassword
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
+      SiteType: !Ref SiteType
 
   LambdaRole:
     Type: 'AWS::IAM::Role'
