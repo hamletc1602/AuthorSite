@@ -25,6 +25,8 @@ exports.handler = async (event, context) => {
 
   // Handle action requests
   switch (event.command) {
+    case 'template':
+      return await applyTemplate(publicBucket, adminBucket)
     case 'publish':
       return await deploySite(testSiteBucket, siteBucket)
     default:
@@ -65,6 +67,21 @@ const deploySite = async (testSiteBucket, siteBucket) => {
     console.log(msg)
     await aws.displayUpdate(Object.assign(counts, { deploying: false }), 'publish', msg)
   }
+}
+
+/** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
+async function applyTemplate(publicBucket, adminBucket, templateName) {
+  console.log(`Copy default site template ${templateName} from ${publicBucket} to ${adminBucket}`)
+  await aws.displayUpdate(Object.assign(counts, { deploying: true }), 'publish', 'Starting deploy...')
+  const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
+  await Promise.all(siteConfigDir.files.map(async file => {
+    console.log(`Copying ${file.path}`)
+    await s3.putObject({
+      Bucket: adminBucket,
+      Key: 'site-config/' + file.path,
+      Body: await file.buffer()
+    }).promise()
+  }))
 }
 
 /**  */

@@ -44,9 +44,9 @@ Parameters:
   FeedbackEmail:
     Type: String
     Description: Recipient address for feedback emails.
-  SiteTemplate:
+  SiteGenerator:
     Type: String
-    Description: The default site template to select from the list of available templates.
+    Description: The site generator app to use for this site, from the list of publshed generators.
 
 Conditions:
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
@@ -644,7 +644,7 @@ Resources:
           stateQueueUrl: !Ref StateQueue
       Code:
         S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/authorsite.zip'
+        S3Key: !Join ['', ['AutoSite/lambdas/', !Ref SiteGenerator, '.zip']]
       Layers:
         - !Ref BuildSiteNMLayer
 
@@ -741,7 +741,7 @@ Resources:
     Type: 'Custom::LambdaTrigger'
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
-      SiteTemplate: !Ref SiteTemplate
+      SiteGenerator: !Ref SiteGenerator
       SiteDomain: !Ref DomainName
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData

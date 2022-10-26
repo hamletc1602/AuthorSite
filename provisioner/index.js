@@ -23,6 +23,13 @@ const cfnCreateHandler = async (params) => {
       Body: Buffer.from(params.UploaderPassword)
     }).promise()
 
+    // Get the site templates metadata:
+    let templates = [{ name: 'author', display: 'Author' }, { name: 'artist', display: 'Artist' }]
+    const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
+    if (templateMetadataObj) {
+      templates = templateMetadataObj.Body
+    }
+
     // Generate default admin data in Admin UI bucket.
     //    This data object will be replaced/updated in S3 by other admin processes as needed.
     console.log('Create default admin state file.')
@@ -32,8 +39,9 @@ const cfnCreateHandler = async (params) => {
       CacheControl: 'no-cache,s-maxage=0',
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
-        template: params.SiteTemplate,
+        generator: params.SiteGenerator,
         domain: params.SiteDomain,
+        templates: templates,
         display: {},
         logs: {}
       }))
@@ -50,18 +58,6 @@ const cfnCreateHandler = async (params) => {
         Body: await file.buffer(),
         CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
         ContentType: Mime.getType(file.path) || 'text/html'
-      }).promise()
-    }))
-
-    // Copy default site template selected by the user from braevitae-pub to this site's bucket.
-    console.log(`Copy default site template ${params.SiteTemplate} from braevitae-pub to ${params.AdminBucket}`)
-    const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: `AutoSite/site-config/${params.SiteTemplate}.zip` });
-    await Promise.all(siteConfigDir.files.map(async file => {
-      console.log(`Copying ${file.path}`)
-      await s3.putObject({
-        Bucket: params.AdminBucket,
-        Key: 'site-config/' + file.path,
-        Body: await file.buffer()
       }).promise()
     }))
 

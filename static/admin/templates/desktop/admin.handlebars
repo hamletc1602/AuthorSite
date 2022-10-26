@@ -1,6 +1,20 @@
 <p class="display">
   {{#with display}}
     <div>
+      {{#if template}}
+        <span>Site template:</span><span>{{template.name}}</span>
+      {{else}}
+        <label for="admin-select-template">Choose a site template:</label>
+        <select id="admin-select-template" class="selectTemplate">
+          {{#each templates}}
+            <option value="{{id}}">{{name}}</option>
+          {{/each}}
+        </select>
+      {{/if}}
+      <button id="admin-cmd-template" class="action">Apply</button>
+      <span class="message">{{#if preparing}}{{stepMsg}}{{/if}}</span>
+    </div>
+    <div>
       <button id="admin-cmd-build" class="action">Generate</button>
       <span class="message">{{#if building}}{{stepMsg}}{{/if}}</span>
       <a href="https://test.{{@root.domain}}/" target="_blank"><span class="popout">Test Site</span></a>
@@ -43,6 +57,7 @@
 {{/with}}
 <script>
   // Register command handlers for all buttons. They call a global function defined in page.js.
+  document.getElementById('admin-cmd-template').onclick = function(ev) { sendCommand('admin-cmd-template', 'template') }
   document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }
   {{#each tabs}}

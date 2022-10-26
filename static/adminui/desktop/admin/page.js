@@ -1,5 +1,6 @@
 let authSecret = null
 let lastETag = null
+let locked = true
 let maxPollingLoopCount = 30  // Default refresh each 30s
 
 onload = function() {
@@ -7,6 +8,12 @@ onload = function() {
   document.getElementById('auth-save').onclick = function(ev) {
     authSecret = document.getElementById('auth-secret').value
   }
+  //
+  getLockState()
+  this.setInterval(function() {
+    getLockState()
+  }, 4 * 60 * 1000)
+
   //
   refresh('admin')
   // Variable speed page refresh
@@ -20,9 +27,27 @@ onload = function() {
   }, 1000)
 }
 
-/** Start refresh each second */
+/** Lock state polling */
+function getLockState() {
+  return fetch('/admin/lock')
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      if (await response.text() === 'unlocked') {
+        locked = false
+      } else {
+        locked = true
+      }
+      document.body.classList.toggle('locked', locked)
+    })
+}
+
+/** Start refresh each second. Only if unlocked. */
 function startFastPolling() {
-  maxPollingLoopCount = 1
+  if ( ! locked) {
+    maxPollingLoopCount = 1
+  }
 }
 
 /** Return to refresh each 30 seconds */
@@ -33,7 +58,9 @@ function endFastPolling() {
 /** refresh one dynamic section of the page. */
 function refresh(sectionName) {
   // Get latest admin data
-  return fetch('/admin/admin.json')
+  // Active (force state update) polling only when unlocked, otherwise it's just viewing state data.
+  activeParam = locked ? '' : '?active=true'
+  return fetch('/admin/admin.json' + activeParam)
     .then(async (response) => {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -42,8 +69,10 @@ function refresh(sectionName) {
       const etag = response.headers.get('etag')
       if (lastETag === null || etag !== lastETag) {
         lastETag = etag
-        // transform to html and insert into page
+        // transform to html and insert into page. Add the local 'locked' flag to admin state for use in
+        // templated page rendering.
         var data = await response.json()
+        data.locked = locked
         var template = Handlebars.templates[sectionName]
         if ( ! (data.display.deploying || data.display.building)) {
           // If niether deploying or building, turn off fast polling
@@ -69,6 +98,9 @@ function setInnerHtml(elm, html) {
 }
 
 function sendCommand(id, name, params) {
+  if (locked) {
+    return  // don't send commands when locked (buttons should be disabled)
+  }
   return fetch('/admin/command/' + name, {
     method: 'POST',
     cache: 'no-cache',

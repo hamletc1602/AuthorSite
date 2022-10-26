@@ -1,3 +1,5 @@
+"use strict";
+
 //
 exports.onCache = async (event, context) => {
   const cf = event.Records[0].cf;
