@@ -80,13 +80,13 @@ const cfnDeleteHandler = async (requestId, params) => {
     console.log(`Delete invoked with: ${JSON.stringify(params)}`)
 
     // Empty all site S3 buckets
-    await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
-    await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
     await deleteAllObjectsFromBucket(s3, params.WebDataBucket)
     await deleteAllObjectsFromBucket(s3, params.TestWebDataBucket)
     await deleteAllObjectsFromBucket(s3, params.FeedbackBucket)
     await deleteAllObjectsFromBucket(s3, params.AdminUiBucket)
     await deleteAllObjectsFromBucket(s3, params.AdminBucket)
+    await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
+    await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
 
     return {}
   } catch (error) {
