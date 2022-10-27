@@ -1,6 +1,7 @@
 "use strict";
 
 const AWS = require('aws-sdk');
+const URL = require('url');
 
 const s3 = new AWS.S3();
 const targetRegion = 'us-east-1'
@@ -59,7 +60,7 @@ exports.handler = async (event, context) => {
   //
   if (req.method === 'POST') {
     if (req.uri.indexOf('/admin/command/') === 0) {
-      return postCommand(req)
+      return postCommand(req, adminBucket, awsAccountId, rootName)
     }
   } else if (req.method === 'GET') {
     if (req.uri.indexOf('/admin/admin.json') === 0) {
@@ -67,12 +68,12 @@ exports.handler = async (event, context) => {
       // pages will just get the current state returned.
       const queryObj = URL.parse(req.uri, true).query;
       if (queryObj.active === 'true') {
-        const resp = getAdminJson()
+        const resp = getAdminJson(adminUiBucket, awsAccountId, rootName)
         if (resp) { return resp }
       }
     }
     else if (req.uri.indexOf('/admin/lock') === 0) {
-      return getLock(req)
+      return getLock(req, adminUiBucket)
     }
   }
 
@@ -184,7 +185,7 @@ const getLock = async (req, adminUiBucket) => {
   try {
     const lockResp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
     if (lockResp) {
-      const parts = lockResp.Body.split(' ')
+      const parts = lockResp.Body.toString().split(' ')
       const lockId = parts[0]
       lockTime = parts[1]
       if (queryObject.lockId !== lockId && Number(lockTime) + lockTimeoutMs > Date.now()) {
@@ -194,7 +195,7 @@ const getLock = async (req, adminUiBucket) => {
   } catch (e) {
     console.log('Failed to get admin lock:', e)
   }
-  const resp = null
+  let resp = null
   if (locked !== null) {
     resp = 'locked ' + lockTime
   } else {

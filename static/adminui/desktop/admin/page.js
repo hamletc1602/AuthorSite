@@ -1,5 +1,6 @@
 let authSecret = null
 let lastETag = null
+let lockId = ''
 let locked = true
 let maxPollingLoopCount = 30  // Default refresh each 30s
 
@@ -7,6 +8,12 @@ onload = function() {
   // Event handlers
   document.getElementById('auth-save').onclick = function(ev) {
     authSecret = document.getElementById('auth-secret').value
+  }
+  // Get or create lock ID
+  lockId = sessionStorage.get('lockId')
+  if ( ! lockId) {
+    lockId = String(Math.random()).substring(2,10) + String(Math.random()).substring(2,10)
+    sessionStorage.setItem('lockId', lockId)
   }
   //
   getLockState()
@@ -29,7 +36,7 @@ onload = function() {
 
 /** Lock state polling */
 function getLockState() {
-  return fetch('/admin/lock')
+  return fetch(`/admin/lock?lockId=${lockId}`)
     .then(async (response) => {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
