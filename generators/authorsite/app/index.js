@@ -150,11 +150,11 @@ const handler = async (event, context) => {
     for (let type of options.types.split(",")) {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
-      await displayUpdate(Aws, { building: true }, `Render website for ${type}`)
+      await displayUpdate(Aws, { building: true, stepMsg: `Render website for ${type}` }, `Render website for ${type}`)
       const data = await preparePageData(confDir, config, tempDir, options);
-      await displayUpdate(Aws, { building: true }, `Generating server content`)
+      await displayUpdate(Aws, { building: true, stepMsg: `Generating server content` }, `Generating server content`)
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
-      await displayUpdate(Aws, { building: true }, `Generating client side code`)
+      await displayUpdate(Aws, { building: true, stepMsg: `Generating client side code` }, `Generating client side code`)
       await renderReactComponents(config, tempDir, tempDir, options);
       if (context) {
         // Push completed build back to S3 (Test site)
@@ -166,9 +166,9 @@ const handler = async (event, context) => {
             }
           })
         } catch (e) {
-          const msg = `Sync to test site for ${type} failed: ${JSON.stringify(e)}`
-          console.error(msg)
-          await displayUpdate(Aws, { building: true }, msg)
+          const msg = `Sync to test site for ${type} failed`
+          console.error(msg + ` ${JSON.stringify(e)}`)
+          await displayUpdate(Aws, { building: true, stepMsg: msg }, msg)
         }
       }
     }
@@ -176,7 +176,7 @@ const handler = async (event, context) => {
     // Finish
     let dur = Date.now() - startTs
     console.log(`Complete in ${dur / 1000}s`)
-    await displayUpdate(Aws, { building: false }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
+    await displayUpdate(Aws, { building: false, stepMsg: 'Failed' }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -188,7 +188,7 @@ const handler = async (event, context) => {
     if (err.details) {
       console.log(err.details)
     }
-    await displayUpdate(Aws, { building: false }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
+    await displayUpdate(Aws, { building: false, stepMsg: 'Failed' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
     return {
       statusCode: 500,
       body: JSON.stringify({

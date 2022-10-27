@@ -72,7 +72,9 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
 async function applyTemplate(publicBucket, adminBucket, templateName) {
   console.log(`Copy default site template ${templateName} from ${publicBucket} to ${adminBucket}`)
-  await aws.displayUpdate(Object.assign(counts, { deploying: true }), 'publish', 'Starting deploy...')
+  await aws.displayUpdate(Object.assign(counts, {
+      preparing: true, stepMsg: `Prepare site with ${templateName} template.`
+    }), 'prepare', `Starting prepare with ${templateName} template.`)
   const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
   await Promise.all(siteConfigDir.files.map(async file => {
     console.log(`Copying ${file.path}`)
@@ -82,19 +84,5 @@ async function applyTemplate(publicBucket, adminBucket, templateName) {
       Body: await file.buffer()
     }).promise()
   }))
-}
-
-/**  */
-const mergeEventToString = (event) => {
-  let action = null
-  if (event.updated) { action = 'Updated' }
-  if (event.added) { action = 'Added' }
-  if (event.deleted) { action = 'Deleted' }
-  if (event.destFile) {
-    return `${action} ${event.destFile}`
-  } else if (event.sourceFile) {
-    return `${action} ${event.sourceFile}`
-  } else {
-    return JSON.stringify(event)
-  }
+  await aws.displayUpdate(Object.assign(counts, { preparing: false }), 'prepare', `Prepared with ${templateName} template.`)
 }

@@ -609,12 +609,12 @@ Resources:
   BuildSiteNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'build-site']]
+      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'build-site']]
       Description: Node Modules dir for build site lambda
       CompatibleArchitectures:
         - 'x86_64'
       CompatibleRuntimes:
-        - 'Node.js 16'
+        - 'nodejs16.x'
       Content:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/layers/authorsite.layer.zip'
@@ -665,12 +665,12 @@ Resources:
   AdminWorkerNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
       Description: Node Modules dir for admin worker lambda
       CompatibleArchitectures:
         - 'x86_64'
       CompatibleRuntimes:
-        - 'Node.js 16'
+        - 'nodejs16.x'
       Content:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/layers/admin-worker.layer.zip'
@@ -708,12 +708,12 @@ Resources:
   ProvisionerNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Name: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
       Description: Node Modules dir for admin worker lambda
       CompatibleArchitectures:
         - 'x86_64'
       CompatibleRuntimes:
-        - 'Node.js 16'
+        - 'nodejs16.x'
       Content:
         S3Bucket: 'braevitae-pub'
         S3Key: 'AutoSite/layers/provisioner.layer.zip'
@@ -1004,6 +1004,14 @@ Resources:
                  - 's3:GetObjectTagging'
                  - 's3:PutObjectTagging'
                 Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: StatusQueueAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'sqs:SendMessage'
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

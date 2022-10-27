@@ -65,7 +65,7 @@ exports.handler = async (event, context) => {
     if (req.uri.indexOf('/admin/admin.json') === 0) {
       // Only one page instance shold be active-polling to update the cached admin state at any one time. Other
       // pages will just get the current state returned.
-      const queryObj = url.parse(req.uri, true).query;
+      const queryObj = URL.parse(req.uri, true).query;
       if (queryObj.active === 'true') {
         const resp = getAdminJson()
         if (resp) { return resp }
@@ -80,7 +80,7 @@ exports.handler = async (event, context) => {
   return req
 };
 
-const getAdminJson = async () => {
+const getAdminJson = async (adminUiBucket, awsAccountId, rootName) => {
   try {
     // Read current state of the admin.json (unless cached in global var already)
     // TODO: This architecture is sensitve to more than one admin UI running at the same time from multiple browsers. I don't expect this
@@ -104,7 +104,7 @@ const getAdminJson = async () => {
       })
       const cleaned = msgCount - state.logs.length
       if (cleaned > 0) {
-        console.log(`Cleaned ${cleaned} messages from ${key} log.`)
+        console.log(`Cleaned ${cleaned} messages from log.`)
       }
     }
 
@@ -177,16 +177,17 @@ const getAdminJson = async () => {
 }
 
 // /lock.json?clientId=uuid
-const getLock = async (req) => {
-  const queryObject = url.parse(req.uri, true).query;
+const getLock = async (req, adminUiBucket) => {
+  const queryObject = URL.parse(req.uri, true).query;
   let locked = null
+  let lockTime = null
   try {
     const lockResp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
     if (lockResp) {
       const parts = lockResp.Body.split(' ')
       const lockId = parts[0]
-      const lockTime = parts[1]
-      if (query.lockId !== lockId && Number(lockTime) + lockTimeoutMs > Date.now()) {
+      lockTime = parts[1]
+      if (queryObject.lockId !== lockId && Number(lockTime) + lockTimeoutMs > Date.now()) {
         locked = lockTime
       }
     }
@@ -199,7 +200,7 @@ const getLock = async (req) => {
   } else {
     resp = 'unlocked'
     // (re-)write the lock file
-    const lockStr = query.lockId + ' ' + Date.now()
+    const lockStr = queryObject.lockId + ' ' + Date.now()
     await s3.putObject({ Bucket: adminUiBucket, Key: 'admin/lock', Body: Buffer.from(lockStr) }).promise()
   }
   return {
@@ -210,7 +211,7 @@ const getLock = async (req) => {
   }
 }
 
-const postCommand = async (req) => {
+const postCommand = async (req, adminBucket, awsAccountId, rootName) => {
   //
   let uploaderPassword = null
   try {
@@ -300,7 +301,7 @@ const mergeState = (state, message) => {
     if ( ! state.logs) {
       state.logs = []
     }
-    log.forEach(logMsg => {
+    message.logs.forEach(logMsg => {
       logMsg.rcptTime = rcptTime
       state.logs.push(logMsg)
     })
