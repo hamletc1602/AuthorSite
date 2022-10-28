@@ -1,5 +1,6 @@
 const sdk = require('aws-sdk');
 const AwsUtils = require('./awsUtils')
+const Unzipper = require('unzipper')
 
 const publicBucket = process.env.publicBucket
 const adminBucket = process.env.adminBucket
@@ -63,7 +64,7 @@ const deploySite = async (testSiteBucket, siteBucket) => {
       console.error(msg)
       await aws.displayUpdate(Object.assign(counts, { deployError: JSON.stringify(e) }), 'publish', msg)
   } finally {
-    const msg = `Deploy complete: Updated: ${updatedCount}, Added: ${addedCount}, Deleted: ${deletedCount}, Unchanged: ${unchangedCount}`
+    const msg = `Deploy complete: Updated: ${counts.updated}, Added: ${counts.added}, Deleted: ${counts.deleted}, Unchanged: ${counts.unchanged}`
     console.log(msg)
     await aws.displayUpdate(Object.assign(counts, { deploying: false }), 'publish', msg)
   }
@@ -72,17 +73,17 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
 async function applyTemplate(publicBucket, adminBucket, templateName) {
   console.log(`Copy default site template ${templateName} from ${publicBucket} to ${adminBucket}`)
-  await aws.displayUpdate(Object.assign(counts, {
+  await aws.displayUpdate({
       preparing: true, stepMsg: `Prepare site with ${templateName} template.`
-    }), 'prepare', `Starting prepare with ${templateName} template.`)
-  const siteConfigDir = await Unzipper.Open.s3(s3,{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
+    }, 'prepare', `Starting prepare with ${templateName} template.`)
+  const siteConfigDir = await Unzipper.Open.s3(AwsUtils.s3,{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
   await Promise.all(siteConfigDir.files.map(async file => {
     console.log(`Copying ${file.path}`)
-    await s3.putObject({
+    await AwsUtils.s3.putObject({
       Bucket: adminBucket,
       Key: 'site-config/' + file.path,
       Body: await file.buffer()
     }).promise()
   }))
-  await aws.displayUpdate(Object.assign(counts, { preparing: false }), 'prepare', `Prepared with ${templateName} template.`)
+  await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
 }

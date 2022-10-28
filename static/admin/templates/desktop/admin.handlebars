@@ -6,7 +6,7 @@
       {{else}}
         <label for="admin-select-template">Choose a site template:</label>
         <select id="admin-select-template" class="selectTemplate">
-          {{#each templates}}
+          {{#each ../templates}}
             <option value="{{id}}">{{name}}</option>
           {{/each}}
         </select>
@@ -57,6 +57,8 @@
 {{/with}}
 <script>
   // Register command handlers for all buttons. They call a global function defined in page.js.
+
+  // TODO: Need to get the requested template name from the dropdown and supply it on this call!!
   document.getElementById('admin-cmd-template').onclick = function(ev) { sendCommand('admin-cmd-template', 'template') }
   document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }

@@ -10,11 +10,31 @@ onload = function() {
     authSecret = document.getElementById('auth-secret').value
   }
   // Get or create lock ID
-  lockId = sessionStorage.get('lockId')
+  lockId = sessionStorage.getItem('lockId')
   if ( ! lockId) {
     lockId = String(Math.random()).substring(2,10) + String(Math.random()).substring(2,10)
     sessionStorage.setItem('lockId', lockId)
   }
+
+  /* Ugg. When tabs are duplicated, existing session storage is copied which duplicates the shared ID!
+    Trick is to only put the key in session storage during refresh.
+    See: https://stackoverflow.com/questions/28752524/uniquely-identify-a-duplicated-chrome-tab
+
+  const tabIdKey = "tabIdStorageKey"
+  const initTabId = (): string => {
+    const id = sessionStorage.getItem(tabIdKey)
+    if (id) {
+      sessionStorage.removeItem(tabIdKey)
+      return id
+    }
+    return uuid()
+  }
+  const tabId = initTabId()
+  window.addEventListener("beforeunload", () => {
+    sessionStorage.setItem(tabIdKey, tabId)
+  })
+  */
+
   //
   getLockState()
   this.setInterval(function() {

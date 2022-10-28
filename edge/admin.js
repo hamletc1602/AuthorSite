@@ -66,7 +66,7 @@ exports.handler = async (event, context) => {
     if (req.uri.indexOf('/admin/admin.json') === 0) {
       // Only one page instance shold be active-polling to update the cached admin state at any one time. Other
       // pages will just get the current state returned.
-      const queryObj = URL.parse(req.uri, true).query;
+      const queryObj = new URLSearchParams(req.querystring)
       if (queryObj.active === 'true') {
         const resp = getAdminJson(adminUiBucket, awsAccountId, rootName)
         if (resp) { return resp }
@@ -179,29 +179,36 @@ const getAdminJson = async (adminUiBucket, awsAccountId, rootName) => {
 
 // /lock.json?clientId=uuid
 const getLock = async (req, adminUiBucket) => {
-  const queryObject = URL.parse(req.uri, true).query;
-  let locked = null
+  const queryObject = new URLSearchParams(req.querystring)
+  const newLockId = queryObject.get('lockId')
+  console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
+  let locked = false
+  let lockId = null
   let lockTime = null
   try {
     const lockResp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
     if (lockResp) {
-      const parts = lockResp.Body.toString().split(' ')
-      const lockId = parts[0]
+      const raw = lockResp.Body.toString()
+      const parts = raw.split(' ')
+      lockId = parts[0]
       lockTime = parts[1]
-      if (queryObject.lockId !== lockId && Number(lockTime) + lockTimeoutMs > Date.now()) {
-        locked = lockTime
+      console.log(`Found lock file ${Date.now() - Number(lockTime)}ms old and lock ID: ${lockId}. Raw: ${raw}`)
+      if (newLockId !== lockId && ((Date.now() - Number(lockTime)) < lockTimeoutMs)) {
+        locked = true
       }
     }
   } catch (e) {
     console.log('Failed to get admin lock:', e)
   }
   let resp = null
-  if (locked !== null) {
-    resp = 'locked ' + lockTime
+  if (locked) {
+    console.log(`locked by ${lockId} at ${lockTime}`)
+    resp = `locked by ${lockId} at ${lockTime}`
   } else {
+    console.log('unlocked')
     resp = 'unlocked'
     // (re-)write the lock file
-    const lockStr = queryObject.lockId + ' ' + Date.now()
+    const lockStr = newLockId + ' ' + Date.now()
     await s3.putObject({ Bucket: adminUiBucket, Key: 'admin/lock', Body: Buffer.from(lockStr) }).promise()
   }
   return {
@@ -313,13 +320,9 @@ const mergeState = (state, message) => {
   state.display = Object.assign(state.display, message.display)
 }
 
-const deploySite = async (command, adminBucket, adminWorkerArn) => {
+const deploySite = async (command, adminWorkerArn) => {
   try {
-    const parts = adminBucket.split('-')
-    parts.pop()
-    const siteBucket = parts.join('.')
-    const testSiteBucket = 'test.' + siteBucket
-    console.log(`Deploy site from ${testSiteBucket} to ${siteBucket}.`)
+    console.log(`Send command ${command} site to admin-worker.`)
     const respData = await lambda.invoke({
       FunctionName: adminWorkerArn,
       InvocationType: 'Event',
