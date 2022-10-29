@@ -272,19 +272,23 @@ const postCommand = async (req, adminBucket, awsAccountId, rootName) => {
     const arnPrefix = `arn:aws:lambda:${targetRegion}:${awsAccountId}:function:${rootName}`
     let ret = null
     const command = parts.shift()
-    console.log(`Command: ${command}, Body: ${req.body}`)
+    let body = null
+    if (req.body && req.body.data) {
+      body = Buffer.from(req.body.data, 'base64')
+    }
+    console.log(`Command: ${command}, Body: ${body}`)
     switch (command) {
       case 'template':
-        ret = deploySite(command, adminBucket, arnPrefix + '-admin-worker', req.body)
+        ret = deploySite(command, arnPrefix + '-admin-worker', body)
         break
       case 'build':
-        ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', req.body)
+        ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', body)
         break
       case 'publish':
-        ret = deploySite(command, adminBucket, arnPrefix + '-admin-worker', req.body)
+        ret = deploySite(command, arnPrefix + '-admin-worker', body)
         break
       case 'upload':
-        ret = uploadResource(parts.join('/'), adminBucket, req)
+        ret = uploadResource(parts.join('/'), adminBucket, body, req)
         break
       default:
         ret = {
@@ -322,11 +326,16 @@ const mergeState = (state, message) => {
 
 const deploySite = async (command, adminWorkerArn, body) => {
   try {
-    console.log(`Send command ${command} site to admin-worker.`)
+    let params = {}
+    if (body) {
+      params = JSON.parse(body.toString())
+    }
+    const payload = JSON.stringify({ command: command, body: params })
+    console.log(`Send command ${command} site to admin-worker. Payload: ${payload}`)
     const respData = await lambda.invoke({
       FunctionName: adminWorkerArn,
       InvocationType: 'Event',
-      Payload: JSON.stringify({ command: command, body: body })
+      Payload: payload
     }).promise()
     console.log(`Aync Invoked ${adminWorkerArn}, response: ${JSON.stringify(respData)}`)
     return {
@@ -352,7 +361,7 @@ const buildSite = async (path, adminBucket, builderArn, body) => {
     const respData = await lambda.invoke({
       FunctionName: builderArn,
       InvocationType: 'Event',
-      Payload: JSON.stringify({ body: body })
+      Payload: JSON.stringify({ body: body ? body.toString() :  })
     }).promise()
     console.log(`Aync Invoked ${builderArn}, response: ${JSON.stringify(respData)}`)
     return {
@@ -368,9 +377,8 @@ const buildSite = async (path, adminBucket, builderArn, body) => {
   }
 }
 
-const uploadResource = async (resourcePath, adminBucket, req) => {
+const uploadResource = async (resourcePath, adminBucket, body, req) => {
   console.log(`Upload resource ${resourcePath} to ${adminBucket}.`)
-  const body = Buffer.from(req.body.data, 'base64')
   const params = {
     Bucket: adminBucket,
     Key:  resourcePath,

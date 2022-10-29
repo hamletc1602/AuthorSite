@@ -13,22 +13,30 @@ function AwsUtils(options) {
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
 }
 
+AwsUtils.prototype.getS3 = function() {
+  return this.s3
+}
+
+AwsUtils.prototype.getSqs = function() {
+  return this.sqs
+}
+
 /** Get all files from an S3 bucket and save them to disk */
 AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
     console.log(`Start pull of config from ${bucket}:${keyPrefix} to ${destDir}`)
-    const list = await this.list(bucket)
-    const filtered = list.filter(item => item.Key.indexOf(keyPrefix) === 0)
+    const list = await this.list(bucket, keyPrefix)
+    const filtered = list.filter(item => item.Key[item.Key.length - 1] !== '/' )
     const batchedList = this.batch(filtered, 32)
     await this.saveFiles(bucket, keyPrefix, batchedList, destDir)
 }
 
 /** List metadata for all objects from and S3 bucket */
-AwsUtils.prototype.list = async function(bucket) {
+AwsUtils.prototype.list = async function(bucket, keyPrefix) {
     let isTruncated = true;
     let marker;
     const items = []
     while(isTruncated) {
-        let params = { Bucket: bucket }
+        let params = { Bucket: bucket, Prefix: keyPrefix }
         if (marker) {
             params.Marker = marker
         }
@@ -44,8 +52,8 @@ AwsUtils.prototype.list = async function(bucket) {
 
 /** List all keys in the bucket, filtered by the given prefix. Intentionally mathing the interface of Files.listDir. */
 AwsUtils.prototype.listDir = async function(bucket, keyPrefix) {
-  const list = await this.list(bucket)
-  const filtered = list.filter(item => item.Key.indexOf(keyPrefix) === 0)
+  const list = await this.list(bucket, keyPrefix)
+  const filtered = list.filter(item => item.Key[item.Key.length - 1] !== '/' )
   return filtered.map(item => {
       return {
           path: item.Key,
@@ -71,13 +79,18 @@ AwsUtils.prototype.batch = function(list, size) {
 AwsUtils.prototype.saveFiles = async function(bucket, keyPrefix, batchedList, destDir) {
   for (let i = 0; i < batchedList.length; ++i) {
     await Promise.all(batchedList[i].map(async item => {
+      let filePath = null
       try {
         const obj = await this.get(bucket, item.Key)
-        const filePath = destDir + '/' + item.Key.substring(keyPrefix.length)
+        filePath = destDir + '/' + item.Key.substring(keyPrefix.length)
         this.files.ensurePath(filePath)
         await this.files.saveFile(filePath, obj.Body)
       } catch(e) {
-        console.error(`Failed to save ${keyPrefix}`)
+        if (filePath) {
+          console.error(`Failed to save ${item.Key} to ${filePath}`, e)
+        } else {
+          console.error(`Failed to get ${item.Key}`, e)
+        }
       }
     }))
   }
@@ -169,7 +182,7 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
 
 /** Merge one bucket to another, only replacing output files if the hashes differ. */
 AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, destBucket, destPrefix, monitor) {
-  console.log(`Merging ${sourceBucket}:${destBucket}. to ${destBucket}:${destPrefix}.`)
+  console.log(`Merging ${sourceBucket}:${sourcePrefix}. to ${destBucket}:${destPrefix}.`)
   const sourceFiles = await this.listDir(sourceBucket, sourcePrefix)
   const destFiles = await this.listDir(destBucket, destPrefix)
   console.log(`Found ${sourceFiles.length} source files and ${destFiles.length} dest files.`)

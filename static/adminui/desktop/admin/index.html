@@ -2,15 +2,18 @@
 <html>
   <head>
     <title>AutoSite Admin</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="pure-3.0.0-min.css">
+    <link rel="stylesheet" href="admin-1.0.0.css">
     <script src="handlebars.runtime.min-v4.7.7.js" type="application/javascript" defer></script>
-    <script src="admin.handlebars.js" type="application/javascript" defer></script>
-    <script src="page.js" type="application/javascript" defer></script>
+    <script src="admin.handlebars-1.0.0.js" type="application/javascript" defer></script>
+    <script src="admin-1.0.0.js" type="application/javascript" defer></script>
   </head>
   <body>
     <h1>AutoSite Admin</h1>
     <div class="authenticate">
-      <div>Authenticate: <input id="auth-secret" type="password"> <button id="auth-save">Save</button></div>
+      <form class="pure-form">
+        Authenticate: <input id="auth-secret" type="password"> <button id="auth-save">Save</button>
+      </form>
     </div>
     <div id="adminSection">
       Loading...

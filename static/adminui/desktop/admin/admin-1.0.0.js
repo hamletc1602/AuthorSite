@@ -59,6 +59,11 @@ function getLockState() {
         locked = true
       }
       document.body.classList.toggle('locked', locked)
+      const elems = document.getElementsByClassName('action')
+      for (let i = 0; i < elems.length; ++i) {
+        const elem = elems[i]
+        elem.classList.toggle('pure-button-disabled', locked)
+      }
     })
 }
 

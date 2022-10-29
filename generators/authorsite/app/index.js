@@ -211,7 +211,7 @@ const displayUpdate = async (Aws, params, logMsg) => {
   // TOOD: step message and log message will likely diverge in future, with step msg. as an explicit parameter.
   // This is a quick hack to show something in the UI.
   params.stepMsg = logMsg
-  await displayUpdate(Aws, params, 'build', logMsg)
+  await Aws.displayUpdate(params, 'build', logMsg)
 }
 
 /**  */

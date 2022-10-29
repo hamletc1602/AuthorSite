@@ -85,8 +85,8 @@ const cfnDeleteHandler = async (requestId, params) => {
     await deleteAllObjectsFromBucket(s3, params.FeedbackBucket)
     await deleteAllObjectsFromBucket(s3, params.AdminUiBucket)
     await deleteAllObjectsFromBucket(s3, params.AdminBucket)
-    await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
     await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
+    await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
 
     return {}
   } catch (error) {
@@ -98,6 +98,7 @@ const cfnDeleteHandler = async (requestId, params) => {
 
 /** Delete all objects from the named bucket. */
 const deleteAllObjectsFromBucket = async (s3, bucketName) => {
+  console.log(`Delete all data from ${bucketName}`)
   try {
     const data = await s3.listObjects({ Bucket: bucketName }).promise();
     console.log('List bucket result: ' + JSON.stringify(data))
