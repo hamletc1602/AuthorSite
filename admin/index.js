@@ -23,13 +23,21 @@ const aws = new AwsUtils({
 */
 exports.handler = async (event, context) => {
   console.log('Event: ' + JSON.stringify(event))
+  const params = {}
+  if (event.body && event.body.data) {
+    try {
+      params = JSON.parse(event.body.data)
+    } catch (e) {
+      console.error(`Failed to parse body data: ${event.body.data}`)
+    }
+  }
 
   // Handle action requests
   switch (event.command) {
     case 'template':
-      return await applyTemplate(publicBucket, adminBucket)
+      return await applyTemplate(publicBucket, adminBucket, params)
     case 'publish':
-      return await deploySite(testSiteBucket, siteBucket)
+      return await deploySite(testSiteBucket, siteBucket, params)
     default:
       return {
         status: '404',
@@ -71,7 +79,8 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
-async function applyTemplate(publicBucket, adminBucket, templateName) {
+async function applyTemplate(publicBucket, adminBucket, params) {
+  const templateName = params.id
   console.log(`Copy default site template ${templateName} from ${publicBucket} to ${adminBucket}`)
   await aws.displayUpdate({
       preparing: true, stepMsg: `Prepare site with ${templateName} template.`

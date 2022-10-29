@@ -1,39 +1,31 @@
-let authSecret = null
+const FastPollingTimeoutMs = 5 * 60 * 1000
+
 let lastETag = null
 let lockId = ''
 let locked = true
 let maxPollingLoopCount = 30  // Default refresh each 30s
+let fastPollingTimeoutId = null
 
+// Save the current lock ID in local session just before page refresh, for use after refresh.
+window.addEventListener("beforeunload", () => {
+  sessionStorage.setItem('lockId', lockId)
+})
+
+//
 onload = function() {
-  // Event handlers
+  // Save and populate auth secret on the page
   document.getElementById('auth-save').onclick = function(ev) {
-    authSecret = document.getElementById('auth-secret').value
+    sessionStorage.setItem('auth-secret', document.getElementById('auth-secret').value)
   }
-  // Get or create lock ID
+  document.getElementById('auth-secret').value = sessionStorage.getItem('auth-secret')
+
+  // Get or create lock ID, then remove it from the local session so it's not copied to duplicated tabs
   lockId = sessionStorage.getItem('lockId')
-  if ( ! lockId) {
+  if (lockId) {
+    sessionStorage.removeItem('lockId')
+  } else {
     lockId = String(Math.random()).substring(2,10) + String(Math.random()).substring(2,10)
-    sessionStorage.setItem('lockId', lockId)
   }
-
-  /* Ugg. When tabs are duplicated, existing session storage is copied which duplicates the shared ID!
-    Trick is to only put the key in session storage during refresh.
-    See: https://stackoverflow.com/questions/28752524/uniquely-identify-a-duplicated-chrome-tab
-
-  const tabIdKey = "tabIdStorageKey"
-  const initTabId = (): string => {
-    const id = sessionStorage.getItem(tabIdKey)
-    if (id) {
-      sessionStorage.removeItem(tabIdKey)
-      return id
-    }
-    return uuid()
-  }
-  const tabId = initTabId()
-  window.addEventListener("beforeunload", () => {
-    sessionStorage.setItem(tabIdKey, tabId)
-  })
-  */
 
   //
   getLockState()
@@ -74,12 +66,20 @@ function getLockState() {
 function startFastPolling() {
   if ( ! locked) {
     maxPollingLoopCount = 1
+    fastPollingTimeoutId = setTimeout(function() {
+      endFastPolling()
+      fastPollingTimeoutId = null
+    }, FastPollingTimeoutMs)
   }
 }
 
 /** Return to refresh each 30 seconds */
 function endFastPolling() {
   maxPollingLoopCount = 30
+  if (fastPollingTimeoutId) {
+    clearTimeout(fastPollingTimeoutId)
+    fastPollingTimeoutId = null
+  }
 }
 
 /** refresh one dynamic section of the page. */
@@ -132,8 +132,10 @@ function sendCommand(id, name, params) {
     method: 'POST',
     cache: 'no-cache',
     headers: new Headers({
-      'Authorization': 'BASIC ' + btoa('admin:' + authSecret)
-    })
+      'Authorization': 'BASIC ' + btoa('admin:' + sessionStorage.getItem('auth-secret')),
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify(params)
   }).then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);

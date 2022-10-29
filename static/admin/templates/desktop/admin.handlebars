@@ -56,10 +56,16 @@
 </div>
 {{/with}}
 <script>
+  // Put data on page for later use
+  const templateNames = []
+  {{#each templates}}
+    templateNames.push('{{id}}')
+  {{/each}}
   // Register command handlers for all buttons. They call a global function defined in page.js.
-
-  // TODO: Need to get the requested template name from the dropdown and supply it on this call!!
-  document.getElementById('admin-cmd-template').onclick = function(ev) { sendCommand('admin-cmd-template', 'template') }
+  document.getElementById('admin-cmd-template').onclick = function(ev) {
+    const templateSelect = document.getElementById('admin-select-template')
+    sendCommand('admin-cmd-template', 'template', { id: templateNames[templateSelect.selectedIndex] })
+  }
   document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }
   {{#each tabs}}
