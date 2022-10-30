@@ -109,8 +109,12 @@ function refresh(sectionName) {
         var data = await response.json()
         data.locked = locked
         // Sort logs in reverse chrono order of message generation (Should be close to this order already but may have been disordered in the message batching process)
-        data.logs = data.logs.sort((a, b) => b.time - a.time)
-        data.latest = data.latest.sort((a, b) => b.time - a.time)
+        if (data.logs) {
+          data.logs = data.logs.sort((a, b) => b.time - a.time)
+        }
+        if (data.latest) {
+          data.latest = data.latest.sort((a, b) => b.time - a.time)
+        }
         var template = Handlebars.templates[sectionName]
         if ( ! (data.display.deploying || data.display.building || data.display.preparing)) {
           // If niether deploying or building, turn off fast polling

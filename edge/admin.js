@@ -68,7 +68,7 @@ exports.handler = async (event, context) => {
       // pages will just get the current state returned.
       const queryObj = new URLSearchParams(req.querystring)
       if (queryObj.get('active') === 'true') {
-        const resp = getAdminJson(adminUiBucket, awsAccountId, rootName)
+        const resp = await getAdminJson(adminUiBucket, awsAccountId, rootName)
         if (resp) { return resp }
       }
     }
@@ -135,6 +135,11 @@ const getAdminJson = async (adminUiBucket, awsAccountId, rootName) => {
           console.log('Failed to merge message. Error: ' + JSON.stringify(error))
         }
       })
+
+      // Move the current top 3 messages to the 'latest' logs section
+      // TODO: Looks like something in this area is nuking all but the most recent log enry
+      state.latest = state.logs.slice(0, 3)
+      state.logs = state.logs.slice(3)
 
       // Update global cache
       stateCache = state
@@ -318,9 +323,6 @@ const mergeState = (state, message) => {
       state.logs.unshift(logMsg)
     })
   }
-  // Move the current top 3 messages to the 'latest' logs section
-  state.latest = state.logs.slice(0, 3)
-  state.logs = state.logs.slice(3)
   // Display properties
   state.display = Object.assign(state.display, message.display)
 }
