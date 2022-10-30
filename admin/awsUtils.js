@@ -1,5 +1,23 @@
 const mime = require('mime');
 
+const logMsgTimeoutMS = 24 * 60 * 60 * 1000  // 24 hours
+const lockTimeoutMs = 5 * 60 * 1000  // 5 Mins
+
+const noCacheHeaders = {
+    'cache-control': [
+      {
+          'key': 'Cache-Control',
+          'value': 'no-cache,s-maxage=0'
+      }
+    ],
+    'content-type': [
+      {
+          'key': 'Content-Type',
+          'value': 'text/plain'
+      }
+    ]
+  }
+
 /** Constructor */
 function AwsUtils(options) {
   if (!(this instanceof AwsUtils)) {
@@ -275,6 +293,166 @@ AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
   }
 }
 
+/** Before returning the admin.json state file from S3, check the state queue for any messages and merge them into the
+    state before returning it.
+
+    This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
+    calls this must also call for /admin/lock to check if there's any other active admin UI running.
+*/
+AwsUtils.prototype.getAdminJson = async function(state, adminUiBucket, awsAccountId, rootName) {
+  try {
+    // Read current state of the admin.json (unless cached in global var already)
+    if ( ! state) {
+      console.log('Get state from bucket')
+      const resp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
+      const stateStr = resp.Body.toString()
+      state = JSON.parse(stateStr)
+    }
+
+    console.log(`Clean up any old (>24 hours) log messages.`)
+    console.log(`State: ${JSON.stringify(state)}`)
+    if (state.logs) {
+      const currMs = Date.now()
+      const msgCount = state.logs.length
+      state.logs = state.logs.filter(msg => {
+        return (currMs - msg.time) < logMsgTimeoutMS
+      })
+      const cleaned = msgCount - state.logs.length
+      if (cleaned > 0) {
+        console.log(`Cleaned ${cleaned} messages from log.`)
+      }
+    }
+
+    // Create state queue URL:
+    // Eg. https://sqs.us-east-1.amazonaws.com/376845798252/demo-braevitae-com.fifo
+    const stateQueueUrl = `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
+
+    console.log(`Get all messages from the status queue: ${stateQueueUrl}`)
+    const sqsResp = await sqs.receiveMessage({
+      QueueUrl: stateQueueUrl,
+      AttributeNames: ['ApproximateNumberOfMessages'],
+      MaxNumberOfMessages: 10,
+      MessageAttributeNames: ['All']
+    }).promise()
+    if (sqsResp.Messages) {
+      console.log(`Received ${sqsResp.Messages.length} messages.`)
+      sqsResp.Messages.forEach(msg => {
+        let msgObj = null
+        try {
+          msgObj = JSON.parse(msg.Body)
+        } catch(error) {
+          console.log('Failed to parse message: ' + msg.Body + ' Error: ' + JSON.stringify(error))
+        }
+        try {
+          _mergeState(state, msgObj)
+        } catch(error) {
+          console.log('Failed to merge message. Error: ' + JSON.stringify(error))
+        }
+      })
+
+      // Move the current top 3 messages to the 'latest' logs section
+      // TODO: Looks like something in this area is nuking all but the most recent log enry
+      state.latest = state.logs.slice(0, 3)
+      state.logs = state.logs.slice(3)
+
+      console.log(`Save the state (admin.json)`)
+      await s3.putObject({
+        Bucket: adminUiBucket,
+        Key: 'admin/admin.json',
+        Body: Buffer.from(JSON.stringify(state)),
+        CacheControl: 'no-cache,s-maxage=0',
+        ContentType: 'application/json',
+      }).promise()
+
+      console.log(`Delete ${sqsResp.Messages.length} merged messages`)
+      const msgsForDelete = sqsResp.Messages.map(msg => {
+        return {
+          Id: msg.MessageId,
+          ReceiptHandle: msg.ReceiptHandle
+        }
+      })
+      const deleteResp = await sqs.deleteMessageBatch({
+        QueueUrl: stateQueueUrl,
+        Entries: msgsForDelete
+      }).promise()
+      if (deleteResp.Failed && deleteResp.Failed.length > 0) {
+        console.log(`Failed to delete some processed messages: ${JSON.stringify(deleteResp.Failed)}`)
+      } else {
+        console.log(`Deleted all processed messages.`)
+      }
+
+    }
+    // keep @Edge default handling
+    return false
+  } catch(error) {
+    const msg = 'Failed to get messages or update status data: ' + JSON.stringify(error)
+    console.log(msg)
+    return {
+      status: '500',
+      statusDescription: msg
+    }
+  }
+}
+
+// Merge this new message into the current state.
+const _mergeState = (state, message) => {
+  // Add any new log messages to the state
+  //    Log messages will have a current time in MS set when they are generated at the source (time)
+  //    And a receipt time (rcptTime) is added here, in case of any major clock differences or processing
+  //    hangups.
+  console.log(`Merge into state: ${JSON.stringify(message)}`)
+  if (message.logs) {
+    const rcptTime = Date.now()
+    if ( ! state.logs) {
+      state.logs = []
+    }
+    message.logs.forEach(logMsg => {
+      logMsg.rcptTime = rcptTime
+      state.logs.unshift(logMsg)
+    })
+  }
+  // Display properties
+  state.display = Object.assign(state.display, message.display)
+}
+
+/** Check the contents of the lock file against the given lockId and return locked or unlocked state. */
+AwsUtils.prototype.getLock = async function(newLockId, adminUiBucket) {
+  let locked = false
+  let lockId = null
+  let lockTime = null
+  try {
+    const lockResp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
+    if (lockResp) {
+      const raw = lockResp.Body.toString()
+      const parts = raw.split(' ')
+      lockId = parts[0]
+      lockTime = parts[1]
+      console.log(`Found lock file ${Date.now() - Number(lockTime)}ms old and lock ID: ${lockId}. Raw: ${raw}`)
+      if (newLockId !== lockId && ((Date.now() - Number(lockTime)) < lockTimeoutMs)) {
+        locked = true
+      }
+    }
+  } catch (e) {
+    console.log('Failed to get admin lock:', e)
+  }
+  let resp = null
+  if (locked) {
+    console.log(`locked by ${lockId} at ${lockTime}`)
+    resp = `locked by ${lockId} at ${lockTime}`
+  } else {
+    console.log('unlocked')
+    resp = 'unlocked'
+    // (re-)write the lock file
+    const lockStr = newLockId + ' ' + Date.now()
+    await s3.putObject({ Bucket: adminUiBucket, Key: 'admin/lock', Body: Buffer.from(lockStr) }).promise()
+  }
+  return {
+    status: '200',
+    statusDescription: 'OK',
+    headers: noCacheHeaders,
+    body: resp
+  }
+}
 
 //
 module.exports = AwsUtils
