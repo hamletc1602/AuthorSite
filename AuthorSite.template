@@ -627,7 +627,8 @@ Resources:
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt BuildSiteRole.Arn
-      Timeout: 90
+      MemorySize: 512
+      Timeout: 300
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -683,7 +684,7 @@ Resources:
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
-      Timeout: 30
+      Timeout: 300
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'

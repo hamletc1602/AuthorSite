@@ -46,7 +46,7 @@ const cfnCreateHandler = async (params) => {
         domain: params.SiteDomain,
         templates: templates,
         display: {},
-        logs: {}
+        logs: []
       }))
     }).promise()
 

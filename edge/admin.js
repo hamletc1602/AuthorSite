@@ -67,7 +67,7 @@ exports.handler = async (event, context) => {
       // Only one page instance shold be active-polling to update the cached admin state at any one time. Other
       // pages will just get the current state returned.
       const queryObj = new URLSearchParams(req.querystring)
-      if (queryObj.active === 'true') {
+      if (queryObj.get('active') === 'true') {
         const resp = getAdminJson(adminUiBucket, awsAccountId, rootName)
         if (resp) { return resp }
       }
@@ -315,11 +315,12 @@ const mergeState = (state, message) => {
     }
     message.logs.forEach(logMsg => {
       logMsg.rcptTime = rcptTime
-      state.logs.push(logMsg)
+      state.logs.unshift(logMsg)
     })
   }
-  // replace the latest logs with the last 3 messages
-  state.latest = state.logs.slice(-3)
+  // Move the current top 3 messages to the 'latest' logs section
+  state.latest = state.logs.slice(0, 3)
+  state.logs = state.logs.slice(3)
   // Display properties
   state.display = Object.assign(state.display, message.display)
 }
@@ -361,7 +362,7 @@ const buildSite = async (path, adminBucket, builderArn, body) => {
     const respData = await lambda.invoke({
       FunctionName: builderArn,
       InvocationType: 'Event',
-      Payload: JSON.stringify({ body: body ? body.toString() :  })
+      Payload: JSON.stringify({ body: body ? body.toString() : null })
     }).promise()
     console.log(`Aync Invoked ${builderArn}, response: ${JSON.stringify(respData)}`)
     return {

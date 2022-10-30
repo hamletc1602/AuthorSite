@@ -27,18 +27,16 @@
   {{/with}}
 </p>
 <details class="logs">
-  {{#with logs}}
   <summary>
     {{#each latest}}
       <div>{{msg}}</div>
     {{/each}}
   </summary>
   <p class="logs">
-    {{#each all}}
+    {{#each logs}}
       <div>{{msg}}</div>
     {{/each}}
   </p>
-  {{/with}}
 </details>
 {{#with config}}
   <div class="configurations pure-menu pure-menu-horizontal pure-menu-scrollable">
@@ -59,15 +57,33 @@
 </div>
 {{/with}}
 <script>
+  // register callback to the containg page can interact
+  adminCache.callback = function(command, params) {
+    //switch (command) {
+    //}
+  }
+
   // Put data on page for later use
-  const templateNames = []
+  adminCache.templateNames = []
   {{#each templates}}
-    templateNames.push('{{id}}')
+  adminCache.templateNames.push('{{id}}')
   {{/each}}
+
+  // Set current state of buttons
+  {{#if display.preparing}}
+  document.getElementById('admin-cmd-template').classList.add('pure-button-disabled')
+  {{/if}}
+  {{#if display.building}}
+  document.getElementById('admin-cmd-build').classList.add('pure-button-disabled')
+  {{/if}}
+  {{#if display.publishing}}
+  document.getElementById('admin-cmd-publish').classList.add('pure-button-disabled')
+  {{/if}}
+
   // Register command handlers for all buttons. They call a global function defined in page.js.
   document.getElementById('admin-cmd-template').onclick = function(ev) {
     const templateSelect = document.getElementById('admin-select-template')
-    sendCommand('admin-cmd-template', 'template', { id: templateNames[templateSelect.selectedIndex] })
+    sendCommand('admin-cmd-template', 'template', { id: adminCache.templateNames[templateSelect.selectedIndex] })
   }
   document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }

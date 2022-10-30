@@ -239,6 +239,10 @@ const preparePageData = async (confDir, config, tempDir, options) => {
       news: await Files.loadJson(confDir + "/news.json", config),
       distributors: await Files.loadJson(confDir + "/distributors.json", config)
     }
+    // Series config file is optional
+    if ( ! data.series) {
+      data.series = []
+    }
 
     //
     await resolveFileRefs(confDir, data.styleConfig, config);

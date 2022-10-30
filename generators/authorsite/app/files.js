@@ -17,9 +17,12 @@ exports.copy = (src, dest) => {
   return Fs.copyFile(src, dest)
 }
 
-/** Load and parse a JSON file */
+/** Load and parse a JSON file. Returns null if the file does not exist. */
 exports.loadJson = (filepath, config) => {
   return new Promise((resolve, reject) => {
+    if ( ! Fs.existsSync(filepath)) {
+      resolve(null)
+    }
     Fs.readFile(filepath, 'utf8', (err, content) => {
       var jsonTpl = null
       if (err) {
