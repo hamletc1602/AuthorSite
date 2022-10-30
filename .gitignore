@@ -3,7 +3,7 @@ target/**
 # tmp dir (needs to be inside package for webpack/babel build
 **/tmp/*
 # Handlebars compiled templates
-**/*.handlebars.js
+**/*.handlebars*.js
 # Zip files in general
 **/*.zip
 
