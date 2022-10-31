@@ -2,7 +2,7 @@
 
 If you are looking to build an author website with low hosting cost, 100% under your control, and with no significant limits on data size or bandwidth, you are welcome use this template with your own AWS account.
 
-[BraeVitae Static Website Template](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/cloudformation/AuthorSite.template)
+[BraeVitae Static Website Template](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite/AuthorSite.template)
 
 This template is free for use, disributed under the Open Source Apache License 2.0.
 
@@ -10,15 +10,27 @@ This template is free for use, disributed under the Open Source Apache License 2
 
 This template creates all the infrastructure necessary to host a mostly static website from an S3 bucket, with the following enhancements:
 
-- Built-in target for email feeback forms.
+- Cloaking of .html extensions on page urls.
+- Custom 404 page (returns to index.html).
+- Built-in target for feeback email forms.
 - Built-in forwarder to the Amazon store for the user's country.
-- HTTPS support, and Cloaking of .html extensions on page urls.
-- Custom 'page not found' handling.
-- Creates a unique access key pair for uploading files to only this website's bucket.
+- Websites can be generated from eisting templates, or existing files uploaded to the site.
+- Website files are generated to a test site first, automatically promoted to the live site with one button click.
+- Creates a unique key pair for uploading files to only this website's test site bucket.
 
-What this template does NOT do, is provide any website code. You will need to upload the html files and images that describe your website (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)) to the site's S3 bucket.
+The template requires a few data values to be entered:
 
-This fills a simillar role to AWS Amplify, but with less $/GB for data transfer since it works directly with Cloud Front, and it's designed for local file generation so you don't need to pay Amazon for build time.
+**DomainName**: The URL for this site. It must be one of the existing hosted domains in your acount, or a subdomain of one of them.
+
+**DomainZoneId**: The Hosted Zone ID of the hosted zone for the domain name entered above. This value can be found in the Route53 service, by clicking on the hosted zone and opening the Hosted Zone Details section.
+
+**FeedbackEmail**: The email address where you would like to receive feedback emails from this site. When you build the stack this address will recieve a registration confirmation email that you will need to respond to in order for feedback emails to be sent.
+
+**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite/lambdas/authorsite.zip' If you want to upload your own raw content to the site (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)), just enter this default value (authorsite), but you can also define your own generator function, place it's code archive in a bucket accessible to the user runnng execting the stack.
+
+## AWS Amplify
+
+This fills a simillar role to AWS Amplify, but with less $/GB for data transfer since it works directly with Cloud Front / S3, and provides existing site generation templates. It's limited to mainly to a single style of author/artist site for now, but there's room to define your own templates and generator functions.
 
 ## Requirements
 
@@ -59,7 +71,7 @@ One thing you hate your potential reader to see is an ugly error page instead of
 
 ## Unique access key for uploading files
 
-It is posisble to upload files directly wih the AWS S3 console to the bucket with the same name as your site domain, as described above, but for a large site, it's much, much easier to use a syncing tool like the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-services-s3-commands.html) or others. But to do this, you'll need to provide an access key pair for your site's S3 bucket. These keys are provided on the 'outputs' tab of this cloud Formation stack once it completes.
+It is posisble to upload files directly wih the AWS S3 console to the bucket with the same name as your site's test domain, as described above, but for a large site, it's much, much easier to use a syncing tool like the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-services-s3-commands.html) or others. But to do this, you'll need to provide an access key pair for your site's S3 bucket. These keys are provided on the 'outputs' tab of this cloud Formation stack once it completes.
 
 ## Deleting The Site from AWS
 
@@ -69,11 +81,10 @@ But, there are a couple of twists to the process required by AWS:
 
 ### Delete all files from the site's S3 buckets:
 
-The site template creates three buckets for each website:
- - {domain name}
- - {domain name}-logs
- - {domain name}-feedback
-Deleting the stack will fail until all buckets are empty.
+The stack should delete all files from all buckets it created during the delete process, but sometimes this fails for the access logs buckets:
+- {domain name}-logs
+- test-{domain name}-logs
+And their files will need to be enptied before the stack delete can regres.
 
 ### Temporary Failure deleting Lambda functions
 
