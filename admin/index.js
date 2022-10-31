@@ -4,12 +4,12 @@ const Unzipper = require('unzipper')
 
 const publicBucket = process.env.publicBucket
 const adminBucket = process.env.adminBucket
-const adminUiBucket = process.env.adminUiBucket
+//const adminUiBucket = process.env.adminUiBucket
 const siteBucket = process.env.siteBucket
 const testSiteBucket = process.env.testSiteBucket
 const stateQueueUrl = process.env.stateQueueUrl
-const maxAgeBrowser = process.env.maxAgeBrowser
-const maxAgeCloudFront = process.env.maxAgeCloudFront
+//const maxAgeBrowser = process.env.maxAgeBrowser
+//const maxAgeCloudFront = process.env.maxAgeCloudFront
 
 const aws = new AwsUtils({
   files: null,  // Not needed (though perhaps this suggests we need two different modules)
@@ -21,7 +21,7 @@ const aws = new AwsUtils({
 /** Worker for admin tasks forwarded from admin@Edge lambda.
  - Publish: Sync all site files from the test site to the public site.
 */
-exports.handler = async (event, context) => {
+exports.handler = async (event, _context) => {
   console.log('Event: ' + JSON.stringify(event))
 
   // Handle action requests

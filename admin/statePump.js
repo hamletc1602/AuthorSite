@@ -3,8 +3,6 @@ const AwsUtils = require('./awsUtils')
 
 const adminUiBucket = process.env.adminUiBucket
 const stateQueueUrl = process.env.stateQueueUrl
-const maxAgeBrowser = process.env.maxAgeBrowser
-const maxAgeCloudFront = process.env.maxAgeCloudFront
 
 const aws = new AwsUtils({
   files: null,  // Not needed (though perhaps this suggests we need two different modules)
@@ -16,10 +14,10 @@ const aws = new AwsUtils({
 /** Task run periodically to check for admin state queue events and store them to the state file so
     queue events don't time out and vanish if no one uses the admin UI for a while (>14 days)
 */
-exports.handler = async (event, context) => {
-  console.log('Event: ' + JSON.stringify(event))
-
-
-
-
+exports.handler = async (_event, _context) => {
+  const lock = await aws.getCurrentLock(adminUiBucket)
+  if (lock) {
+    console.log(`State locked by ${lock.id}, skipping this update.`)
+  }
+  await aws.updateAdminStateFromQueue(null, adminUiBucket)
 }

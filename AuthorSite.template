@@ -16,16 +16,18 @@
 #
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  BraeVitae AuthorSite
+  BraeVitae Simple Static Website generator
 
   This template creates all the infrastructure necessary to host a mostly static website from an S3 bucket, with
   the following enhancements:
 
-   - Built-in target for feeback email forms.
-   - Built-in forwarder to the Amazon store for the user's country.
    - Cloaking of .html extensions on page urls.
    - Custom 404 page (returns to index.html).
-   - Creates a unique key pair for uploading files to only this website's bucket.
+   - Built-in target for feeback email forms.
+   - Built-in forwarder to the Amazon store for the user's country.
+   - Websites can be generated from eisting templates, or existing files uploaded to the site.
+   - Website files are generated to a test site first, automatically promoted to the live site with one button click.
+   - Creates a unique key pair for uploading files to only this website's test site bucket.
 
    Copyright 2022 BraeVitae Inc. Apache License 2.0
 
@@ -644,8 +646,8 @@ Resources:
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: !Join ['', ['AutoSite/lambdas/', !Ref SiteGenerator, '.zip']]
+        S3Bucket: !Select [0, !Split [':', !Ref SiteGenerator]]
+        S3Key: !Select [1, !Split [':', !Ref SiteGenerator]]
       Layers:
         - !Ref BuildSiteNMLayer
 
@@ -705,6 +707,44 @@ Resources:
         S3Key: 'AutoSite/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
+
+  StatePump:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Periodic state queue check and update admin state with any messages.'
+      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'state-pump']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt AdminRole.Arn
+      Timeout: 90
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: statePump.handler
+      Environment:
+        Variables:
+          adminUiBucket: !Ref AdminUiData
+          stateQueueUrl: !Ref StateQueue
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/lambdas/admin-worker.zip'
+      Layers:
+        - !Ref AdminWorkerNMLayer
+
+  StatePumpSchedule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'cron(00 1/8 * * * *)' # Every 8th hour
+      Targets:
+        - Arn: !GetAtt StatePump.Arn
+          Id: '1'
+  StatePumpCwPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt StatePump.Arn
+      Principal: 'events.amazonaws.com',
+      SourceArn: !GetAtt StatePumpSchedule.Arn
 
   ProvisionerNMLayer:
     Type: AWS::Lambda::LayerVersion
@@ -1141,27 +1181,6 @@ Resources:
       LoginProfile:
         Password: !Ref UploaderPassword
       Policies:
-        - PolicyName: AccessToBucketOnly
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListAllMyBuckets
-                  - s3:GetBucketLocation
-                Resource:
-                  - arn:aws:s3:::*
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt WebData.Arn
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                Resource:
-                  - !Join ['', [!GetAtt WebData.Arn, '/*']]
         - PolicyName: AccessToTestBucketOnly
           PolicyDocument:
             Version: '2012-10-17'
@@ -1193,6 +1212,9 @@ Resources:
       UserName: !Ref UploadUser
 
 Outputs:
+  TestSiteBucket:
+    Description: S3 bucket for test site files
+    Value: !Ref TestWebData
   AccessId:
     Description: Access ID
     Value: !Ref UploadUserAccessKey

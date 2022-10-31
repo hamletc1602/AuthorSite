@@ -115,11 +115,11 @@ AwsUtils.prototype.saveFiles = async function(bucket, keyPrefix, batchedList, de
 }
 
 AwsUtils.prototype.get = async function(bucket, key) {
-  return await this.s3.getObject({ Bucket: bucket, Key: key }).promise()
+  return this.s3.getObject({ Bucket: bucket, Key: key }).promise()
 }
 
 AwsUtils.prototype.put = async function(bucket, key, type, content) {
-  return await this.s3.putObject({
+  return this.s3.putObject({
     Bucket: bucket,
     Key: key,
     Body: content,
@@ -129,7 +129,7 @@ AwsUtils.prototype.put = async function(bucket, key, type, content) {
 }
 
 AwsUtils.prototype.delete = async function(bucket, key) {
-  return await this.s3.deleteObject({ Bucket: bucket, Key: key }).promise()
+  return this.s3.deleteObject({ Bucket: bucket, Key: key }).promise()
 }
 
 /** Merge all temp files to the output dir, only replacing output files if the hashes differ. */
@@ -154,7 +154,7 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
         if (destFile) {
           localHash = this.files.getETagForFile(sourceFile.path)
         }
-        if ( !destFile || (localHash != destFile.hash)) {
+        if ( !destFile || (localHash !== destFile.hash)) {
           const content = await this.files.loadFileBinary(sourceFile.path)
           const type = mime.getType(sourceFile.path) || 'text/html'
           const destPath = destPrefix + sourceFile.relPath
@@ -217,7 +217,7 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
         const destFile = destFilesMap[sourceFile.relPath]
         if ( !destFile || (sourceFile.hash !== destFile.hash)) {
           const content = await this.get(sourceBucket, sourceFile.path)
-          //console.log('file metadata: ', content)
+          // console.log('file metadata: ', content)
           const type = mime.getType(sourceFile.path) || 'text/html'
           const destPath = destPrefix + sourceFile.relPath
           await this.put(destBucket, destPath, type, content.Body)
@@ -299,12 +299,12 @@ AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
     This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
     calls this must also call for /admin/lock to check if there's any other active admin UI running.
 */
-AwsUtils.prototype.getAdminJson = async function(state, adminUiBucket, awsAccountId, rootName) {
+AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBucket) {
   try {
     // Read current state of the admin.json (unless cached in global var already)
     if ( ! state) {
       console.log('Get state from bucket')
-      const resp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
+      const resp = await this.s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
       const stateStr = resp.Body.toString()
       state = JSON.parse(stateStr)
     }
@@ -323,13 +323,9 @@ AwsUtils.prototype.getAdminJson = async function(state, adminUiBucket, awsAccoun
       }
     }
 
-    // Create state queue URL:
-    // Eg. https://sqs.us-east-1.amazonaws.com/376845798252/demo-braevitae-com.fifo
-    const stateQueueUrl = `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
-
-    console.log(`Get all messages from the status queue: ${stateQueueUrl}`)
-    const sqsResp = await sqs.receiveMessage({
-      QueueUrl: stateQueueUrl,
+    console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
+    const sqsResp = await this.sqs.receiveMessage({
+      QueueUrl: this.stateQueueUrl,
       AttributeNames: ['ApproximateNumberOfMessages'],
       MaxNumberOfMessages: 10,
       MessageAttributeNames: ['All']
@@ -356,7 +352,7 @@ AwsUtils.prototype.getAdminJson = async function(state, adminUiBucket, awsAccoun
       state.logs = state.logs.slice(3)
 
       console.log(`Save the state (admin.json)`)
-      await s3.putObject({
+      await this.s3.putObject({
         Bucket: adminUiBucket,
         Key: 'admin/admin.json',
         Body: Buffer.from(JSON.stringify(state)),
@@ -371,8 +367,8 @@ AwsUtils.prototype.getAdminJson = async function(state, adminUiBucket, awsAccoun
           ReceiptHandle: msg.ReceiptHandle
         }
       })
-      const deleteResp = await sqs.deleteMessageBatch({
-        QueueUrl: stateQueueUrl,
+      const deleteResp = await this.sqs.deleteMessageBatch({
+        QueueUrl: this.stateQueueUrl,
         Entries: msgsForDelete
       }).promise()
       if (deleteResp.Failed && deleteResp.Failed.length > 0) {
@@ -415,36 +411,27 @@ const _mergeState = (state, message) => {
   state.display = Object.assign(state.display, message.display)
 }
 
-/** Check the contents of the lock file against the given lockId and return locked or unlocked state. */
-AwsUtils.prototype.getLock = async function(newLockId, adminUiBucket) {
+/** Check the contents of the lock file against the given lockId. Return locked or unlocked state, and
+    take the lock for ourselves if it's open.
+ */
+AwsUtils.prototype.takeLockIfFree = async function(newLockId, adminUiBucket) {
+  const lock = await this.getCurrentLock(adminUiBucket)
   let locked = false
-  let lockId = null
-  let lockTime = null
-  try {
-    const lockResp = await s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
-    if (lockResp) {
-      const raw = lockResp.Body.toString()
-      const parts = raw.split(' ')
-      lockId = parts[0]
-      lockTime = parts[1]
-      console.log(`Found lock file ${Date.now() - Number(lockTime)}ms old and lock ID: ${lockId}. Raw: ${raw}`)
-      if (newLockId !== lockId && ((Date.now() - Number(lockTime)) < lockTimeoutMs)) {
-        locked = true
-      }
+  if (lock) {
+    if (lock.id !== newLockId) {
+      locked = true
     }
-  } catch (e) {
-    console.log('Failed to get admin lock:', e)
   }
   let resp = null
   if (locked) {
-    console.log(`locked by ${lockId} at ${lockTime}`)
-    resp = `locked by ${lockId} at ${lockTime}`
+    console.log(`locked by ${lock.id} at ${lock.time}`)
+    resp = `locked by ${lock.id} at ${lock.time}`
   } else {
     console.log('unlocked')
     resp = 'unlocked'
     // (re-)write the lock file
     const lockStr = newLockId + ' ' + Date.now()
-    await s3.putObject({ Bucket: adminUiBucket, Key: 'admin/lock', Body: Buffer.from(lockStr) }).promise()
+    await this.s3.putObject({ Bucket: adminUiBucket, Key: 'admin/lock', Body: Buffer.from(lockStr) }).promise()
   }
   return {
     status: '200',
@@ -452,6 +439,28 @@ AwsUtils.prototype.getLock = async function(newLockId, adminUiBucket) {
     headers: noCacheHeaders,
     body: resp
   }
+}
+
+/** Get the current lock ID if it's still active, null if there's no active lock. */
+AwsUtils.prototype.getCurrentLock = async function(adminUiBucket) {
+  try {
+    const lockResp = await this.s3.getObject({ Bucket: adminUiBucket, Key: 'admin/lock' }).promise()
+    if (lockResp) {
+      const raw = lockResp.Body.toString()
+      const parts = raw.split(' ')
+      lockId = parts[0]
+      lockTime = parts[1]
+      if (((Date.now() - Number(lockTime)) < lockTimeoutMs)) {
+        return {
+          id: lockId,
+          time: lockTime
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Failed to get admin lock file:', e)
+  }
+  return null
 }
 
 //

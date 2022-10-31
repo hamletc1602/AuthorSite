@@ -42,7 +42,7 @@ exports.onFeedback = async function (event, context) {
         Body: body
       }
       return s3.putObject(params).promise()
-        .then(data => {
+        .then(() => {
           return {
             status: '200',
             statusDescription: 'OK'
@@ -59,7 +59,7 @@ exports.onFeedback = async function (event, context) {
 };
 
 //
-exports.publisher = async function (event, context) {
+exports.publisher = async function (_event, _context) {
     try {
         // Read from S3 bucket received folder
         const b = process.env.BUCKET

@@ -1,7 +1,7 @@
 "use strict";
 
 //
-exports.onCache = async (event, context) => {
+exports.onCache = async (event, _context) => {
   const cf = event.Records[0].cf;
   const request = cf.request;
   let suffix = '.html';
@@ -28,7 +28,7 @@ exports.onCache = async (event, context) => {
 };
 
 //
-exports.onAzn = async (event, context) => {
+exports.onAzn = async (event, _context) => {
   // Redirect to the correct amazon host for the country, with the same URL path that we're called with.
   const request = event.Records[0].cf.request
   if (request.headers) {

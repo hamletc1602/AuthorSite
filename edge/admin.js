@@ -1,6 +1,7 @@
 "use strict";
 
 const AWS = require('aws-sdk');
+const AwsUtils = require('./awsUtils')
 
 const s3 = new AWS.S3();
 const targetRegion = 'us-east-1'
@@ -45,12 +46,19 @@ exports.handler = async (event, context) => {
       return postCommand(req, adminBucket, awsAccountId, rootName)
     }
   } else if (req.method === 'GET') {
+    const aws = new AwsUtils({
+      files: null,  // Not needed (though perhaps this suggests we need two different modules)
+      s3: new AWS.S3(),
+      sqs: new AWS.SQS(),
+      stateQueueUrl: `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
+    })
+
     if (req.uri.indexOf('/admin/admin.json') === 0) {
       // Only one page instance shold be active-polling to update the cached admin state at any one time. Other
       // pages will just get the current state returned.
       const queryObj = new URLSearchParams(req.querystring)
       if (queryObj.get('active') === 'true') {
-        const resp = await getAdminJson(stateCache, adminUiBucket, awsAccountId, rootName)
+        const resp = await aws.updateAdminStateFromQueue(stateCache, adminUiBucket)
         if (resp) { return resp }
       }
     }
@@ -58,7 +66,7 @@ exports.handler = async (event, context) => {
       const queryObject = new URLSearchParams(req.querystring)
       const newLockId = queryObject.get('lockId')
       console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
-      return getLock(newLockId, adminUiBucket)
+      return aws.takeLockIfFree(newLockId, adminUiBucket)
     }
   }
 
@@ -202,7 +210,7 @@ const buildSite = async (path, adminBucket, builderArn, body) => {
   }
 }
 
-const uploadResource = async (resourcePath, adminBucket, body, req) => {
+const uploadResource = async (resourcePath, adminBucket, body, _req) => {
   console.log(`Upload resource ${resourcePath} to ${adminBucket}.`)
   const params = {
     Bucket: adminBucket,
@@ -210,7 +218,7 @@ const uploadResource = async (resourcePath, adminBucket, body, req) => {
     Body: body
   }
   return s3.putObject(params).promise()
-    .then(data => {
+    .then(() => {
       return {
         status: '200',
         statusDescription: 'OK'
