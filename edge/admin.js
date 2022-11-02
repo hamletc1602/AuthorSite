@@ -40,19 +40,19 @@ exports.handler = async (event, context) => {
   const adminBucket = functionName
   const adminUiBucket = adminBucket + '-ui'
 
+  const aws = new AwsUtils({
+    files: null,  // Not needed (though perhaps this suggests we need two different modules)
+    s3: new AWS.S3(),
+    sqs: new AWS.SQS(),
+    stateQueueUrl: `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
+  })
+
   //
   if (req.method === 'POST') {
     if (req.uri.indexOf('/admin/command/') === 0) {
-      return postCommand(req, adminBucket, awsAccountId, rootName)
+      return postCommand(aws, req, adminBucket, awsAccountId, rootName)
     }
   } else if (req.method === 'GET') {
-    const aws = new AwsUtils({
-      files: null,  // Not needed (though perhaps this suggests we need two different modules)
-      s3: new AWS.S3(),
-      sqs: new AWS.SQS(),
-      stateQueueUrl: `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
-    })
-
     if (req.uri.indexOf('/admin/admin.json') === 0) {
       // Only one page instance shold be active-polling to update the cached admin state at any one time. Other
       // pages will just get the current state returned.
@@ -75,7 +75,7 @@ exports.handler = async (event, context) => {
 };
 
 /** */
-const postCommand = async (req, adminBucket, awsAccountId, rootName) => {
+const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
   //
   let uploaderPassword = null
   try {
@@ -133,15 +133,22 @@ const postCommand = async (req, adminBucket, awsAccountId, rootName) => {
       body = Buffer.from(req.body.data, 'base64')
     }
     console.log(`Command: ${command}, Body: ${body}`)
+    let params = {}
+    if (body) {
+      params = JSON.parse(body.toString())
+    }
     switch (command) {
       case 'template':
-        ret = deploySite(command, arnPrefix + '-admin-worker', body)
+        // Set the current template in the admin state
+        aws.adminStateUpdate({ config: { templateId: params.id } })
+        // Invoke worker to copy template files
+        ret = deploySite(command, arnPrefix + '-admin-worker', params)
         break
       case 'build':
-        ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', body)
+        ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', params)
         break
       case 'publish':
-        ret = deploySite(command, arnPrefix + '-admin-worker', body)
+        ret = deploySite(command, arnPrefix + '-admin-worker', params)
         break
       case 'upload':
         ret = uploadResource(parts.join('/'), adminBucket, body, req)
@@ -157,12 +164,8 @@ const postCommand = async (req, adminBucket, awsAccountId, rootName) => {
   }
 }
 
-const deploySite = async (command, adminWorkerArn, body) => {
+const deploySite = async (command, adminWorkerArn, params) => {
   try {
-    let params = {}
-    if (body) {
-      params = JSON.parse(body.toString())
-    }
     const payload = JSON.stringify({ command: command, body: params })
     console.log(`Send command ${command} site to admin-worker. Payload: ${payload}`)
     const respData = await lambda.invoke({
@@ -184,7 +187,7 @@ const deploySite = async (command, adminWorkerArn, body) => {
   }
 }
 
-const buildSite = async (path, adminBucket, builderArn, body) => {
+const buildSite = async (path, adminBucket, builderArn, params) => {
   try {
     const parts = adminBucket.split('-')
     parts.pop()
@@ -194,7 +197,7 @@ const buildSite = async (path, adminBucket, builderArn, body) => {
     const respData = await lambda.invoke({
       FunctionName: builderArn,
       InvocationType: 'Event',
-      Payload: JSON.stringify({ body: body ? body.toString() : null })
+      Payload: JSON.stringify(params)
     }).promise()
     console.log(`Aync Invoked ${builderArn}, response: ${JSON.stringify(respData)}`)
     return {

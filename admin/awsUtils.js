@@ -269,6 +269,23 @@ AwsUtils.prototype.mergeBuckets = async function(sourceBucket, sourcePrefix, des
 }
 
 /** Send an update to the site SQS queue. */
+AwsUtils.prototype.adminStateUpdate = async function(update) {
+  try {
+    const msg = Object.apply({
+      time: Date.now(),
+    }, update)
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send admin state update: ${JSON.stringify(error)}`)
+  }
+}
+
+/** Send an update to the site SQS queue. */
 AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
   try {
     const msg = {
@@ -448,8 +465,8 @@ AwsUtils.prototype.getCurrentLock = async function(adminUiBucket) {
     if (lockResp) {
       const raw = lockResp.Body.toString()
       const parts = raw.split(' ')
-      lockId = parts[0]
-      lockTime = parts[1]
+      const lockId = parts[0]
+      const lockTime = parts[1]
       if (((Date.now() - Number(lockTime)) < lockTimeoutMs)) {
         return {
           id: lockId,

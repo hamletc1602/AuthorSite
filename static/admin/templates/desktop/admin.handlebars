@@ -1,21 +1,19 @@
 <p class="display">
   {{#with display}}
     <div>
-      {{#if template}}
-        <span>Site template:</span><span>{{template.name}}</span>
-      {{else}}
-        <label for="admin-select-template">Choose a site template:</label>
-        <select id="admin-select-template" class="selectTemplate">
-          {{#each ../templates}}
-            <option value="{{id}}">{{name}}</option>
-          {{/each}}
-        </select>
-      {{/if}}
+      <label for="admin-select-template">Choose a site template:</label>
+      <select id="admin-select-template" class="selectTemplate">
+        <option value="">Choose a template...</option>
+        {{#each ../templates}}
+          <option value="{{id}}">{{name}}</option>
+        {{/each}}
+      </select>
       <button id="admin-cmd-template" class="action pure-button">Apply</button>
       <span class="message">{{#if preparing}}{{stepMsg}}{{/if}}</span>
     </div>
     <div>
       <button id="admin-cmd-build" class="action pure-button">Generate</button>
+      <button id="admin-cmd-build-debug" class="action pure-button">Generate Debug</button>
       <span class="message">{{#if building}}{{stepMsg}}{{/if}}</span>
       <a href="https://test.{{@root.domain}}/" target="_blank"><span class="popout">Test Site</span></a>
     </div>
@@ -80,12 +78,31 @@
   document.getElementById('admin-cmd-publish').classList.add('pure-button-disabled')
   {{/if}}
 
+  // Set the currently selected template
+  {{#if config.templateId}}
+  {
+    const templateSelect = document.getElementById('admin-select-template')
+    const index = adminCache.templateNames.findIndex(value => value === config.templateId)
+    templateSelect.selectedIndex = index
+  }
+  {{/if}}
+
   // Register command handlers for all buttons. They call a global function defined in page.js.
   document.getElementById('admin-cmd-template').onclick = function(ev) {
     const templateSelect = document.getElementById('admin-select-template')
     sendCommand('admin-cmd-template', 'template', { id: adminCache.templateNames[templateSelect.selectedIndex] })
   }
-  document.getElementById('admin-cmd-build').onclick = function(ev) { sendCommand('admin-cmd-build', 'build') }
+  document.getElementById('admin-cmd-build').onclick = function(ev) {
+    const templateSelect = document.getElementById('admin-select-template')
+    sendCommand('admin-cmd-build', 'build', { templateId: adminCache.templateNames[templateSelect.selectedIndex] })
+  }
+  document.getElementById('admin-cmd-build-debug').onclick = function(ev) {
+    const templateSelect = document.getElementById('admin-select-template')
+    sendCommand('admin-cmd-build', 'build', {
+      templateId: adminCache.templateNames[templateSelect.selectedIndex]
+      debug: 'true'
+    })
+  }
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }
   {{#each tabs}}
     document.getElementById('tab-button-{{id}}').onclick = function(ev) { activateTab('admin-tab-{{id}}', '{{id}}') }

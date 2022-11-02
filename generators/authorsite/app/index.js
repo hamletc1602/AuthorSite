@@ -48,6 +48,7 @@ Handlebars.registerHelper('versionUrl', (options) => {
 
 /** Main Entry Point */
 const handler = async (event, context) => {
+  console.log('Event: ' + JSON.stringify(event))
   const startTs = Date.now()
   let options = {}
   let Aws = {
@@ -88,12 +89,8 @@ const handler = async (event, context) => {
     let configName = null
     let configDebug = null
     if (context) {
-      // TODO: This assumes a specific form of domain name. like '**.{domain}.*' - generalize this, or make site name and top-level
-      // domain separate fields in CloudFormation script?
-      const configDomain = process.env.siteDomain
-      const parts = configDomain.split(".")
-      configName = parts[parts.length - 2] // 2nd last element
-      configDebug = process.env.debug //TODO: Will need admin checkbox for debug on/off, and pass it in on build call
+      configName = event.templateId
+      configDebug = event.debug === 'true'
     } else {
       configName = process.env.npm_config_authorsite_site
       configDebug = process.env.npm_config_authorsite_debug
@@ -122,7 +119,7 @@ const handler = async (event, context) => {
           stateQueueUrl: options.stateQueueUrl
         })
         await displayUpdate(Aws, { building: true }, 'build', `Website build ${options.buildId} started`)
-        await Aws.pull(options.adminBucket, 'site-config/', confDir)
+        await Aws.pull(options.adminBucket, `site-config/${configName}/`, confDir)
       } catch (e) {
         console.error(`Pull of config failed: ${JSON.stringify(e)}`)
       }

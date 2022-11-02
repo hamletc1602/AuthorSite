@@ -734,10 +734,11 @@ Resources:
   StatePumpSchedule:
     Type: 'AWS::Events::Rule'
     Properties:
-      ScheduleExpression: 'cron(00 1/8 * * * *)' # Every 8th hour
+      ScheduleExpression: 'cron(00 1/4 * * * *)' # Every 4th hour
       Targets:
         - Arn: !GetAtt StatePump.Arn
           Id: '1'
+
   StatePumpCwPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:

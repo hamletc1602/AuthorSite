@@ -82,7 +82,7 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     console.log(`Copying ${file.path}`)
     await aws.getS3().putObject({
       Bucket: adminBucket,
-      Key: 'site-config/' + file.path,
+      Key: `site-config/${templateName}` + file.path,
       Body: await file.buffer()
     }).promise()
   }))
