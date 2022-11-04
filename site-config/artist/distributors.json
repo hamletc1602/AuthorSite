@@ -1,0 +1,11 @@
+{
+    "infoRequest": {
+        "name": "Contact",
+        "url": "/contact_us#msgId=0;title=@BOOKID@",
+        "popupText": "Request information about this painting",
+        "icon": "{%imagePath%}/dist-icons/reqInfo.png",
+        "featureIcon": "{%imagePath%}/dist-icons/reqInfo.png",
+        "bookIdProp": "title",
+        "hidden": true
+    }
+}

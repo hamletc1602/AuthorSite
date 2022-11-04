@@ -1,0 +1,16 @@
+[{
+    "name": "Acrylic",
+    "bioPic": "{%imagePath%}/bios/acrylic.png",
+    "bioPicLink": "",
+    "bio": { "file": "bios/acrylic.md" }
+},{
+    "name": "Oil",
+    "bioPic": "{%imagePath%}/bios/oils.png",
+    "bioPicLink": "",
+    "bio": { "file": "bios/oils.md" }
+},{
+    "name": "Pastel & Watercolour",
+    "bioPic": "{%imagePath%}/bios/pastelWatercolour.png",
+    "bioPicLink": "",
+    "bio": { "file": "bios/pastelWatercolour.md" }
+}]

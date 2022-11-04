@@ -24,13 +24,17 @@
     </div>
   {{/with}}
 </p>
-<details class="logs">
-  <summary>
+{{#if config.logsOpen}}
+<details open id="admin-logs-detail" class="logs">
+{{else}}
+<details id="admin-logs-detail" class="logs">
+{{/if}}
+  <summary class="latest">
     {{#each latest}}
       <div>{{msg}}</div>
     {{/each}}
   </summary>
-  <p class="logs">
+  <p class="detail">
     {{#each logs}}
       <div>{{msg}}</div>
     {{/each}}
@@ -55,16 +59,17 @@
 </div>
 {{/with}}
 <script>
-  // register callback to the containg page can interact
-  adminCache.callback = function(command, params) {
+  // register callback to the containg page so it can interact
+  adminCache.sendEvent = function(command, params) {
     //switch (command) {
     //}
   }
 
   // Put data on page for later use
   adminCache.templateNames = []
+  adminCache.templateNames.push({ id: '' })
   {{#each templates}}
-  adminCache.templateNames.push('{{id}}')
+  adminCache.templateNames.push({ id: '{{id}}', name: '{{name}}', description: '{{description}}' })
   {{/each}}
 
   // Set current state of buttons
@@ -82,7 +87,7 @@
   {{#if config.templateId}}
   {
     const templateSelect = document.getElementById('admin-select-template')
-    const index = adminCache.templateNames.findIndex(value => value === config.templateId)
+    const index = adminCache.templateNames.findIndex(item => item.id === config.templateId)
     templateSelect.selectedIndex = index
   }
   {{/if}}
@@ -90,19 +95,36 @@
   // Register command handlers for all buttons. They call a global function defined in page.js.
   document.getElementById('admin-cmd-template').onclick = function(ev) {
     const templateSelect = document.getElementById('admin-select-template')
-    sendCommand('admin-cmd-template', 'template', { id: adminCache.templateNames[templateSelect.selectedIndex] })
+    sendCommand('admin-cmd-template', 'template', { id: adminCache.templateNames[templateSelect.selectedIndex].id })
   }
+
   document.getElementById('admin-cmd-build').onclick = function(ev) {
     const templateSelect = document.getElementById('admin-select-template')
-    sendCommand('admin-cmd-build', 'build', { templateId: adminCache.templateNames[templateSelect.selectedIndex] })
+    sendCommand('admin-cmd-build', 'build', { templateId: adminCache.templateNames[templateSelect.selectedIndex].id })
   }
+
   document.getElementById('admin-cmd-build-debug').onclick = function(ev) {
     const templateSelect = document.getElementById('admin-select-template')
     sendCommand('admin-cmd-build', 'build', {
-      templateId: adminCache.templateNames[templateSelect.selectedIndex]
+      templateId: adminCache.templateNames[templateSelect.selectedIndex].id,
       debug: 'true'
     })
   }
+
+  document.getElementById('admin-logs-detail').onToggle = function(ev) {
+    if (ev.target.open) {
+      adminCache.logsOpen = true
+    } else {
+      adminCache.logsOpen = false
+    }
+    if ( ! adminCache.logsOpenDebounce) {
+      adminCache.logsOpenDebounce = setTimeout(function() {
+        adminCache.logsOpenDebounce = null
+        sendCommand('admin-cmd-config', 'config', { logsOpen: adminCache.logsOpen })
+      }, 3000)
+    }
+  }
+
   document.getElementById('admin-cmd-publish').onclick = function(ev) { sendCommand('admin-cmd-publish', 'publish') }
   {{#each tabs}}
     document.getElementById('tab-button-{{id}}').onclick = function(ev) { activateTab('admin-tab-{{id}}', '{{id}}') }

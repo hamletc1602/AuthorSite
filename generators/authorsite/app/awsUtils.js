@@ -1,1 +1,1 @@
-../../../admin/awsUtils.js
+../../../edge/awsUtils.js

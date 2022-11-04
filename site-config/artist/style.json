@@ -1,0 +1,51 @@
+{
+
+"bkgndConfig": {
+    "heightSm": 200,
+    "height": 400,
+    "widthXSm": 320,
+    "widthSm": 480,
+    "widthMd": 768,
+    "widthLg": 1024,
+    "widthXl": 1536,
+    "widthXXl": 2655,
+    "footerHeight": 200
+},
+    
+"defaultFont": "SansSerif",
+"featureFont": "SansSerif",
+"newsFont": "SansSerif",
+
+"headerHeight": {
+    "sm": "30px",
+    "md": "90px",
+    "lg": "100px",
+    "noPanel": {
+        "sm": "30px",
+        "md": "90px",
+        "lg": "100px"
+    }
+},
+
+"fonts": [],
+
+"webFonts": [],
+
+"skins": [
+    {
+        "theme": "light",
+        "displayName": "Poppies",
+        "shortName": "P",
+        "active": true,
+        "className": "poppies",
+        
+        "headerColor": "#6e9f63",
+        "footerColor": "#6e9f63",
+        "contentBkColor": "rgba(0,0,0,0.3)",
+        "contentBoxShadowColor": "rgba(0,0,0,0.5)",
+        "featureBkColor": "rgba(0,0,0,0.3)",
+        "featureLoglineColor": "white"  
+
+    }]
+    
+}

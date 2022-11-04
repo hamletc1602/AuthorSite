@@ -1,15 +1,13 @@
 {
-    "template": "Author",
-    "display": {},
-    "logs": {},
-    "properties": [],
-    "buttons": [{
-      "id": "build",
-      "name": "Create Site",
-      "enabled": true
+  "templates": [{
+        "id": "author",
+        "name": "Author",
+        "description": "Site for writers to showcase books."
     },{
-      "id": "publish",
-      "name": "Publish",
-      "enabled": false
-    }]
+        "id": "artist",
+        "name": "Artist",
+        "description": "Site for visual artists to showcase paintings and other art."
+    }],
+  "display": {},
+  "logs": []
 }

@@ -1,0 +1,30 @@
+{%#> page mainPage=true %}
+
+<div class="page-books content">
+<p>
+  <div class="bookTable">
+    {%#items%}
+    <div class="bookTable-item bookTable-item{%@index%}">
+      <div class="bookCoverImage {%id%}CoverIcon">
+        <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}{%@config.ext%}" aria-label="{%title%}"></a>
+        {%#if published%}
+        {%else%}
+        <div class="comingSoon">SOLD</div>
+        {%/if%}
+      </div>
+      {%#if false%}
+      <div class="authorList">
+        {%#author%}
+          <a href="{%@config.authorPath%}/{%id%}{%@config.ext%}">{%name%}</a>
+        {%/author%}
+      </div>
+      {%/if%}
+      <a href="{%@config.booksPath%}/{%id%}{%@config.ext%}" aria-label="{%title%}">
+        <span class="logline truncateLine {%id%}CoverIconWidth">{%logline%}</span>
+      </a>
+    </div>
+    {%/items%}
+  </div>
+</div>
+
+{%/page%}

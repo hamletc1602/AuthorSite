@@ -7,6 +7,9 @@ wdir=$(pwd)
 echo clean old target and temp files
 rm -rf target/AutoSite/lambdas/*
 
+# Clean DS_Store files
+find . -name '.DS_Store' -type f -delete
+
 echo package admin worker lambda
 cd admin
 rm -rf node_modules
@@ -25,7 +28,11 @@ cd $wdir
 
 echo Package edge lambdas
 cd edge
-zip -qr $wdir/target/AutoSite/lambdas/edge.zip *
+rm -rf node_modules
+rm -f edge.zip
+npm run install-for-aws >/dev/null
+npm run pack
+mv edge.zip $wdir/target/AutoSite/lambdas/
 cd $wdir
 
 echo package site generator lambda

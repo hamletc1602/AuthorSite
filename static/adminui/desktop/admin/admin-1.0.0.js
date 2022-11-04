@@ -106,7 +106,7 @@ function refresh(sectionName) {
         lastETag = etag
         // transform to html and insert into page. Add the local 'locked' flag to admin state for use in
         // templated page rendering.
-        var data = await response.json()
+        const data = await response.json()
         data.locked = locked
         // Sort logs in reverse chrono order of message generation (Should be close to this order already but may have been disordered in the message batching process)
         if (data.logs) {

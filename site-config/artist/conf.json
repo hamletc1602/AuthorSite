@@ -1,0 +1,87 @@
+{
+    "siteName": "Artist",
+    "copyrightShort": "&copy; {%yyyy%} Artist",
+    "copyright": "Copyright &copy; {%yyyy%} Artist",
+
+    "defaultSkin": "poppies",
+    "templatesDir": "../config/artist/templates",
+    //"unpublishedStickerImage": "covers/Sold-Sticker-Angle.png",
+    //"unpublishedFeatureStickerImage": "covers/Sold-Sticker-Feature.png",
+
+    "ogType": "art.artist",
+    "title": "Artist Art",
+    "description": "art",
+    //"image": "promotion/BVLogoCircle250w.png",
+    //"imageType": "image/jpeg",
+    //"imageWidth": "250",
+    //"imageHeight": "209",
+    "coverPromoBackground": "promotion/near-black.png",
+    //"logoSticker": "image/??.png",
+    "publishedStickerText": "Request Info",
+    "unpublishedStickerText": "SOLD",
+    "showTitlesOnGroupedPage": true,
+
+    "fbAdminCode": "",
+    "pintrestCode": "",
+
+    //"twitterPromoSiteAccount": "@??",
+    //"twitterPromoCreatorAccount": "@??",
+
+    "protocol": "//",
+    "rootPath": "",
+    "imagePath": "/image",
+    "fontPath": "/image",
+    "booksPath": "/w",
+    "authorPath": "/author",
+    "promoLinkPath": "/p",
+    "scriptPath": "/script",
+    "stylePath": "/style",
+    "newsPath": "/n",
+
+    "coverIconHeight": 206,
+    "coverIconWidth": 140,
+    "featureImageHeight": 400,
+    "featureImageWidth": 270,
+    "promoThumbImageHeight": 100,
+    "publishedMarkerWidth": 100,
+    "unpublishedMarkerWidth": 60,
+
+    "customPages": {
+    },
+
+    "feedback": {
+        "description": "If you are interested in purchasing any original artwork shown in this site, or simply have a question, please send us a message!",
+        "subject": "Art Feedback",
+        "email": "",
+        "messages": [
+            "I'm interested in '@title@'. Could you please email me with more information?"
+        ]
+    },
+
+    "menu": {
+        "main": {
+            "name": "index",
+            "title": "ALL",
+            "desc": "All artwork!",
+            "template": "list.html"
+        },
+        "alt": {
+            "name": "grouped",
+            "title": "BY MEDIUM",
+            "desc": "Art by medium",
+            "template": "grouped.html"
+        },
+        "news": {
+            "name": "news",
+            "title": "NEWS",
+            "desc": "The latest updates!",
+            "template": "news.html"
+        },
+        "contact": {
+            "name": "contact_us",
+            "title": "CONTACT",
+            "template": "contact_us.html"
+        }
+    }
+
+}

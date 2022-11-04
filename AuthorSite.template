@@ -34,11 +34,12 @@ Description: >
 Parameters:
   DomainName:
     Type: String
-    Description: Enter the domain name to use for this site.
+    Default: ''
+    Description: Enter the domain name to use for this site. Leave this empty if you would like to register and/or attach a domain name later.
   DomainZoneId:
     Type: AWS::Route53::HostedZone::Id
-    Description: Enter an existing zone ID to use a subdomain for this site.
     Default: ''
+    Description: If the domain name entered above is a subdomain of an existing registered domain in your AWS account, enter it's zone ID here. Leave this empty to create a new top level domain. AWS charges USD 0.50$ for each top level domain.
   UploaderPassword:
     Type: String
     NoEcho: true
@@ -48,16 +49,19 @@ Parameters:
     Description: Recipient address for feedback emails.
   SiteGenerator:
     Type: String
+    Default: 'braevitae-pub:AutoSite/lambdas/authorsite.zip'
     Description: The site generator app to use for this site, from the list of publshed generators.
 
 Conditions:
+  CreateDomain: !Equals [!Ref DomainName, '']
   TopLevelDomain: !Equals [!Ref DomainZoneId, '']
+  CreateAndTopLevel: !And [!Condition CreateDomain, !Condition TopLevelDomain]
 
 Resources:
   WebData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Ref DomainName
+      BucketName: !Ref AWS::StackName
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -71,7 +75,7 @@ Resources:
   TestWebData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['.', ['test', !Ref DomainName]]
+      BucketName: !Join ['.', ['test', !Ref AWS::StackName]]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -86,7 +90,7 @@ Resources:
   AdminData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+      BucketName: !Join ['-',[!Ref AWS::StackName,'admin']]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -114,7 +118,7 @@ Resources:
   AdminUiData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-ui']]
+      BucketName: !Join ['-',[!Ref AWS::StackName,'admin-ui']]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -129,7 +133,7 @@ Resources:
   FeedbackData:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'feedback']]
+      BucketName: !Join ['-',[!Ref AWS::StackName,'feedback']]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -203,7 +207,7 @@ Resources:
   WebCacheLogs:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['', [!Ref DomainName, '-logs']]
+      BucketName: !Join ['', [!Ref AWS::StackName, '-logs']]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -222,7 +226,7 @@ Resources:
   TestWebCacheLogs:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Join ['.', ['test', !Join ['', [!Ref DomainName, '-logs']]]]
+      BucketName: !Join ['.', ['test', !Join ['', [!Ref AWS::StackName, '-logs']]]]
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -240,6 +244,7 @@ Resources:
 
   Certificate:
     Type: AWS::CertificateManager::Certificate
+    Condition: CreateDomain
     Properties:
       CertificateTransparencyLoggingPreference: ENABLED
       DomainName: !Ref DomainName
@@ -257,6 +262,7 @@ Resources:
 
   TestCertificate:
     Type: AWS::CertificateManager::Certificate
+    Condition: CreateDomain
     Properties:
       CertificateTransparencyLoggingPreference: ENABLED
       DomainName: !Join ['.', ['test', !Ref DomainName]]
@@ -277,6 +283,21 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
+        Aliases:
+          !If
+            - CreateDomain
+            - - !Ref DomainName
+              - !Join ['.', ['www', !Ref DomainName]]
+            - !Ref "AWS::NoValue"
+        ViewerCertificate:
+          !If
+            - CreateDomain
+            -
+              AcmCertificateArn: !Ref Certificate
+              SslSupportMethod: sni-only
+              MinimumProtocolVersion: TLSv1
+            -
+              CloudFrontDefaultCertificate: true
         DefaultRootObject: index.html
         Origins:
           - Id: WebData
@@ -287,13 +308,6 @@ Resources:
             DomainName: !GetAtt AdminUiData.DomainName
             S3OriginConfig:
               OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref AdminUiDataAccess]]
-        Aliases:
-          - !Ref DomainName
-          - !Join ['.', ['www', !Ref DomainName]]
-        ViewerCertificate:
-          AcmCertificateArn: !Ref Certificate
-          SslSupportMethod: sni-only
-          MinimumProtocolVersion: TLSv1
         DefaultCacheBehavior:
           TargetOriginId: WebData
           ViewerProtocolPolicy: allow-all
@@ -371,6 +385,21 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
+        Aliases:
+          !If
+            - CreateDomain
+            - - !Join ['.', ['test', !Ref DomainName]]
+              - !Join ['.', ['www', 'test', !Ref DomainName]]
+            - !Ref "AWS::NoValue"
+        ViewerCertificate:
+          !If
+            - CreateDomain
+            -
+              AcmCertificateArn: !Ref TestCertificate
+              SslSupportMethod: sni-only
+              MinimumProtocolVersion: TLSv1
+            -
+              CloudFrontDefaultCertificate: true
         DefaultRootObject: index.html
         Origins:
           - Id: TestWebData
@@ -381,13 +410,6 @@ Resources:
             DomainName: !GetAtt AdminUiData.DomainName
             S3OriginConfig:
               OriginAccessIdentity: !Join ['', ['origin-access-identity/cloudfront/', !Ref AdminUiDataAccess]]
-        Aliases:
-          - !Join ['.', ['test', !Ref DomainName]]
-          - !Join ['.', ['www', 'test', !Ref DomainName]]
-        ViewerCertificate:
-          AcmCertificateArn: !Ref TestCertificate
-          SslSupportMethod: sni-only
-          MinimumProtocolVersion: TLSv1
         DefaultCacheBehavior:
           TargetOriginId: TestWebData
           ViewerProtocolPolicy: allow-all
@@ -464,7 +486,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Allow use of frlendly (no .html ending) URLs and route to mobile-specifc site pages for phones.'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'edge']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'edge']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt LambdaRole.Arn
@@ -485,7 +507,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Use country-code header to translate ASIN URL to the correct country for the user''s locale.'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'azn-url']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'azn-url']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt LambdaRole.Arn
@@ -511,13 +533,13 @@ Resources:
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
-      TopicName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'l-publish']]
+      TopicName: !Join ['-',[!Ref AWS::StackName,'l-publish']]
 
   OnFeedback:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Save submitted feedback to an S3 bucket.'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'feedback']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'feedback']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt LambdaFeedbackRole.Arn
@@ -537,7 +559,7 @@ Resources:
   StateQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Join ['', [!Join ['-',!Split ['.',!Ref DomainName]], '.fifo']]
+      QueueName: !Join ['', [!Ref AWS::StackName, '.fifo']]
       FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 Days
       ReceiveMessageWaitTimeSeconds: 0  # Ensure short polling
@@ -550,7 +572,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'On schedule, read submitted feedback from an S3 bucket and send any new feedback to an SNS topic.'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'publisher']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'publisher']]
       PackageType: Zip
       Runtime: nodejs16.x
       Timeout: 30
@@ -571,7 +593,7 @@ Resources:
   FeedbackPubisherSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'Feedback-Publisher']]
+      Name: !Join ['_',[!Ref AWS::StackName,'Feedback-Publisher']]
       RoleArn: !GetAtt FeedbackPublisherRole.Arn
       ScheduleExpression: cron(0/15 * * * ? *)
       Targets:
@@ -590,7 +612,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Site admin interface'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'admin']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
@@ -611,7 +633,7 @@ Resources:
   BuildSiteNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'build-site']]
+      LayerName: !Join ['-',[!Ref AWS::StackName,'build-site']]
       Description: Node Modules dir for build site lambda
       CompatibleArchitectures:
         - 'x86_64'
@@ -625,7 +647,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Worker that builds the site from config in S3 and publishes the site back to S3'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'builder']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'builder']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt BuildSiteRole.Arn
@@ -641,7 +663,7 @@ Resources:
           publicBucket: 'braevitae-pub'
           # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
           #adminBucket: !Ref AdminData
-          adminBucket: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']]
+          adminBucket: !Join ['-',[!Ref AWS::StackName,'admin']]
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue
@@ -668,7 +690,7 @@ Resources:
   AdminWorkerNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      LayerName: !Join ['-',[!Ref AWS::StackName,'admin-worker']]
       Description: Node Modules dir for admin worker lambda
       CompatibleArchitectures:
         - 'x86_64'
@@ -682,7 +704,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Provisioning worker that builds the initial site framework'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'admin-worker']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
@@ -712,7 +734,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Periodic state queue check and update admin state with any messages.'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'state-pump']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'state-pump']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
@@ -734,7 +756,7 @@ Resources:
   StatePumpSchedule:
     Type: 'AWS::Events::Rule'
     Properties:
-      ScheduleExpression: 'cron(00 1/4 * * * *)' # Every 4th hour
+      ScheduleExpression: 'cron(00 1/4 * * ? *)' # Every 4th hour
       Targets:
         - Arn: !GetAtt StatePump.Arn
           Id: '1'
@@ -744,13 +766,13 @@ Resources:
     Properties:
       Action: 'lambda:InvokeFunction'
       FunctionName: !GetAtt StatePump.Arn
-      Principal: 'events.amazonaws.com',
+      Principal: 'events.amazonaws.com'
       SourceArn: !GetAtt StatePumpSchedule.Arn
 
   ProvisionerNMLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin-worker']]
+      LayerName: !Join ['-',[!Ref AWS::StackName,'admin-worker']]
       Description: Node Modules dir for admin worker lambda
       CompatibleArchitectures:
         - 'x86_64'
@@ -764,7 +786,7 @@ Resources:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: 'Provisioning worker that builds the initial site framework'
-      FunctionName: !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'provisioner']]
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'provisioner']]
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt ProvisionerRole.Arn
@@ -796,11 +818,19 @@ Resources:
       UploaderPassword: !Ref UploaderPassword
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
+    DependsOn:
+      - WebData
+      - TestWebData
+      - AdminData
+      - AdminUiData
+      - FeedbackData
+      - WebCacheLogs
+      - TestWebCacheLogs
 
   LambdaRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'lambda']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'lambda']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -830,7 +860,7 @@ Resources:
   LambdaFeedbackRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-feedback']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-feedback']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -868,7 +898,7 @@ Resources:
   FeedbackPublisherRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-publish']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-publish']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -920,7 +950,7 @@ Resources:
   AdminRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-admin']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-admin']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -978,7 +1008,7 @@ Resources:
                 Action:
                  - 'lambda:InvokeFunction'
                  - 'lambda:InvokeAsync'
-                Resource: !Join ['', [!Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
+                Resource: !Join ['', [!Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Ref AWS::StackName]], '*']]
         - PolicyName: StatusQueueAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -989,7 +1019,7 @@ Resources:
                  - 'sqs:SendMessage'
                  - 'sqs:GetQueueAttributes'
                  - 'sqs:DeleteMessage'
-                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17
@@ -1007,7 +1037,7 @@ Resources:
   ProvisionerRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-provison']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-provison']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -1053,7 +1083,7 @@ Resources:
   BuildSiteRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Join ['-',!Split ['.',!Ref DomainName]],'l-builder']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-builder']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -1078,7 +1108,7 @@ Resources:
                  - 's3:GetObjectTagging'
                 # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
                 #Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
-                Resource: !Join ['', ['arn:aws:s3:::', !Join ['-',[!Join ['-',!Split ['.',!Ref DomainName]],'admin']], '*']]
+                Resource: !Join ['', ['arn:aws:s3:::', !Join ['-',[!Ref AWS::StackName,'admin']], '*']]
         - PolicyName: TestWebDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -1099,7 +1129,7 @@ Resources:
               - Effect: Allow
                 Action:
                  - 'sqs:SendMessage'
-                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Join ['-',!Split ['.',!Ref DomainName]]]], '*']]
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17
@@ -1116,7 +1146,7 @@ Resources:
 
   Domain:
     Type: 'AWS::Route53::HostedZone'
-    Condition: TopLevelDomain
+    Condition: CreateAndTopLevel
     Properties:
       Name: !Ref DomainName
       HostedZoneTags:
@@ -1125,6 +1155,7 @@ Resources:
 
   DomainToWebCache:
     Type: 'AWS::Route53::RecordSetGroup'
+    Condition: CreateDomain
     Properties:
       HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
       RecordSets:
@@ -1151,6 +1182,7 @@ Resources:
 
   TestDomainToWebCache:
     Type: 'AWS::Route53::RecordSetGroup'
+    Condition: CreateDomain
     Properties:
       HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
       RecordSets:
@@ -1178,7 +1210,7 @@ Resources:
   UploadUser:
     Type: AWS::IAM::User
     Properties:
-      UserName: !Join ['.', [!Ref DomainName, 'uploader']]
+      UserName: !Join ['.', [!Ref AWS::StackName, 'uploader']]
       LoginProfile:
         Password: !Ref UploaderPassword
       Policies:

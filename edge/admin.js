@@ -138,9 +138,13 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
       params = JSON.parse(body.toString())
     }
     switch (command) {
+      case 'config':
+        // Update app config state
+        await aws.adminStateUpdate({ config: params })
+        break
       case 'template':
         // Set the current template in the admin state
-        aws.adminStateUpdate({ config: { templateId: params.id } })
+        await aws.adminStateUpdate({ config: { templateId: params.id } })
         // Invoke worker to copy template files
         ret = deploySite(command, arnPrefix + '-admin-worker', params)
         break

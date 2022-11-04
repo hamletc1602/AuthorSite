@@ -27,9 +27,9 @@ exports.handler = async (event, _context) => {
   // Handle action requests
   switch (event.command) {
     case 'template':
-      return await applyTemplate(publicBucket, adminBucket, event.body)
+      return applyTemplate(publicBucket, adminBucket, event.body)
     case 'publish':
-      return await deploySite(testSiteBucket, siteBucket, event.body)
+      return deploySite(testSiteBucket, siteBucket, event.body)
     default:
       return {
         status: '404',
@@ -73,18 +73,23 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
 async function applyTemplate(publicBucket, adminBucket, params) {
   const templateName = params.id
-  console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
-  await aws.displayUpdate({
-      preparing: true, stepMsg: `Prepare site with ${templateName} template.`
-    }, 'prepare', `Starting prepare with ${templateName} template.`)
-  const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
-  await Promise.all(siteConfigDir.files.map(async file => {
-    console.log(`Copying ${file.path}`)
-    await aws.getS3().putObject({
-      Bucket: adminBucket,
-      Key: `site-config/${templateName}` + file.path,
-      Body: await file.buffer()
-    }).promise()
-  }))
-  await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
+  try {
+    console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
+    await aws.displayUpdate({
+        preparing: true, stepMsg: `Prepare site with ${templateName} template.`
+      }, 'prepare', `Starting prepare with ${templateName} template.`)
+    const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
+    await Promise.all(siteConfigDir.files.map(async file => {
+      console.log(`Copying ${file.path}`)
+      await aws.getS3().putObject({
+        Bucket: adminBucket,
+        Key: `site-config/${templateName}` + file.path,
+        Body: await file.buffer()
+      }).promise()
+    }))
+  } catch (error) {
+    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare. Error: ${JSON.stringify(error)}`)
+  } finally {
+    await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
+  }
 }

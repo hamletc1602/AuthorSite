@@ -1,0 +1,28 @@
+[{
+    "isbn": "Seascape-Acrylic-27x35",
+    "title": "Seascape",
+    "author": "Acrylic",
+    "type": "painting",
+    "coverImage": "covers/Acrylic/seascape   27x35   acrylic.jpg",
+    "published": "yes",
+    "logline": "27x35",
+    "blurb": ""
+  },{
+    "isbn": "Heading Out-Oil-15x30",
+    "title": "Heading Out",
+    "author": "Oil",
+    "type": "painting",
+    "coverImage": "covers/Oil/121-heading-out-15x30-o.jpg",
+    "published": "no",
+    "logline": "15x30",
+    "blurb": ""
+  },{
+    "isbn": "Waiting for the mail-Pastel & Watercolour-10x14",
+    "title": "Waiting for the mail",
+    "author": "Pastel & Watercolour",
+    "type": "painting",
+    "coverImage": "covers/Pastel_Watercolour/waiting for the mail   10x14   ink and watercolour.jpg",
+    "published": "no",
+    "logline": "10x14",
+    "blurb": "Ink and watercolour"
+  }]

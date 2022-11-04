@@ -4,11 +4,22 @@
   "description": "",
   "main": "edge.js",
   "scripts": {
+    "install-for-aws": "npm i --platform=linux --arch=x64",
+    "clean-install-for-aws": "npm ci --platform=linux --arch=x64",
+    "pack": "rm -f edge.zip & npm-pack-zip",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "eslint": "^8.26.0"
-  }
+    "aws-sdk": "^2.1231.0",
+    "eslint": "^8.26.0",
+    "npm-pack-zip": "^1.3.0"
+  },
+  "dependencies": {
+    "mime": "^3.0.0"
+  },
+  "bundleDependencies": [
+    "mime"
+  ]
 }

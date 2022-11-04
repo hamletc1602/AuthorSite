@@ -1,0 +1,91 @@
+{
+    "tyche": {
+        "name": "Tyche Books",
+        "url": "{%protocol%}tychebooks.com/@BOOKID@",
+        "icon": "{%imagePath%}/dist-icons/tyche32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/tyche32.png",
+        "bookIdProp": "tycheId"
+    },
+
+    "amazonPrint": {
+        "name": "Amazon Print",
+        "url": "{%rootPath%}/azn/p/@BOOKID@",
+        "popupText": "Buy print book now from Amazon",
+        "icon": "{%imagePath%}/dist-icons/amazonPrint32white.png",
+        "featureIcon": "{%imagePath%}/dist-icons/amazonPrint32white.png",
+        "bookIdProp": "amazonPrintId"
+    },
+
+    "amazon": {
+        "name": "Amazon",
+        "url": "{%rootPath%}/azn/e/@BOOKID@",
+        "popupText": "Buy Ebook now from Amazon",
+        "icon": "{%imagePath%}/dist-icons/amazon32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/amazon32.png",
+        "bookIdProp": "amazonId"
+    },
+
+    "createSpace": {
+        "name": "CreateSpace",
+        "url": "{%protocol%}www.ceatespace.com/@BOOKID@",
+        "popupText": "Buy now from CreateSpace",
+        "icon": "{%imagePath%}/dist-icons/createspace32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/createspace32.png",
+        "bookIdProp": "createspaceId"
+    },
+
+    "barnesNoble": {
+        "name": "Barnes & Noble",
+        "url": "{%protocol%}www.barnesandnoble.com/w/@BOOKID@",
+        "popupText": "Buy now from Barnes & Noble",
+        "icon": "{%imagePath%}/dist-icons/bn32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/bn32.png",
+        "bookIdProp": "barnesNobleId"
+    },
+
+    "appleStore": {
+        "name": "Apple Store",
+        "url": "{%protocol%}itunes.apple.com/us/book/@BOOKID@",
+        "popupText": "Buy now from Apple Store",
+        "icon": "{%imagePath%}/dist-icons/itunes32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/itunes32.png",
+        "bookIdProp": "appleStoreId"
+    },
+
+    "kobo": {
+        "name": "Kobo",
+        "url": "{%protocol%}store.kobobooks.com/ebook/@BOOKID@",
+        "popupText": "Buy now from Kobo",
+        "icon": "{%imagePath%}/dist-icons/kobo32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/kobo32.png",
+        "bookIdProp": "koboId"
+    },
+
+    "smashwords": {
+        "name": "Smashwords",
+        "url": "{%protocol%}www.smashwords.com/books/view/@BOOKID@",
+        "popupText": "Buy now from Smashwords",
+        "icon": "{%imagePath%}/dist-icons/smashwords32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/smashwords32.png",
+        "bookIdProp": "smashwordsId"
+    },
+
+    "goodreads": {
+        "name": "Goodreads",
+        "url": "{%protocol%}www.goodreads.com/book/show/@BOOKID@",
+        "popupText": "Buy now at Smashwords",
+        "icon": "{%imagePath%}/dist-icons/goodreads32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/goodreads32.png",
+        "bookIdProp": "goodreadsId"
+    },
+
+    "lulu": {
+        "name": "Lulu.com",
+        "url": "{%protocol%}www.lulu.com/ca/en/shop/@BOOKID@.html",
+        "popupText": "Buy now from Lulu.com",
+        "icon": "{%imagePath%}/dist-icons/lulu32.png",
+        "featureIcon": "{%imagePath%}/dist-icons/lulu32.png",
+        "bookIdProp": "luluId"
+    }
+
+}
