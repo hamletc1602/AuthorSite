@@ -7,6 +7,8 @@ wdir=$(pwd)
 echo clean old target and temp files
 rm -rf target/AutoSite/layers/*
 rm -rf target/tmp
+# Clean DS_Store files
+find . -name '.DS_Store' -type f -delete
 
 echo Build Admin worker node_modules layer
 rm -f target/AutoSite/provision/admin-worker.layer.zip

@@ -32,14 +32,16 @@ Description: >
    Copyright 2022 BraeVitae Inc. Apache License 2.0
 
 Parameters:
+  {{#if domain}}
   DomainName:
     Type: String
-    Default: ''
     Description: Enter the domain name to use for this site. Leave this empty if you would like to register and/or attach a domain name later.
+  {{/if}}
+  {{#if subDomain}}
   DomainZoneId:
     Type: AWS::Route53::HostedZone::Id
-    Default: ''
     Description: If the domain name entered above is a subdomain of an existing registered domain in your AWS account, enter it's zone ID here. Leave this empty to create a new top level domain. AWS charges USD 0.50$ for each top level domain.
+  {{/if}}
   UploaderPassword:
     Type: String
     NoEcho: true
@@ -53,8 +55,15 @@ Parameters:
     Description: The site generator app to use for this site, from the list of publshed generators.
 
 Conditions:
-  CreateDomain: !Equals [!Ref DomainName, '']
-  TopLevelDomain: !Equals [!Ref DomainZoneId, '']
+  {{#if domain}}
+  CreateDomain: true
+  {{/if}}
+  CreateDomain: false
+  {{#if subDomain}}
+  TopLevelDomain: false
+  {{else}}
+  TopLevelDomain: true
+  {{/if}}
   CreateAndTopLevel: !And [!Condition CreateDomain, !Condition TopLevelDomain]
 
 Resources:
