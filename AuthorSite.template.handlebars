@@ -296,7 +296,7 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
-        {{#Domain}}
+        {{#domain}}
         Aliases:
           - !Ref DomainName
           - !Join ['.', ['www', !Ref DomainName]]
@@ -307,7 +307,7 @@ Resources:
         {{else}}
         ViewerCertificate:
             CloudFrontDefaultCertificate: true
-        {{/Domain}}
+        {{/domain}}
         DefaultRootObject: index.html
         Origins:
           - Id: WebData
@@ -395,7 +395,7 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
-        {{#Domain}}
+        {{#domain}}
         Aliases:
           - !Join ['.', ['test', !Ref DomainName]]
           - !Join ['.', ['www', 'test', !Ref DomainName]]
@@ -406,7 +406,7 @@ Resources:
         {{else}}
         ViewerCertificate:
             CloudFrontDefaultCertificate: true
-        {{/Domain}}
+        {{/domain}}
         DefaultRootObject: index.html
         Origins:
           - Id: TestWebData
