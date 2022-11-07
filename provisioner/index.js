@@ -43,7 +43,6 @@ const cfnCreateHandler = async (params) => {
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
         generator: params.SiteGenerator,
-        domain: params.SiteDomain,
         templates: templates,
         display: {},
         logs: []

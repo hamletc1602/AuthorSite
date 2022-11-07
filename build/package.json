@@ -4,7 +4,7 @@
   "description": "Authorsite build utilities",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node index.js ../AuthorSite.template.handlebars"
   },
   "author": "Adriaan Brae",
   "license": "ISC",

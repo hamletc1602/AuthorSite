@@ -54,18 +54,6 @@ Parameters:
     Default: 'braevitae-pub:AutoSite/lambdas/authorsite.zip'
     Description: The site generator app to use for this site, from the list of publshed generators.
 
-Conditions:
-  {{#if domain}}
-  CreateDomain: true
-  {{/if}}
-  CreateDomain: false
-  {{#if subDomain}}
-  TopLevelDomain: false
-  {{else}}
-  TopLevelDomain: true
-  {{/if}}
-  CreateAndTopLevel: !And [!Condition CreateDomain, !Condition TopLevelDomain]
-
 Resources:
   WebData:
     Type: 'AWS::S3::Bucket'
@@ -251,9 +239,10 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
+  {{#domain}}
+
   Certificate:
     Type: AWS::CertificateManager::Certificate
-    Condition: CreateDomain
     Properties:
       CertificateTransparencyLoggingPreference: ENABLED
       DomainName: !Ref DomainName
@@ -261,17 +250,23 @@ Resources:
       SubjectAlternativeNames:
         - !Join ['.', ['www', !Ref DomainName]]
       DomainValidationOptions:
+        {{#subDomain}}
         - DomainName: !Ref DomainName
-          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+          HostedZoneId: !Ref DomainZoneId
         - DomainName: !Join ['.', ['www', !Ref DomainName]]
-          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+          HostedZoneId: !Ref DomainZoneId
+        {{else}}
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref Domain
+        - DomainName: !Join ['.', ['www', !Ref DomainName]]
+          HostedZoneId: !Ref Domain
+        {{/subDomain}}
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
   TestCertificate:
     Type: AWS::CertificateManager::Certificate
-    Condition: CreateDomain
     Properties:
       CertificateTransparencyLoggingPreference: ENABLED
       DomainName: !Join ['.', ['test', !Ref DomainName]]
@@ -279,34 +274,40 @@ Resources:
       SubjectAlternativeNames:
         - !Join ['.', ['www', 'test', !Ref DomainName]]
       DomainValidationOptions:
+        {{#subDomain}}
         - DomainName: !Join ['.', ['test', !Ref DomainName]]
-          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+          HostedZoneId: !Ref DomainZoneId
         - DomainName: !Join ['.', ['www', 'test', !Ref DomainName]]
-          HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+          HostedZoneId: !Ref DomainZoneId
+        {{else}}
+        - DomainName: !Join ['.', ['test', !Ref DomainName]]
+          HostedZoneId: !Ref Domain
+        - DomainName: !Join ['.', ['www', 'test', !Ref DomainName]]
+          HostedZoneId: !Ref Domain
+        {{/subDomain}}
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
+
+  {{/domain}}
 
   WebCache:
     Type: 'AWS::CloudFront::Distribution'
     Properties:
       DistributionConfig:
         Enabled: true
+        {{#Domain}}
         Aliases:
-          !If
-            - CreateDomain
-            - - !Ref DomainName
-              - !Join ['.', ['www', !Ref DomainName]]
-            - !Ref "AWS::NoValue"
+          - !Ref DomainName
+          - !Join ['.', ['www', !Ref DomainName]]
         ViewerCertificate:
-          !If
-            - CreateDomain
-            -
-              AcmCertificateArn: !Ref Certificate
-              SslSupportMethod: sni-only
-              MinimumProtocolVersion: TLSv1
-            -
-              CloudFrontDefaultCertificate: true
+            AcmCertificateArn: !Ref Certificate
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1
+        {{else}}
+        ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+        {{/Domain}}
         DefaultRootObject: index.html
         Origins:
           - Id: WebData
@@ -394,21 +395,18 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
+        {{#Domain}}
         Aliases:
-          !If
-            - CreateDomain
-            - - !Join ['.', ['test', !Ref DomainName]]
-              - !Join ['.', ['www', 'test', !Ref DomainName]]
-            - !Ref "AWS::NoValue"
+          - !Join ['.', ['test', !Ref DomainName]]
+          - !Join ['.', ['www', 'test', !Ref DomainName]]
         ViewerCertificate:
-          !If
-            - CreateDomain
-            -
-              AcmCertificateArn: !Ref TestCertificate
-              SslSupportMethod: sni-only
-              MinimumProtocolVersion: TLSv1
-            -
-              CloudFrontDefaultCertificate: true
+            AcmCertificateArn: !Ref TestCertificate
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1
+        {{else}}
+        ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+        {{/Domain}}
         DefaultRootObject: index.html
         Origins:
           - Id: TestWebData
@@ -668,7 +666,6 @@ Resources:
       Handler: app/index.handler
       Environment:
         Variables:
-          siteDomain: !Ref DomainName
           publicBucket: 'braevitae-pub'
           # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
           #adminBucket: !Ref AdminData
@@ -724,7 +721,6 @@ Resources:
       Handler: index.handler
       Environment:
         Variables:
-          siteDomain: !Ref DomainName
           publicBucket: 'braevitae-pub'
           adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
@@ -815,7 +811,6 @@ Resources:
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
       SiteGenerator: !Ref SiteGenerator
-      SiteDomain: !Ref DomainName
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
@@ -1153,20 +1148,26 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
+  {{#domain}}
+
+  {{#unless subDomain}}
   Domain:
     Type: 'AWS::Route53::HostedZone'
-    Condition: CreateAndTopLevel
     Properties:
       Name: !Ref DomainName
       HostedZoneTags:
         - Key: Service
           Value: !Ref 'AWS::StackName'
+  {{/unless}}
 
   DomainToWebCache:
     Type: 'AWS::Route53::RecordSetGroup'
-    Condition: CreateDomain
     Properties:
-      HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      {{#subDomain}}
+      HostedZoneId: !Ref DomainZoneId
+      {{else}}
+      HostedZoneId: !Ref Domain
+      {{/subDomain}}
       RecordSets:
         - Name: !Ref DomainName
           Type: A
@@ -1191,9 +1192,12 @@ Resources:
 
   TestDomainToWebCache:
     Type: 'AWS::Route53::RecordSetGroup'
-    Condition: CreateDomain
     Properties:
-      HostedZoneId: !If [TopLevelDomain, !Ref Domain, !Ref DomainZoneId]
+      {{#subDomain}}
+      HostedZoneId: !Ref DomainZoneId
+      {{else}}
+      HostedZoneId: !Ref Domain
+      {{/subDomain}}
       RecordSets:
         - Name: !Join ['.', ['test', !Ref DomainName]]
           Type: A
@@ -1215,6 +1219,8 @@ Resources:
           AliasTarget:
             HostedZoneId: 'Z2FDTNDATAQYW2'
             DNSName: !GetAtt TestWebCache.DomainName
+
+  {{/domain}}
 
   UploadUser:
     Type: AWS::IAM::User

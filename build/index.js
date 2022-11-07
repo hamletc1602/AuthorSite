@@ -7,9 +7,10 @@ async function main() {
   const templateFilePath = args[0]
 
   const templateSource = await Fs.readFile(templateFilePath)
-  const template = Handlebars.compile(templateSource);
+  const template = Handlebars.compile(templateSource.toString());
 
-  const bareFileName = Path.basename(templateFilePath, Path.extname(templateFilePath))
+  const bareFileName = Path.basename(templateFilePath).split('.')[0]
+
   console.log(`Processng template: ${bareFileName}.`)
 
   const baseSiteTemplate = template({
@@ -27,9 +28,21 @@ async function main() {
   console.log(`Created domain site template.`)
 
   const subDomainTemplate = template({
-    domain: false,
+    domain: true,
     subDomain: true
   })
   await Fs.writeFile(bareFileName + '-subdomain.template', subDomainTemplate)
   console.log(`Created subdomain site template.`)
 }
+
+main()
+  .then(
+    ret => {
+      console.log('Success: ' + ret)
+    },
+    err => {
+      const errText = JSON.stringify(err)
+      const errTrunc = errText.length > 200 ? errText.substring(0, 200) : err
+      console.error('Error: ' + errTrunc)
+    }
+  )
