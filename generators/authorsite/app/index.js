@@ -90,7 +90,7 @@ const handler = async (event, context) => {
     let configDebug = null
     if (context) {
       configName = event.templateId
-      configDebug = event.debug === 'true'
+      configDebug = event.debug
     } else {
       configName = process.env.npm_config_authorsite_site
       configDebug = process.env.npm_config_authorsite_debug

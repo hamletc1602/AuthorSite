@@ -15,12 +15,12 @@
       <button id="admin-cmd-build" class="action pure-button">Generate</button>
       <button id="admin-cmd-build-debug" class="action pure-button">Generate Debug</button>
       <span class="message">{{#if building}}{{stepMsg}}{{/if}}</span>
-      <a href="https://test.{{@root.domain}}/" target="_blank"><span class="popout">Test Site</span></a>
+      <a id="admin-test-site-link" href="/" target="_blank"><span class="popout">Test Site</span></a>
     </div>
     <div>
       <button id="admin-cmd-publish" class="action pure-button">Publish</button>
       <span class="message">{{#if deploying}}Added: {{added}} Updated: {{updated}} Deleted: {{deleted}} of {{total}}{{/if}}</span>
-      <a href="https://{{@root.domain}}/" target="_blank"><span class="popout">Site</span></a>
+      <a id="admin-site-link" href="/" target="_blank"><span class="popout">Site</span></a>
     </div>
   {{/with}}
 </p>
@@ -82,6 +82,21 @@
   {{#if display.publishing}}
   document.getElementById('admin-cmd-publish').classList.add('pure-button-disabled')
   {{/if}}
+
+  // fill in site links from current URL host
+  {
+    let siteHost = null
+    let testSiteHost = null
+    if (location.host.indexOf('test.') ==- 0) {
+      testSiteHost = location.host
+      siteHost = testSiteHost.substring(4)
+    } else {
+      siteHost = location.host
+      testSiteHost = 'test.' + siteHost
+    }
+    document.getElementById('admin-site-link').href = '//' + siteHost
+    document.getElementById('admin-test-site-link').href = '//' + testSiteHost
+  }
 
   // Set the currently selected template
   {{#if config.templateId}}
