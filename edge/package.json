@@ -7,7 +7,8 @@
     "install-for-aws": "npm i --platform=linux --arch=x64",
     "clean-install-for-aws": "npm ci --platform=linux --arch=x64",
     "pack": "rm -f edge.zip & npm-pack-zip",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "npx eslint *.js"
   },
   "author": "",
   "license": "ISC",

@@ -102,7 +102,7 @@
   {{#if config.templateId}}
   {
     const templateSelect = document.getElementById('admin-select-template')
-    const index = adminCache.templateNames.findIndex(item => item.id === config.templateId)
+    const index = adminCache.templateNames.findIndex(item => item.id === '{{config.templateId}}')
     templateSelect.selectedIndex = index
   }
   {{/if}}
