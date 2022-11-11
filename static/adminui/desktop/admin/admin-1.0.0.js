@@ -104,8 +104,6 @@ function refresh(sectionName) {
       const etag = response.headers.get('etag')
       if (lastETag === null || etag !== lastETag) {
         lastETag = etag
-        // transform to html and insert into page. Add the local 'locked' flag to admin state for use in
-        // templated page rendering.
         const data = await response.json()
         data.locked = locked
         // Sort logs in reverse chrono order of message generation (Should be close to this order already but may have been disordered in the message batching process)
@@ -115,12 +113,17 @@ function refresh(sectionName) {
         if (data.latest) {
           data.latest = data.latest.sort((a, b) => b.time - a.time)
         }
-        var template = Handlebars.templates[sectionName]
         if ( ! (data.display.deploying || data.display.building || data.display.preparing)) {
           // If niether deploying or building, turn off fast polling
           endFastPolling()
         }
+
+
+        // transform to html and insert into page.
+        // templated page rendering.
+        var template = Handlebars.templates[sectionName]
         setInnerHtml(document.getElementById(sectionName + 'Section'), template(data))
+
       }
     })
 }
