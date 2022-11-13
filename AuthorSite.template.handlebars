@@ -375,6 +375,10 @@ Resources:
               - EventType: viewer-request
                 LambdaFunctionARN: !Ref OnAdminVersion
                 IncludeBody: true
+                {{#debug}}
+              - EventType: viewer-response
+                LambdaFunctionARN: !Ref OnCorsResponseVersion
+                {{/debug}}
               - EventType: origin-request
                 LambdaFunctionARN: !Ref OnCacheVersion
                 IncludeBody: true
@@ -636,6 +640,31 @@ Resources:
     Type: AWS::Lambda::Version
     Properties:
       FunctionName: !GetAtt OnAdmin.Arn
+
+  {{#debug}}
+
+  OnCorsResponse:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'CORS response for debugging'
+      FunctionName: !Join ['-',[!Ref AWS::StackName,'cors-response']]
+      PackageType: Zip
+      Runtime: nodejs16.x
+      Role: !GetAtt LambdaRole.Arn
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+      Handler: edge.corsResponse
+      Code:
+        S3Bucket: 'braevitae-pub'
+        S3Key: 'AutoSite/lambdas/edge.zip'
+
+  OnCorsResponseVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !GetAtt OnCorsResponse.Arn
+
+  {{/debug}}
 
   BuildSiteNMLayer:
     Type: AWS::Lambda::LayerVersion

@@ -75,11 +75,16 @@ exports.handler = async (event, context) => {
 };
 
 /** */
+const getPassword = async () => {
+  return (await s3.getObject({ Bucket: adminBucket, Key: 'admin_secret', }).promise()).Body.toString()
+}
+
+/** */
 const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
   //
   let uploaderPassword = null
   try {
-    uploaderPassword = (await s3.getObject({ Bucket: adminBucket, Key: 'admin_secret', }).promise()).Body.toString()
+    uploaderPassword = await getPassword()
   } catch (error) {
     console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
     return {

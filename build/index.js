@@ -33,6 +33,14 @@ async function main() {
   })
   await Fs.writeFile(bareFileName + '-subdomain.template', subDomainTemplate)
   console.log(`Created subdomain site template.`)
+
+  const debugTemplate = template({
+    domain: true,
+    subDomain: true,
+    debug: true
+  })
+  await Fs.writeFile(bareFileName + '-debug.template', debugTemplate)
+  console.log(`Created debug site template.`)
 }
 
 main()
