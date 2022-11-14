@@ -7,9 +7,9 @@ export default class Controller {
     this.siteHost = siteHost ? '//' + siteHost : ''
     this.lastETag = null
     this.locked = true
-    this.fastPollingTimeoutId = null
     this.password = null
     this.config = null
+    this.editors = {}
   }
 
   static setLockId(lockId) {
@@ -66,17 +66,28 @@ export default class Controller {
       })
   }
 
+  /** Create basic auth slug */
+  basicAuth(user, password) {
+    user = user || 'admin'
+    password = password || this.password
+    return 'BASIC ' + btoa(user + ':' + password)
+  }
+
+  /** Post a command to the admin API
+    We generally don't expect any immediate feedback from commands, other than errors. Status is pushed
+    into the server admin state JSON file.
+  */
   sendCommand(name, params) {
     if (this.locked || !this.password) {
       // do not send commands when locked (buttons should be disabled) or when there's
       // no password defined.
       return
     }
-    return fetch('/admin/command/' + name, {
+    return fetch(this.siteHost + '/admin/command/' + name, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({
-        'Authorization': 'BASIC ' + btoa('admin:' + this.password),
+        'Authorization': this.basicAuth(),
         'Content-Type': 'application/json'
       }),
       body: JSON.stringify(params)
@@ -85,8 +96,84 @@ export default class Controller {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       console.log(response.status + ': ' + JSON.stringify(response))
-      this.startFastPolling()
     })
+  }
+
+  /** Return true if the given password is valid. */
+  async validatePassword(password) {
+    return fetch(this.siteHost + '/admin/command/validate', {
+      method: 'POST',
+      cache: 'no-cache',
+      headers: new Headers({
+        'Authorization': this.basicAuth(null, password),
+        'Content-Type': 'application/json'
+      })
+    }).then((response) => {
+      return response.ok
+    })
+  }
+
+  /** Get various config files for the given template.
+    configSection is optional. If undefined, metadata about all available config files will be returned.
+
+    /admin/site-config : Root config describing what other config files are available, and some metadata for them
+    /admin/site-config/{name} : The content of the config file (May not be JSON)
+  */
+  async getSiteConfig(templateId, configSection) {
+    try {
+      let url = `${this.siteHost}/admin/site-config/${templateId}`
+      if (configSection) {
+        url += '/' + configSection
+      }
+      return fetch(url, {
+        headers: new Headers({
+          'Authorization': this.basicAuth(),
+        })
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const type = response.headers.get('Content-Type')
+        const content = await response.json()
+        return {
+          contentType: type,
+          content: content
+        }
+      })
+    } catch (error) {
+      console.error('Failed to get site config', error)
+      return {
+        contentType: 'text/plain',
+        content: '{}'
+      }
+    }
+  }
+
+  /** Put various config files for the given template */
+  async putSiteConfig(templateId, configSection, contentType, content) {
+    return fetch(`${this.siteHost}/admin/site-config/${templateId}/${configSection}`, {
+      method: 'POST',
+      cache: 'no-cache',
+      headers: new Headers({
+        'Authorization': this.basicAuth(),
+        'Content-Type': contentType
+      }),
+      body: Buffer.from(content)
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json()
+    })
+  }
+
+  async getEditors(templateId) {
+    let siteMetadata = this.editors[templateId]
+    if ( ! siteMetadata) {
+      siteMetadata = await this.getSiteConfig(templateId)
+      this.editors[templateId] = siteMetadata
+    }
+    return siteMetadata
   }
 
 }

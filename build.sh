@@ -49,7 +49,7 @@ handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/des
 
 echo Package admin UI files
 rm -f target/AutoSite/provision/adminui.zip
-cd static/adminui
+cd adminUi/build
 zip -qr $wdir/target/AutoSite/provision/adminui.zip *
 cd $wdir
 

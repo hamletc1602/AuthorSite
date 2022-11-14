@@ -6,7 +6,8 @@ import {
   Flex, Spacer,
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
-  Spinner
+  Spinner,
+  Skeleton
 } from '@chakra-ui/react';
 import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
@@ -58,8 +59,9 @@ const templates = [
   <option key='2' value='artist'>Artist</option>
 ]
 
-function createEditor() {
+function createEditor(index, editor) {
   return <Textarea
+    name={`editor${index}`}
     variant='flushed'
     color='brand.editorText'
     bg='brand.editor'
@@ -69,18 +71,6 @@ function createEditor() {
   />
 }
 
-const editorTabs = [{
-    label: 'Editor1',
-    content: createEditor()
-  },{
-    label: 'Editor2',
-    content: createEditor()
-  },{
-    label: 'Editor3',
-    content: createEditor()
-  }]
-
-const authState = 'unknown'
 const authStates = {
   unknown: {
     icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
@@ -113,41 +103,17 @@ if (process.env.NODE_ENV !== 'development') {
 }
 
 //
-let serverState = {
-  config: {},
-  display: {},
-  latest: []
-}
 const controller = new Controller(siteHost)
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
+let adminStatePoller = null
+let lockStatePoller = null
 const FastPollingTimeoutMs = 5 * 60 * 1000
 let fastPollingTimeoutId = null
 let maxPollingLoopCount = 30 // Default 30s updates
 let pollLoopCount = 0
-setInterval(() => {
-  if (pollLoopCount >= maxPollingLoopCount) {
-    try {
-      if (controller.checkState() || !serverState.logs) {
-        // There is new state available. Trigger UI refresh
-        serverState = controller.getConfig()
-      }
-      if ( ! controller.isBusy()) {
-        endFastPolling()
-      }
-    } catch (error) {
-      console.log('Failed to get state from server.', error)
-      endFastPolling()
-    } finally {
-      pollLoopCount = 0
-    }
-  }
-  ++pollLoopCount
-}, 1000);
-// Check lock state now, and every 4 minutes after
-controller.getLockState()
-setInterval(() => controller.getLockState(), 4 * 60 * 1000);
+let passwordChangingDebounce = null
 
 // Start refresh each second. Only if unlocked.
 function startFastPolling() {
@@ -170,26 +136,90 @@ function endFastPolling() {
 //
 function App() {
   // State
+  const [adminState, setAdminState] = React.useState({
+      live: false,
+      config: {},
+      display: {},
+      latest: [],
+      editors: []
+    })
   const [showPwd, setShowPwd] = React.useState(false)
+  const [authState, setAuthState] = React.useState('unknown')
+  const [locked, setLocked] = React.useState(false)
   const [generateDebug, setGenerateDebug] = React.useState(false)
-  const [currTemplateId, setCurrTemplateId] = React.useState(false)
+  const [editors, setEditors] = React.useState([])
+
+  // Calculated State
+  const uiEnabled = !locked && authState === 'success'
+  const editorsEnabled = editors.length > 0
 
   // Handlers
   const viewPwdClick = () => setShowPwd(!showPwd)
   const generateDebugClick = () => setGenerateDebug(!generateDebug)
-  const onTemplateIdChange = (templateId) => { setCurrTemplateId(templateId) }
-  const onPrepare = () => { controller.sendCommand('template', { id: currTemplateId }) }
-  const onGenerate = () => {
-    controller.sendCommand('build', { id: currTemplateId, debug: generateDebug })
+  const onTemplateIdChange = (ev) => {
+    const templateId = ev.target.value
+    controller.sendCommand('config', { templateId: templateId })
+    const newState = Object.assign({}, adminState)
+    newState.config.templateId = templateId
+    setAdminState(newState)
   }
-  const onPublish = () => { controller.sendCommand('publish') }
+  const onPrepare = () => {
+    controller.sendCommand('template', { id: adminState.config.templateId })
+    startFastPolling()
+  }
+  const onGenerate = () => {
+    controller.sendCommand('build', { id: adminState.config.templateId, debug: generateDebug })
+    startFastPolling()
+  }
+  const onPublish = () => {
+    controller.sendCommand('publish')
+    startFastPolling()
+  }
+  const passwordChanging = (ev) => {
+    clearTimeout(passwordChangingDebounce)
+    passwordChangingDebounce = setTimeout(async () => {
+      const currPwd = ev.target.value
+      if (currPwd.length > 0) {
+        setAuthState('pending')
+        try {
+          if (await controller.validatePassword(currPwd)) {
+            setAuthState('success')
+            controller.setPassword(currPwd)
+          } else {
+            setAuthState('fail')
+          }
+        } catch (error) {
+          console.error('Unable to authenticate with server.', error)
+          setAuthState('unknown')
+        }
+      }
+    }, 500)
+  }
+
+  // Dynamic Content
   const latestLogUpdate = () => {
-    if (serverState.latest.length > 0) {
-      return <Text size='xs' w='100%'>{serverState.display.stepMsg}: {serverState.latest[0]}</Text>
+    if (adminState.latest.length > 0) {
+      return <Text size='xs' whiteSpace='nowrap' noOfLines={1}>{adminState.display.stepMsg}: {adminState.latest[0].msg}</Text>
     } else {
-      return <Text size='xs' w='100%' color='brand.disabledBaseText'>No log messages yet...</Text>
+      return <Text size='xs' whiteSpace='nowrap' noOfLines={1} color='brand.disabledBaseText'>No log messages yet...</Text>
     }
   }
+
+  // Server State Polling
+  // TODO: Definitely investigate this package: https://www.npmjs.com/package/use-remote-data
+  useAdminStatePolling(adminState, setAdminState)
+  useLockStatePolling(setLocked)
+  React.useEffect(async () => {
+    if (adminState && adminState.config) {
+      const templateId = adminState.config.templateId
+      if (uiEnabled && templateId) {
+        const tmp = await controller.getEditors(templateId)
+        console.log('Editors config: ', tmp)
+        setEditors(tmp)
+      }
+    }
+  //}, [uiEnabled, adminState]) // Including adminState here appears to cause a crash on page load???
+  }, [uiEnabled]) // Page loads, but there's a crash later, after authenticating.
 
   // UI
   return (
@@ -213,7 +243,12 @@ function App() {
             <Spacer/>
             {authStates[authState].icon}
             <InputGroup w='15em' size='xs' m='2px'>
-              <Input type={showPwd ? 'text' : 'password'} color='brand.accentText' placeholder='Password...'/>
+              <Input
+                type={showPwd ? 'text' : 'password'}
+                color='brand.accentText'
+                placeholder='Password...'
+                onChangeCapture={passwordChanging}
+              />
               <InputRightElement color='brand.accentText' onClick={viewPwdClick}>
                 {showPwd ? <ViewOffIcon/> : <ViewIcon/>}
               </InputRightElement>
@@ -225,49 +260,52 @@ function App() {
             <Select
               variant='flushed' size='sm' w='10em' m='3px'
               placeholder='Select a template...'
-              defaultValue={currTemplateId}
+              value={adminState.config.templateId}
               onChange={onTemplateIdChange}
+              disabled={!uiEnabled}
             >
               {templates}
             </Select>
-            <Button size='sm' m='3px' onClick={onPrepare}>Prepare</Button>
+            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled}>Prepare</Button>
           </Flex>
         </GridItem>
         <GridItem bg='brand.base'>
           <Flex>
-            <Button size='sm' m='3px' onClick={onGenerate}>
+            <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>
               {generateDebug ? 'Generate Debug' : 'Generate'}
             </Button>
-            <Link href='' size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
+            <Link href={`https://${testSiteHost}/`} size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
         <GridItem bg='brand.base'>
           <Flex>
-            <Button size='sm' m='3px' onClick={onPublish}>Publish</Button>
-            <Link href='' size='sm' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
+            <Button size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled}>Publish</Button>
+            <Link href={`https://${siteHost}/`} size='sm' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
-        <GridItem>
+        <GridItem colSpan={3}>
           {latestLogUpdate()}
         </GridItem>
         <GridItem
           colSpan={3}
           bg='brand.accent'
         >
-          <Tabs size='sm' isLazy lazyBehavior='keepMounted'>
-            <TabList>
-              {editorTabs.map((tab, index) => (
-                <Tab color='white' key={index}>{tab.label}</Tab>
-              ))}
-            </TabList>
-            <TabPanels bg='brand.base'>
-              {editorTabs.map((tab, index) => (
-                <TabPanel p='0' key={index}>
-                  {tab.content}
-                </TabPanel>
-              ))}
-            </TabPanels>
-          </Tabs>
+          <Skeleton isLoaded={editorsEnabled}>
+            <Tabs size='sm' isLazy lazyBehavior='keepMounted'>
+              <TabList>
+                {editors.map((editor, index) => (
+                  <Tab color='white' key={index} disabled={!uiEnabled}>{editor.title}</Tab>
+                ))}
+              </TabList>
+              <TabPanels bg='brand.base'>
+                {editors.map((editor, index) => (
+                  <TabPanel p='0' key={index}>
+                    {createEditor(index, editor)}
+                  </TabPanel>
+                ))}
+              </TabPanels>
+            </Tabs>
+          </Skeleton>
         </GridItem>
         <GridItem h='1.55em' colSpan={3} bg='brand.accent'>
           <Flex>
@@ -277,7 +315,68 @@ function App() {
         </GridItem>
       </Grid>
     </ChakraProvider>
-  );
+  )
+}
+
+/** Setup to get Admin state from the server */
+function useAdminStatePolling(adminState, setAdminState) {
+  if ( ! adminStatePoller) {
+    controller.checkState().then(() => {
+      // Set inital state, whether it's changed or not
+      setAdminState(controller.getConfig())
+    })
+  }
+  React.useEffect(() => {
+    if ( ! adminStatePoller) {
+      adminStatePoller = setInterval(async () => {
+        if (pollLoopCount >= maxPollingLoopCount) {
+          try {
+            if (await controller.checkState() || !adminState.live) {
+              // There is new state available. Trigger UI refresh
+              const newState = Object.assign({}, controller.getConfig(), { live: true })
+              setAdminState(newState)
+            }
+            if ( ! controller.isBusy()) {
+              endFastPolling()
+            }
+          } catch (error) {
+            console.log('Failed to get state from server.', error)
+            endFastPolling()
+          } finally {
+            pollLoopCount = 0
+          }
+        }
+        ++pollLoopCount
+      }, 1000)
+    }
+    return () => {
+      clearInterval(adminStatePoller)
+      adminStatePoller = null
+    };
+  }, [])
+}
+
+// Check lock state now, and every 4 minutes after
+//    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
+function useLockStatePolling(setLocked) {
+  if ( ! lockStatePoller) {
+    if (process.env.NODE_ENV !== 'development') {
+      controller.getLockState().then(locked => { setLocked(locked) })
+    }
+  }
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') {
+      if ( ! lockStatePoller) {
+        lockStatePoller = setInterval(async () => {
+          setLocked(await controller.getLockState())
+        }, 4 * 60 * 1000)
+      }
+      return () => {
+        clearInterval(lockStatePoller)
+        lockStatePoller = null
+      }
+    }
+  }, [])
 }
 
 export default App;

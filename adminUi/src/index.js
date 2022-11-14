@@ -15,7 +15,6 @@ if (lockId) {
 }
 // Save the current lock ID in local session just before page refresh, for use after refresh.
 window.addEventListener("beforeunload", () => {
-  console.log('On Unload!')
   sessionStorage.setItem('lockId', lockId)
 })
 Controller.setLockId(lockId)

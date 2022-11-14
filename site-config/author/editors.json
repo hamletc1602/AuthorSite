@@ -1,0 +1,19 @@
+[{
+  "title": "General",
+  "data": "conf.json"
+},{
+  "title": "Books",
+  "data": "published.json"
+},{
+  "title": "Authors",
+  "data": "authors.json"
+},{
+  "title": "News",
+  "data": "news.json"
+},{
+  "title": "Distributors",
+  "data": "distributors.json"
+},{
+  "title": "Style",
+  "data": "style.json"
+}]

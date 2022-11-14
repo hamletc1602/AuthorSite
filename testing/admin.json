@@ -1,13 +1,22 @@
 {
-  "templates": [{
-        "id": "author",
-        "name": "Author",
-        "description": "Site for writers to showcase books."
-    },{
-        "id": "artist",
-        "name": "Artist",
-        "description": "Site for visual artists to showcase paintings and other art."
-    }],
-  "display": {},
+  "generator": "braevitae-pub:AutoSite/lambdas/authorsite.zip",
+  "templates": [
+    {
+      "id": "author",
+      "name": "Author",
+      "description": "Site for writers to showcase books."
+    },
+    {
+      "id": "artist",
+      "name": "Artist",
+      "description": "Site for visual artists to showcase paintings and other art."
+    }
+  ],
+  "config": { "templateId": "author" },
+  "display": {
+    "preparing": false,
+    "stepMsg": ""
+  },
+  "latest": [],
   "logs": []
 }

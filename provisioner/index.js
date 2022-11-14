@@ -52,17 +52,21 @@ const cfnCreateHandler = async (params) => {
     }).promise()
 
     // Copy all admin UI static files from public bucket to this site's bucket.
+    //   Simply duplicate admin UI to desktop and mobile folders for now. Maybe there will be a mobile-specific
+    //   version in future.
     console.log(`Copy admin UI files from braevitae-pub to ${params.AdminUiBucket}`)
-    const adminUiDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: 'AutoSite/provision/adminui.zip' });
-    await Promise.all(adminUiDir.files.map(async file => {
-      console.log(`Copying ${file.path}`)
-      await s3.putObject({
-        Bucket: params.AdminUiBucket,
-        Key: file.path,
-        Body: await file.buffer(),
-        CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
-        ContentType: Mime.getType(file.path) || 'text/html'
-      }).promise()
+    await Promise.all(['desktop', 'mobile'].map(async mode => {
+      const adminUiDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: 'AutoSite/provision/adminui.zip' });
+      await Promise.all(adminUiDir.files.map(async file => {
+        console.log(`Copying ${file.path}`)
+        await s3.putObject({
+          Bucket: params.AdminUiBucket,
+          Key: mode + '/admin/' + file.path,
+          Body: await file.buffer(),
+          CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
+          ContentType: Mime.getType(file.path) || 'text/html'
+        }).promise()
+      }))
     }))
 
     //

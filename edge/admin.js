@@ -3,7 +3,6 @@
 const AWS = require('aws-sdk');
 const AwsUtils = require('./awsUtils')
 
-const s3 = new AWS.S3();
 const targetRegion = 'us-east-1'
 const lambda = new AWS.Lambda({ region: targetRegion });
 
@@ -50,7 +49,17 @@ exports.handler = async (event, context) => {
   //
   if (req.method === 'POST') {
     if (req.uri.indexOf('/admin/command/') === 0) {
-      return postCommand(aws, req, adminBucket, awsAccountId, rootName)
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return postCommand(aws, req, adminBucket, awsAccountId, rootName)
+      }
+      return authResp
+    } else if (req.uri.indexOf('/admin/site-config/') === 0) {
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return siteConfig(aws, req, adminBucket)
+      }
+      return authResp
     }
   } else if (req.method === 'GET') {
     if (req.uri.indexOf('/admin/admin.json') === 0) {
@@ -68,23 +77,24 @@ exports.handler = async (event, context) => {
       console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
       return aws.takeLockIfFree(newLockId, adminUiBucket)
     }
+    else if (req.uri.indexOf('/admin/site-config/') === 0) {
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return siteConfig(aws, req, adminBucket)
+      }
+      return authResp
+    }
   }
 
   // resolve request
   return req
 };
 
-/** */
-const getPassword = async () => {
-  return (await s3.getObject({ Bucket: adminBucket, Key: 'admin_secret', }).promise()).Body.toString()
-}
-
-/** */
-const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
-  //
+/** Check the basic auth header in the request vs the site admin password in S3. */
+const authenticate = async (aws, req, adminBucket) => {
   let uploaderPassword = null
   try {
-    uploaderPassword = await getPassword()
+    uploaderPassword = (await aws.get(adminBucket, 'admin_secret')).toString()
   } catch (error) {
     console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
     return {
@@ -92,24 +102,24 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
       statusDescription: 'Missing critical site configuration. See logs.'
     }
   }
-
-  //
   let auth = null
   if (req.headers.authorization) {
-    console.log(`Got basic auth header: ${JSON.stringify(req.headers.authorization)}`)
+    //console.log(`Got basic auth header: ${JSON.stringify(req.headers.authorization)}`)
     const authValue = req.headers.authorization[0].value
     let parts = authValue.split(' ')
     if (parts[0] === 'BASIC') {
       const plain = Buffer.from(parts[1], 'base64').toString()
-      console.log(`Got basic auth header value: ${plain} vs. password ${JSON.stringify(uploaderPassword)}`)
+      //console.log(`Got basic auth header value: ${plain} vs. password ${JSON.stringify(uploaderPassword)}`)
       parts = plain.split(":")
       if (parts.length > 1 && parts[1] === uploaderPassword) {
-        console.log(`Auth success with pwd: ${parts[1]}`)
+        //console.log(`Auth success with pwd: ${parts[1]}`)
         auth = {
+          authorized: true,
           user: parts[0]
         }
       } else {
-        console.log(`Auth failed with creds: ${plain}`)
+        //console.log(`Auth failed with creds: ${plain}`)
+        console.log(`Auth failed`)
       }
     }
   }
@@ -119,8 +129,11 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
       statusDescription: 'Invalid admin secret'
     }
   }
+  return auth
+}
 
-  //
+/** Handle commands posted to the admin interface */
+const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
   const parts = req.uri.split('/')
   parts.shift() // /
   parts.shift() // admin
@@ -143,9 +156,19 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
       params = JSON.parse(body.toString())
     }
     switch (command) {
+      case 'validate':
+        ret = {
+          status: '200',
+          statusDescription: `validated.`
+        }
+        break
       case 'config':
         // Update app config state
         await aws.adminStateUpdate({ config: params })
+        ret = {
+          status: '200',
+          statusDescription: `Updated config.`
+        }
         break
       case 'template':
         // Set the current template in the admin state
@@ -159,13 +182,10 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
       case 'publish':
         ret = deploySite(command, arnPrefix + '-admin-worker', params)
         break
-      case 'upload':
-        ret = uploadResource(parts.join('/'), adminBucket, body, req)
-        break
       default:
         ret = {
           status: '404',
-          statusDescription: `Unknown admin acion: ${action}`
+          statusDescription: `Unknown admin acion: ${command}`
         }
     }
     console.log(`Return: ${JSON.stringify(ret)}`)
@@ -222,25 +242,69 @@ const buildSite = async (path, adminBucket, builderArn, params) => {
   }
 }
 
-const uploadResource = async (resourcePath, adminBucket, body, _req) => {
-  console.log(`Upload resource ${resourcePath} to ${adminBucket}.`)
-  const params = {
-    Bucket: adminBucket,
-    Key:  resourcePath,
-    Body: body
+/** Handle access to site config. Site config is stored in the admin bucket. */
+const siteConfig = async (aws, req, adminBucket) => {
+  const parts = req.uri.split('/')
+  parts.shift() // /
+  parts.shift() // admin
+  parts.shift() // site-config
+  const template = parts.shift()
+  const name = parts.shift()
+  console.log(`Config name: ${name}`)
+  if (req.method === 'GET') {
+    try {
+      let content = null
+      if ( ! name) {
+        content = await aws.get(adminBucket, `site-config/${template}/editors.json`)
+      } else {
+        content = await aws.get(adminBucket, `site-config/${template}/${name}`)
+      }
+      if (content) {
+        console.log('Return site config content:', content)
+        return {
+          status: '200',
+          statusDescription: 'OK',
+          headers: {
+            'content-type': content.contentType
+          },
+          body: content.body.toString()
+        }
+      } else {
+        console.error(`Found empty content for site-config/${template}/${name}`)
+        return {
+          status: '500',
+          statusDescription: 'Unable to read content.',
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to get content for site-config/${template}/${name}`, error)
+      return {
+        status: '500',
+        statusDescription: 'Unable to read content.',
+      }
   }
-  return s3.putObject(params).promise()
-    .then(() => {
-      return {
-        status: '200',
-        statusDescription: 'OK'
+  } else if (req.method === 'POST') {
+    try {
+      if (req.body && req.body.data) {
+        const body = Buffer.from(req.body.data, 'base64')
+        await aws.put(adminBucket, `site-config/${template}/${name}`, req.headers['content-type'], body)
+        return {
+          status: '200',
+          statusDescription: 'OK'
+        }
+      } else {
+        console.error(`Received empty content when setting site-config/${template}/${name}`)
+        return {
+          status: '400',
+          statusDescription: 'Missing content. Unable to write.',
+        }
       }
-    })
-    .catch(error => {
-      console.error(`Failed write key ${params.Key} to S3 bucket ${params.Bucket}: ${JSON.stringify(error)}`)
+    } catch (error) {
+      console.error(`Failed to set content for site-config/${template}/${name}`, error)
       return {
-        status: '400',
-        statusDescription: 'Send failed. See log.'
+        status: '500',
+        statusDescription: 'Unable to write content.',
       }
-    })
+    }
+  }
 }
