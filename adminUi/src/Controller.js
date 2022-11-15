@@ -70,7 +70,10 @@ export default class Controller {
   basicAuth(user, password) {
     user = user || 'admin'
     password = password || this.password
-    return 'BASIC ' + btoa(user + ':' + password)
+    if (user !== null && password !== null) {
+      return 'BASIC ' + btoa(user + ':' + password)
+    }
+    return null
   }
 
   /** Post a command to the admin API
@@ -143,8 +146,8 @@ export default class Controller {
     } catch (error) {
       console.error('Failed to get site config', error)
       return {
-        contentType: 'text/plain',
-        content: '{}'
+        contentType: null,
+        content: null
       }
     }
   }
@@ -170,8 +173,11 @@ export default class Controller {
   async getEditors(templateId) {
     let siteMetadata = this.editors[templateId]
     if ( ! siteMetadata) {
-      siteMetadata = await this.getSiteConfig(templateId)
-      this.editors[templateId] = siteMetadata
+      const resp = await this.getSiteConfig(templateId)
+      if (resp.content) {
+        siteMetadata = resp.content
+        this.editors[templateId] = siteMetadata
+      }
     }
     return siteMetadata
   }

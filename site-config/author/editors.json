@@ -1,19 +1,25 @@
 [{
+  "id": "general",
   "title": "General",
   "data": "conf.json"
 },{
+  "id": "books",
   "title": "Books",
   "data": "published.json"
 },{
+  "id": "authors",
   "title": "Authors",
   "data": "authors.json"
 },{
+  "id": "news",
   "title": "News",
   "data": "news.json"
 },{
+  "id": "distributors",
   "title": "Distributors",
   "data": "distributors.json"
 },{
+  "id": "style",
   "title": "Style",
   "data": "style.json"
 }]

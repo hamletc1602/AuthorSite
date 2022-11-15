@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 SITE=$1
 
 echo Compile UI source into runtime deploy
