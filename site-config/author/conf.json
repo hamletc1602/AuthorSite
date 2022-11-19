@@ -87,15 +87,6 @@
             "title": "CONTACT",
             "template": "contact_us.html"
         }
-    },
-
-    "deploy": {
-        "target": "AWS",
-        "region": "us-east-1",
-        "user": "adriaan",
-        "bucket": "author.com",
-        "maxAgeBrowser": 86400,
-        "maxAgeCloudFront": 60
     }
 
 }

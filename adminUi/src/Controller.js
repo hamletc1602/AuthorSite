@@ -1,10 +1,11 @@
+import StripJsonComments from 'strip-json-comments'
+
 /**  */
 export default class Controller {
   //
   static lockId = ''
 
-  constructor(siteHost) {
-    this.siteHost = siteHost ? '//' + siteHost : ''
+  constructor() {
     this.lastETag = null
     this.locked = true
     this.password = null
@@ -26,7 +27,7 @@ export default class Controller {
 
   /** Lock state polling */
   async getLockState() {
-    return fetch(`${this.siteHost}/admin/lock?lockId=${Controller.lockId}`)
+    return fetch(`/admin/lock?lockId=${Controller.lockId}`)
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -49,21 +50,25 @@ export default class Controller {
     // Get latest admin data
     // Active (force state update) polling only when unlocked, otherwise it's just viewing state data.
     const activeParam = this.locked ? '' : '?active=true'
-    return fetch(this.siteHost + '/admin/admin.json' + activeParam)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        // Skip page update if the etag has not changed since the last response (ie. must be cached)
-        const etag = response.headers.get('etag')
-        if (this.lastETag === null || etag !== this.lastETag) {
-          this.lastETag = etag
-          this.config = await response.json()
-          this.config.locked = this.locked
-          return true
-        }
-        return false
-      })
+    return fetch('/admin/admin.json' + activeParam, {
+      headers: {
+        Accept: 'application/json'
+      }
+    })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      // Skip page update if the etag has not changed since the last response (ie. must be cached)
+      const etag = response.headers.get('etag')
+      if (this.lastETag === null || etag !== this.lastETag) {
+        this.lastETag = etag
+        this.config = await response.json()
+        this.config.locked = this.locked
+        return true
+      }
+      return false
+    })
   }
 
   /** Create basic auth slug */
@@ -86,7 +91,7 @@ export default class Controller {
       // no password defined.
       return
     }
-    return fetch(this.siteHost + '/admin/command/' + name, {
+    return fetch('/admin/command/' + name, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({
@@ -104,7 +109,7 @@ export default class Controller {
 
   /** Return true if the given password is valid. */
   async validatePassword(password) {
-    return fetch(this.siteHost + '/admin/command/validate', {
+    return fetch('/admin/command/validate', {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({
@@ -124,7 +129,7 @@ export default class Controller {
   */
   async getSiteConfig(templateId, configSection) {
     try {
-      let url = `${this.siteHost}/admin/site-config/${templateId}`
+      let url = `/admin/site-config/${templateId}`
       if (configSection) {
         url += '/' + configSection
       }
@@ -137,10 +142,11 @@ export default class Controller {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const type = response.headers.get('Content-Type')
-        const content = await response.json()
+        let contentStr = await response.text()
+        contentStr = StripJsonComments(contentStr)
         return {
           contentType: type,
-          content: content
+          content: JSON.parse(contentStr)
         }
       })
     } catch (error) {
@@ -154,7 +160,7 @@ export default class Controller {
 
   /** Put various config files for the given template */
   async putSiteConfig(templateId, configSection, contentType, content) {
-    return fetch(`${this.siteHost}/admin/site-config/${templateId}/${configSection}`, {
+    return fetch(`/admin/site-config/${templateId}/${configSection}`, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({

@@ -6,9 +6,10 @@ const AwsUtils = require('./awsUtils')
 const targetRegion = 'us-east-1'
 const lambda = new AWS.Lambda({ region: targetRegion });
 
-// When run in rapid succession, AWS may retain some state between executions, so we don't need to reload the
-// state file from S3.
+// When run in rapid succession, AWS may retain some state between executions so we defined some
+// globals where it would be useful to retain state.
 let stateCache = null
+let editorsList = null
 
 /**
   - Get admin state update messages from the state queue and merge them into the state.json in S3
@@ -244,20 +245,27 @@ const buildSite = async (path, adminBucket, builderArn, params) => {
 
 /** Handle access to site config. Site config is stored in the admin bucket. */
 const siteConfig = async (aws, req, adminBucket) => {
-  const parts = req.uri.split('/')
-  parts.shift() // /
-  parts.shift() // admin
-  parts.shift() // site-config
-  const template = parts.shift()
-  const name = parts.shift()
+  const uriParts = req.uri.split('/')
+  uriParts.shift() // /
+  uriParts.shift() // admin
+  uriParts.shift() // site-config
+  const template = uriParts.shift()
+  const name = uriParts.shift()
   console.log(`Config name: ${name}`)
   if (req.method === 'GET') {
     try {
       let content = null
+      let schema = null
+      const editors = await aws.get(adminBucket, `site-config/${template}/editors.json`)
       if ( ! name) {
-        content = await aws.get(adminBucket, `site-config/${template}/editors.json`)
+        content = editors
       } else {
-        content = await aws.get(adminBucket, `site-config/${template}/${name}`)
+        if ( ! editorsList) {
+          editorsList = JSON.parse(editors.Body.toString())
+        }
+        const editor = editorsList.find(p => p.id === name)
+        content = await aws.get(adminBucket, `site-config/${template}/${editor.data}`)
+        schema = await aws.get(adminBucket, `site-config/${template}/${editor.schema}`)
       }
       if (content) {
         console.log('Return site config content:', content)
@@ -267,7 +275,8 @@ const siteConfig = async (aws, req, adminBucket) => {
           headers: {
             'content-type': content.contentType
           },
-          body: content.body.toString()
+          body: content.body.toString(),
+          schema: schema.Body.toString()
         }
       } else {
         console.error(`Found empty content for site-config/${template}/${name}`)

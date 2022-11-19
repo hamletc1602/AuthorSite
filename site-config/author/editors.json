@@ -1,25 +1,31 @@
 [{
   "id": "general",
   "title": "General",
-  "data": "conf.json"
+  "data": "conf.json",
+  "schema": "schema/conf.schema.yaml"
 },{
   "id": "books",
   "title": "Books",
-  "data": "published.json"
+  "data": "published.json",
+  "schema": "schema/published.schema.yaml"
 },{
   "id": "authors",
   "title": "Authors",
-  "data": "authors.json"
+  "data": "authors.json",
+  "schema": "schema/authors.schema.yaml"
 },{
   "id": "news",
   "title": "News",
-  "data": "news.json"
+  "data": "news.json",
+  "schema": "schema/news.schema.yaml"
 },{
   "id": "distributors",
   "title": "Distributors",
-  "data": "distributors.json"
+  "data": "distributors.json",
+  "schema": "schema/distributors.schema.yaml"
 },{
   "id": "style",
   "title": "Style",
-  "data": "style.json"
+  "data": "style.json",
+  "schema": "schema/style.schema.yaml"
 }]

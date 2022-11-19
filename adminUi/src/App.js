@@ -71,7 +71,7 @@ if (process.env.NODE_ENV !== 'development') {
 }
 
 //
-const controller = new Controller(siteHost)
+const controller = new Controller()
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -107,21 +107,25 @@ const templates = [
   <option key='2' value='artist'>Artist</option>
 ]
 
-function createEditor(editor, configs, changeHandler) {
-  return <Textarea
-    name={editor.id}
-    // TODO: configs, to start, does not have entries for all the editors.
-    // Should defer tabs component creation until template editors data and config data
-    // are available??  ( Skeleton wrapper does not appear to do this.)
-    value={configs[editor.id].content}
-    onChangeCapture={changeHandler}
-    variant='flushed'
-    color='brand.editorText'
-    bg='brand.editor'
-    h='calc(100vh - 9em)'
-    resize='none'
-    p='5px'
-  />
+function EditorTab({editor, configs, changeHandler}) {
+  if (configs[editor.id]) {
+    return <Textarea
+      name={editor.id}
+      // TODO: configs, to start, does not have entries for all the editors.
+      // Should defer tabs component creation until template editors data and config data
+      // are available??  ( Skeleton wrapper does not appear to do this.)
+      defaultValue={JSON.stringify(configs[editor.id].content)}
+      onChangeCapture={changeHandler}
+      variant='flushed'
+      color='brand.editorText'
+      bg='brand.editor'
+      h='calc(100vh - 9em)'
+      resize='none'
+      p='5px'
+    />
+  } else {
+    return null
+  }
 }
 
 const authStates = {
@@ -209,6 +213,14 @@ function App() {
       }
     }, 500)
   }
+  const editorTabChange = async (index) => {
+    const configId = editors[index].id
+    if ( ! configs[configId]) {
+      const configsCopy = Object.assign({}, configs)
+      configsCopy[configId] = await controller.getSiteConfig(adminState.config.templateId, configId)
+      setConfigs(configsCopy)
+    }
+  }
   // On a 5s debounce, update the config state from the control content
   const configChanging = (ev) => {
     let name = ev.target.getAttribute('name')
@@ -242,12 +254,13 @@ function App() {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
         if (adminState.config.templateId) {
            controller.getEditors(adminState.config.templateId)
-            .then(async data => {
-              if (data) {
-                setEditors(data)
+            .then(async editorsData => {
+              if (editorsData) {
                 const configs = {}
-                configs[data.id] = await controller.getSiteConfig(adminState.config.templateId, data[0].data)
+                const editorId = editorsData[0].id
+                configs[editorId] = await controller.getSiteConfig(adminState.config.templateId, editorId)
                 setConfigs(configs)
+                setEditors(editorsData)
               }
             })
         }
@@ -327,7 +340,7 @@ function App() {
           bg='brand.accent'
         >
           <Skeleton isLoaded={editorsEnabled}>
-            <Tabs size='sm' isLazy lazyBehavior='keepMounted'>
+            <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList>
                 {editors.map((editor) => (
                   <Tab color='white' key={editor.id} disabled={!uiEnabled}>{editor.title}</Tab>
@@ -336,7 +349,7 @@ function App() {
               <TabPanels bg='brand.base'>
                 {editors.map((editor) => (
                   <TabPanel p='0' key={editor.id}>
-                    {createEditor(editor, configs, configChanging)}
+                    <EditorTab editor={editor} configs={configs} change={configChanging}/>
                   </TabPanel>
                 ))}
               </TabPanels>
