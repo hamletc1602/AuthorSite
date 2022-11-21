@@ -47,9 +47,11 @@ echo Compile UI templates into admin UI source
 handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/desktop/admin/admin.handlebars-1.0.0.js
 #handlebars static/admin/templates/mobile/admin.handlebars -f static/adminui/mobile/admin/admin.handlebars-1.0.0.js
 
-echo Package admin UI files
+echo Build and Package admin UI files
 rm -f target/AutoSite/provision/adminui.zip
-cd adminUi/build
+cd adminUi
+npm run build
+cd build
 zip -qr $wdir/target/AutoSite/provision/adminui.zip *
 cd $wdir
 

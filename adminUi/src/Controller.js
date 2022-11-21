@@ -7,7 +7,7 @@ export default class Controller {
 
   constructor() {
     this.lastETag = null
-    this.locked = true
+    this.locked = false
     this.password = null
     this.config = null
     this.editors = {}

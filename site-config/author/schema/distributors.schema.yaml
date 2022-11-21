@@ -1,0 +1,13 @@
+distributor:
+  type: object
+  properties:
+    name:
+      type: string
+    url:
+      type: string
+    icon:
+      type: image
+    featureIcon:
+      type: image
+    bookIdProp:
+      type: string

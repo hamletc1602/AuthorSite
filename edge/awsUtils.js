@@ -119,6 +119,9 @@ AwsUtils.prototype.get = async function(bucket, key) {
 }
 
 AwsUtils.prototype.put = async function(bucket, key, type, content) {
+  if ( ! content) {
+    console.log(`Put to S3 ${bucket}:${key} with empty content. Problem?`)
+  }
   return this.s3.putObject({
     Bucket: bucket,
     Key: key,

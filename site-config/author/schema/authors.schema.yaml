@@ -18,3 +18,7 @@ author:
     bio:
         type: text
         tag: bios
+    external:
+        type: boolean
+    url:
+      type: string

@@ -1,20 +1,22 @@
-import React from 'react';
+import React from 'react'
 import {
   ChakraProvider, extendTheme,
-  Text, Input, Button, Link, Textarea, Select,
+  Text, Input, Button, Link, Select,
   InputGroup, InputRightElement,
   Flex, Spacer,
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
   Spinner,
   Skeleton
-} from '@chakra-ui/react';
+} from '@chakra-ui/react'
 import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
   ExternalLinkIcon, InfoOutlineIcon
 } from '@chakra-ui/icons'
-import { mode } from '@chakra-ui/theme-tools'
+//import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller';
+import Editor from './Editor'
+import EditorValue from './EditorValue'
 
 // Theme
 // Will likely need a full style config, like here: https://chakra-ui.com/docs/components/tabs/theming
@@ -45,6 +47,11 @@ const customTheme = extendTheme({
       editorText: {
         default: 'black',
         _dark: 'white'
+      },
+      editorBgHack: 'white',
+      editorDivider: {
+        default: 'gray.300',
+        _dark: 'gray.600'
       },
     }
   },
@@ -82,7 +89,6 @@ let fastPollingTimeoutId = null
 let maxPollingLoopCount = 30 // Default 30s updates
 let pollLoopCount = 0
 let passwordChangingDebounce = null
-const configChangingDebounce = {}
 
 // Start refresh each second. Only if unlocked.
 function startFastPolling() {
@@ -102,30 +108,23 @@ function endFastPolling() {
   }
 }
 
-const templates = [
-  <option key='1' value='author'>Author</option>,
-  <option key='2' value='artist'>Artist</option>
-]
-
-function EditorTab({editor, configs, changeHandler}) {
-  if (configs[editor.id]) {
-    return <Textarea
-      name={editor.id}
-      // TODO: configs, to start, does not have entries for all the editors.
-      // Should defer tabs component creation until template editors data and config data
-      // are available??  ( Skeleton wrapper does not appear to do this.)
-      defaultValue={JSON.stringify(configs[editor.id].content)}
-      onChangeCapture={changeHandler}
-      variant='flushed'
-      color='brand.editorText'
-      bg='brand.editor'
-      h='calc(100vh - 9em)'
-      resize='none'
-      p='5px'
+function EditorTab({editorId, configs, setConfigs, editItems, setEditItems}) {
+  if (configs[editorId]) {
+    const editor = configs[editorId]
+    return <Editor
+      editor={editor}
+      setConfig={() => {
+        const copy = Object.assign({}, configs)
+        setConfigs(copy)
+      }}
+      setEditItem={(item) => {
+        const copy = Object.assign({}, editItems)
+        copy[editorId] = item
+        setEditItems(copy)
+      }}
     />
-  } else {
-    return null
   }
+  return null
 }
 
 const authStates = {
@@ -148,7 +147,7 @@ function App() {
   // State
   const [generateDebug, setGenerateDebug] = React.useState(false)
   const [adminState, setAdminState] = React.useState({
-    live: false, config: {}, display: {}, latest: [], editors: []
+    live: false, config: {}, display: {}, latest: [], editors: [], templates: []
   })
   const [showPwd, setShowPwd] = React.useState(false)
   const [authState, setAuthState] = React.useState('unknown')
@@ -159,6 +158,7 @@ function App() {
   const [busy, setBusy] = React.useState(false)
   const [editors, setEditors] = React.useState([])
   const [configs, setConfigs] = React.useState({})
+  const [editItems, setEditItems] = React.useState({})
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
@@ -217,21 +217,10 @@ function App() {
     const configId = editors[index].id
     if ( ! configs[configId]) {
       const configsCopy = Object.assign({}, configs)
-      configsCopy[configId] = await controller.getSiteConfig(adminState.config.templateId, configId)
+      const raw = await controller.getSiteConfig(adminState.config.templateId, configId)
+      configsCopy[configId] = raw.content
       setConfigs(configsCopy)
     }
-  }
-  // On a 5s debounce, update the config state from the control content
-  const configChanging = (ev) => {
-    let name = ev.target.getAttribute('name')
-    clearTimeout(configChangingDebounce[name])
-    configChangingDebounce[name] = setTimeout(async () => {
-      let value = ev.target.value
-      const configsCopy = Object.assign({}, configs)
-      const config = configsCopy[name]
-      config.content = value
-      setConfigs(configsCopy)
-    }, 5000)
   }
 
   // Dynamic Content
@@ -258,7 +247,8 @@ function App() {
               if (editorsData) {
                 const configs = {}
                 const editorId = editorsData[0].id
-                configs[editorId] = await controller.getSiteConfig(adminState.config.templateId, editorId)
+                const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
+                configs[editorId] = raw.content
                 setConfigs(configs)
                 setEditors(editorsData)
               }
@@ -313,9 +303,11 @@ function App() {
               onChange={onTemplateIdChange}
               disabled={!uiEnabled}
             >
-              {templates}
+              {adminState.templates.map(tpl => {
+                return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+              })}
             </Select>
-            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled}>{editorsEnabled ? 'Init' : 'Re-Init'}</Button>
+            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled}>{editorsEnabled ? 'Re-Init' : 'Init'}</Button>
           </Flex>
         </GridItem>
         <GridItem bg='brand.base'>
@@ -349,7 +341,18 @@ function App() {
               <TabPanels bg='brand.base'>
                 {editors.map((editor) => (
                   <TabPanel p='0' key={editor.id}>
-                    <EditorTab editor={editor} configs={configs} change={configChanging}/>
+                    <Flex direction='row'>
+                      <EditorTab
+                        editorId={editor.id}
+                        configs={configs}
+                        setConfigs={setConfigs}
+                        editItems={editItems}
+                        setEditItems={setEditItems}
+                      />
+                      <EditorValue
+                        item={editItems[editor.id]}
+                      />
+                    </Flex>
                   </TabPanel>
                 ))}
               </TabPanels>
@@ -410,21 +413,17 @@ function useAdminStatePolling(adminState, setAdminState, setEditors) {
 //    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
 function useLockStatePolling(setLocked) {
   if ( ! lockStatePoller) {
-    if (process.env.NODE_ENV !== 'development') {
-      controller.getLockState().then(locked => { setLocked(locked) })
-    }
+    controller.getLockState().then(locked => { setLocked(locked) })
   }
   React.useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') {
-      if ( ! lockStatePoller) {
-        lockStatePoller = setInterval(async () => {
-          setLocked(await controller.getLockState())
-        }, 4 * 60 * 1000)
-      }
-      return () => {
-        clearInterval(lockStatePoller)
-        lockStatePoller = null
-      }
+    if ( ! lockStatePoller) {
+      lockStatePoller = setInterval(async () => {
+        setLocked(await controller.getLockState())
+      }, 4 * 60 * 1000)
+    }
+    return () => {
+      clearInterval(lockStatePoller)
+      lockStatePoller = null
     }
   }, [])
 }

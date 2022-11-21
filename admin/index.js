@@ -1,13 +1,18 @@
 const sdk = require('aws-sdk');
 const AwsUtils = require('./awsUtils')
 const Unzipper = require('unzipper')
+const Yaml = require('yaml')
+
+const JsonContentType = 'application/json'
 
 const publicBucket = process.env.publicBucket
 const adminBucket = process.env.adminBucket
-//const adminUiBucket = process.env.adminUiBucket
 const siteBucket = process.env.siteBucket
 const testSiteBucket = process.env.testSiteBucket
 const stateQueueUrl = process.env.stateQueueUrl
+
+// Other congig available from stack if needed
+//const adminUiBucket = process.env.adminUiBucket
 //const maxAgeBrowser = process.env.maxAgeBrowser
 //const maxAgeCloudFront = process.env.maxAgeCloudFront
 
@@ -74,22 +79,58 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 async function applyTemplate(publicBucket, adminBucket, params) {
   const templateName = params.id
   try {
+    //
     console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
     await aws.displayUpdate({
-        preparing: true, stepMsg: `Prepare site with ${templateName} template.`
+        preparing: true, stepMsg: `Preparing`
       }, 'prepare', `Starting prepare with ${templateName} template.`)
+    // Copy all the site template files to the local bucket
     const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
     await Promise.all(siteConfigDir.files.map(async file => {
       console.log(`Copying ${file.path}`)
       await aws.getS3().putObject({
         Bucket: adminBucket,
-        Key: `site-config/${templateName}/` + file.path,
+        Key: `site-config/${templateName}/${file.path}`,
         Body: await file.buffer()
       }).promise()
     }))
+    // Get the editors config file
+    console.log('Convert YAML configuration files to JSON.')
+    try {
+      const rootPath = `site-config/${templateName}/`
+      let editors = null
+      {
+        const yaml = (await aws.get(adminBucket, rootPath + 'editors.yaml')).Body.toString()
+        editors = Yaml.parse(yaml, {});
+      }
+      console.log('Editors: ', editors)
+      await Promise.all(editors.map(async editor => {
+        console.log('Editor: ' + editor.id)
+        console.log('Schema: ' + editor.schema)
+        if (/.*yaml$/.test(editor.schema)) {
+          const yaml = (await aws.get(adminBucket, rootPath + editor.schema)).Body.toString()
+          editor.schema += '.json'
+          console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
+          await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+        }
+        console.log('Schema: ' + editor.data)
+        if (/.*yaml$/.test(editor.data)) {
+          const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
+          editor.data += '.json'
+          console.log('rewrite as: ' + editor.data, JSON.stringify(Yaml.parse(yaml)))
+          await aws.put(adminBucket, rootPath + editor.data, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+        }
+      }))
+      console.log('rewrite editors as: ', JSON.stringify(editors))
+      await aws.put(adminBucket, rootPath + 'editors.json', JsonContentType, JSON.stringify(editors))
+    } catch (error) {
+      console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
+      await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
+      throw error
+    }
   } catch (error) {
-    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare. Error: ${JSON.stringify(error)}`)
+    await aws.displayUpdate({ preparing: false, stepMsg: '' }, 'prepare', `Failed prepare. Error: ${JSON.stringify(error)}`)
   } finally {
-    await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
+    await aws.displayUpdate({ preparing: false, stepMsg: '' }, 'prepare', `Prepared with ${templateName} template.`)
   }
 }

@@ -95,7 +95,7 @@ exports.handler = async (event, context) => {
 const authenticate = async (aws, req, adminBucket) => {
   let uploaderPassword = null
   try {
-    uploaderPassword = (await aws.get(adminBucket, 'admin_secret')).toString()
+    uploaderPassword = (await aws.get(adminBucket, 'admin_secret')).Body.toString()
   } catch (error) {
     console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
     return {
@@ -267,16 +267,23 @@ const siteConfig = async (aws, req, adminBucket) => {
         content = await aws.get(adminBucket, `site-config/${template}/${editor.data}`)
         schema = await aws.get(adminBucket, `site-config/${template}/${editor.schema}`)
       }
-      if (content) {
-        console.log('Return site config content:', content)
+      if (content && schema) {
         return {
           status: '200',
           statusDescription: 'OK',
           headers: {
-            'content-type': content.contentType
+            'Content-Type': ['application/json']
           },
-          body: content.body.toString(),
-          schema: schema.Body.toString()
+          body: `{"content": ${content.Body.toString()}, "schema": ${schema.Body.toString()} }`,
+        }
+      } else if (content) {
+        return {
+          status: '200',
+          statusDescription: 'OK',
+          headers: {
+            'Content-Type': [content.ContentType]
+          },
+          body: content.Body.toString()
         }
       } else {
         console.error(`Found empty content for site-config/${template}/${name}`)

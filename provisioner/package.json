@@ -8,7 +8,8 @@
     "clean-install-for-aws": "npm ci --platform=linux --arch=x64",
     "pack": "rm -f provisioner.zip & npm-pack-zip",
     "pack-layer": "rm -f layer.zip & aws-layer-pack",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "npx eslint *.js"
   },
   "keywords": [
     "AutoSite",
