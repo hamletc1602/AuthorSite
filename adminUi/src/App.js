@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   ChakraProvider, extendTheme,
-  Text, Input, Button, Link, Select,
+  Text, Input, Button, Link, Select, Box,
   InputGroup, InputRightElement,
   Flex, Spacer,
   Grid,GridItem,
@@ -108,18 +108,18 @@ function endFastPolling() {
   }
 }
 
-function EditorTab({editorId, configs, setConfigs, editItems, setEditItems}) {
-  if (configs[editorId]) {
-    const editor = configs[editorId]
+function EditorTab({editor, configs, setConfigs, editItems, setEditItems}) {
+  if (configs[editor.id]) {
     return <Editor
       editor={editor}
+      config={configs[editor.id]}
       setConfig={() => {
         const copy = Object.assign({}, configs)
         setConfigs(copy)
       }}
       setEditItem={(item) => {
         const copy = Object.assign({}, editItems)
-        copy[editorId] = item
+        copy[editor.id] = item
         setEditItems(copy)
       }}
     />
@@ -341,17 +341,26 @@ function App() {
               <TabPanels bg='brand.base'>
                 {editors.map((editor) => (
                   <TabPanel p='0' key={editor.id}>
-                    <Flex direction='row'>
-                      <EditorTab
-                        editorId={editor.id}
-                        configs={configs}
-                        setConfigs={setConfigs}
-                        editItems={editItems}
-                        setEditItems={setEditItems}
-                      />
-                      <EditorValue
-                        item={editItems[editor.id]}
-                      />
+                    <Flex w='100%' direction='row'>
+                      <Box w='70%'>
+                        <EditorTab
+                          editor={editor}
+                          configs={configs}
+                          setConfigs={setConfigs}
+                          editItems={editItems}
+                          setEditItems={setEditItems}
+                        />
+                      </Box>
+                      <Box w='30%' minW='15em'>
+                        <EditorValue
+                          editor={editor}
+                          item={editItems[editor.id]}
+                          setConfig={() => {
+                            const copy = Object.assign({}, configs)
+                            setConfigs(copy)
+                          }}
+                        />
+                      </Box>
                     </Flex>
                   </TabPanel>
                 ))}

@@ -1,3 +1,3 @@
-configPath: ../../../../writing-support/config
+configPath: ../../../site-config
 outputPath: /tmp/site
 tempPath: /tmp

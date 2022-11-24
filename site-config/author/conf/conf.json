@@ -1,0 +1,33 @@
+{
+    "siteName": "My Author Site",
+    "copyrightShort": "&copy; {%yyyy%} My Author Site",
+    "copyright": "Copyright &copy; {%yyyy%} My Author Site",
+    "license": {
+        "url": "creativecommons.org/licenses/by-nd/2.5/ca/",
+        "imageUrl": "creativecommons.org/images/public/somerights20.png",
+        "description": "Creative Commons License"
+    },
+    "publishedStickerText": "Buy Now",
+    "unpublishedStickerText": "Coming Soon!",
+
+    "metadata": {
+        "ogType": "books.author",
+        "title": "My Author Site",
+        "description": "A handy list of all my books with links to distributors.",
+        "image": "",
+        "imageType": "image/jpeg",
+        "imageWidth": "250",
+        "imageHeight": "209"
+    },
+
+    "feedback": {
+        "description": "If you have a question or concern that is not covered by the <a href=\"/p/faq\">FAQ</a>, here's a handy form you can use to send us an anonymous message.",
+        "subject": "Author Site Feedback",
+        "email": "",
+        "messages": [
+        ]
+    },
+
+    "fbAdminCode": "",
+    "pintrestCode": ""
+}

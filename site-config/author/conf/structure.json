@@ -1,0 +1,49 @@
+
+{
+    "menu": {
+        "main": {
+            "name": "index",
+            "title": "AUTHORS",
+            "desc": "Landing page!",
+            "template": "grouped.html"
+        },
+        "alt": {
+            "name": "list",
+            "title": "BOOKS",
+            "desc": "All Books!",
+            "template": "list.html"
+        },
+        "news": {
+            "name": "news",
+            "title": "NEWS",
+            "desc": "The latest updates!",
+            "template": "news.html"
+        },
+        "contact": {
+            "name": "contact_us",
+            "title": "CONTACT",
+            "template": "contact_us.html"
+        }
+    },
+
+    "paths": {
+        "rootPath": "",
+        "imagePath": "/image",
+        "fontPath": "/image",
+        "booksPath": "/w",
+        "authorPath": "/author",
+        "promoLinkPath": "/p",
+        "scriptPath": "/script",
+        "stylePath": "/style",
+        "newsPath": "/n"
+    },
+
+    "customPages": {
+        "attrib": {
+            "conent": { "file": "custom-pages/attribution.md" },
+            "outputPath": "attribution.html",
+            "menuRef": "index"
+        }
+    }
+
+}

@@ -1,26 +1,35 @@
 import React from 'react';
 import {
+  Box
 } from '@chakra-ui/react'
 import EditorList from './EditorList'
 import EditorProperties from './EditorProperties'
 
 /**  */
-export default function Editor({editor, setConfig, setEditItem}) {
-  if ( ! editor.content || ! editor.schema) {
+export default function Editor({editor, config, setConfig, setEditItem}) {
+  if ( ! config.content || ! config.schema) {
     return null
   }
-  if (Array.isArray(editor.content)) {
+  if (Array.isArray(config.content)) {
     return <EditorList
       editor={editor}
+      config={config}
       setConfig={setConfig}
       setEditItem={setEditItem}
     />
   } else {
-    return <EditorProperties
-      item={editor ? editor.content : null}
-      itemSchema={editor && editor.schema ? editor.schema.properties : null}
-      setConfig={setConfig}
-      setEditItem={setEditItem}
-    />
+    return <Box
+        p='2' w='100%'
+        color='brand.editorText'
+        bg='brand.editorBgHack'
+      >
+        <EditorProperties
+          id={config.id}
+          item={editor ? config.content : null}
+          itemSchema={config ? config.schema : null}
+          setConfig={setConfig}
+          setEditItem={setEditItem}
+        />
+      </Box>
   }
 }

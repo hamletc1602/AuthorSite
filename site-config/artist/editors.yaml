@@ -6,32 +6,22 @@
   title: Authors
   data: conf/authors.json
   schema: conf/schema/authors.schema.yaml
-  listNameProp: name
 - id: books
   title: Books
   data: conf/published.json
   schema: conf/schema/published.schema.yaml
-  listNameProp: title
-- id: promotions
-  title: Promotions
-  data: conf/promotions.yaml
-  schema: conf/schema/promotions.schema.yaml
-  listNameProp: name
 - id: series
   title: Series
   data: conf/series.yaml
   schema: conf/schema/series.schema.yaml
-  listNameProp: name
 - id: distributors
   title: Distributors
   data: conf/distributors.json
   schema: conf/schema/distributors.schema.yaml
-  listNameProp: name
 - id: news
   title: News
   data: conf/news.json
   schema: conf/schema/news.schema.yaml
-  listNameProp: title
 - id: structure
   data: conf/structure.json
 - id: style

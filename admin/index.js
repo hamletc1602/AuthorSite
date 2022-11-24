@@ -11,7 +11,7 @@ const siteBucket = process.env.siteBucket
 const testSiteBucket = process.env.testSiteBucket
 const stateQueueUrl = process.env.stateQueueUrl
 
-// Other congig available from stack if needed
+// Other config available from stack if needed
 //const adminUiBucket = process.env.adminUiBucket
 //const maxAgeBrowser = process.env.maxAgeBrowser
 //const maxAgeCloudFront = process.env.maxAgeCloudFront
@@ -77,12 +77,13 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
 async function applyTemplate(publicBucket, adminBucket, params) {
+  let success = true
   const templateName = params.id
   try {
     //
     console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
     await aws.displayUpdate({
-        preparing: true, stepMsg: `Preparing`
+        preparing: true, stepMsg: `Prepare site with ${templateName} template.`
       }, 'prepare', `Starting prepare with ${templateName} template.`)
     // Copy all the site template files to the local bucket
     const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
@@ -105,32 +106,41 @@ async function applyTemplate(publicBucket, adminBucket, params) {
       }
       console.log('Editors: ', editors)
       await Promise.all(editors.map(async editor => {
-        console.log('Editor: ' + editor.id)
-        console.log('Schema: ' + editor.schema)
-        if (/.*yaml$/.test(editor.schema)) {
-          const yaml = (await aws.get(adminBucket, rootPath + editor.schema)).Body.toString()
-          editor.schema += '.json'
-          console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
-          await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
-        }
-        console.log('Schema: ' + editor.data)
-        if (/.*yaml$/.test(editor.data)) {
-          const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
-          editor.data += '.json'
-          console.log('rewrite as: ' + editor.data, JSON.stringify(Yaml.parse(yaml)))
-          await aws.put(adminBucket, rootPath + editor.data, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+        try {
+          console.log('Editor: ' + editor.id)
+          console.log('Schema: ' + editor.schema)
+          if (/.*yaml$/.test(editor.schema)) {
+            const yaml = (await aws.get(adminBucket, rootPath + editor.schema)).Body.toString()
+            editor.schema += '.json'
+            console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
+            await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+          }
+          console.log('Schema: ' + editor.data)
+          if (/.*yaml$/.test(editor.data)) {
+            const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
+            editor.data += '.json'
+            console.log('rewrite as: ' + editor.data, JSON.stringify(Yaml.parse(yaml)))
+            await aws.put(adminBucket, rootPath + editor.data, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+          }
+        } catch (error) {
+          success = false
+          console.log(`Failed converting editor: ${JSON.stringify(editor)}`, error)
         }
       }))
       console.log('rewrite editors as: ', JSON.stringify(editors))
       await aws.put(adminBucket, rootPath + 'editors.json', JsonContentType, JSON.stringify(editors))
     } catch (error) {
+      success = false
       console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
       await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
-      throw error
     }
   } catch (error) {
-    await aws.displayUpdate({ preparing: false, stepMsg: '' }, 'prepare', `Failed prepare. Error: ${JSON.stringify(error)}`)
+    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${JSON.stringify(error)}. Check log.`)
   } finally {
-    await aws.displayUpdate({ preparing: false, stepMsg: '' }, 'prepare', `Prepared with ${templateName} template.`)
+    if (success) {
+      await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
+    } else {
+      await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template. Check log.`)
+    }
   }
 }

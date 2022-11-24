@@ -125,9 +125,22 @@ const handler = async (event, context) => {
       }
     }
 
-    // The core configuration file that drives the entire generation process
-    const config = await Files.loadJson(confDir + "/conf.json", { build: options.buildId, yyyy: year })
-    //config.outputDir = tempDir;
+    // Load conf index, convert to map
+    const confIndex = {}
+    {
+      const indexList = await Files.loadJson(confDir + '/editors.json')
+      confIndex = indexList.reduce((accum, item) => {
+        if (! accum) { accum = {} }
+        accum[item.id] = item
+        return accum
+      })
+    }
+
+    // Load all core configuration files and merge their keys (Separate files make editing config easier)
+    const structure = await Files.loadJson(confDir + '/' + confIndex.structure)
+    const style = await Files.loadJson(confDir + '/' + confIndex.style)
+    const config = await Files.loadJson(confDir + '/' + confIndex.general, { build: options.buildId, yyyy: year })
+    Object.assign(config, structure, style)
     config.tempDir = tempDir;
 
     // Force debug to true in config if it's supplied at runtime
@@ -229,12 +242,12 @@ const mergeEventToString = (event) => {
 /** Prepare data used when rendering page templates */
 const preparePageData = async (confDir, config, tempDir, options) => {
     const data = {
-      styleConfig: await Files.loadJson(confDir + "/style.json", config),
-      published: await Files.loadJson(confDir + "/published.json", config),
-      authors: await Files.loadJson(confDir + "/authors.json", config),
-      series: await Files.loadJson(confDir + "/series.json", config),
-      news: await Files.loadJson(confDir + "/news.json", config),
-      distributors: await Files.loadJson(confDir + "/distributors.json", config)
+      styleConfig: await Files.loadJson(confDir + '/' + confIndex.style, config),
+      published: await Files.loadJson(confDir + '/' + confIndex.published, config),
+      authors: await Files.loadJson(confDir + '/' + confIndex.authors, config),
+      series: await Files.loadJson(confDir + '/' + confIndex.series, config),
+      news: await Files.loadJson(confDir + '/' + confIndex.news, config),
+      distributors: await Files.loadJson(confDir + '/' + confIndex.distributors, config)
     }
     // Series config file is optional
     if ( ! data.series) {

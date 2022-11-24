@@ -1,0 +1,25 @@
+type: list
+elemType: object
+properties:
+  name:
+    type: string
+    key: true
+  socialMediaLinks:
+    type: object
+    properties:
+      name:
+        type: string
+      url:
+        type: url
+  bioPic:
+      type: image
+      tag: image/bios
+  bioPicLink:
+      type: string
+  bio:
+      type: text
+      tag: bios
+  external:
+      type: boolean
+  url:
+    type: url

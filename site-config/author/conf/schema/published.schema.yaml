@@ -1,0 +1,62 @@
+type: list
+elemType: object
+properties:
+  isbn:
+    type: string
+    key: true
+  printIsbn:
+    type: string
+  title:
+    type: string
+  seriesName:
+    type: string
+  seriesIndex:
+    type: number
+  catchup:
+    type: object
+    properties:
+      content: text
+  author:
+    type: list
+    elemType: string
+  type:
+    type: list
+    elemType: string
+    closed: true
+    values:
+      - book
+    hidden: true
+  tags:
+    type: list
+    elemType: string
+  logline:
+    type: string
+  blurb:
+    type: text
+  loglineColor:
+    type: color
+  published:
+    type: boolean
+  publisher:
+    type: string
+  coverImage:
+    type: image
+    tag: covers
+  primaryDistributor:
+    type: string
+  smashwordsId:
+    type: string
+  goodreadsId:
+    type: string
+  amazonId:
+    type: string
+  barnesNobleId:
+    type: string
+  appleStoreId:
+    type: string
+  koboId:
+    type: string
+  amazonPrintId:
+    type: string
+  createspaceId:
+    type: string

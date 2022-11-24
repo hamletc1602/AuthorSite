@@ -1,0 +1,27 @@
+{
+    "siteName": "Artist",
+    "copyrightShort": "&copy; {%yyyy%} Artist",
+    "copyright": "Copyright &copy; {%yyyy%} Artist",
+
+    "metadata": {
+        "ogType": "art.artist",
+        "title": "Artist Art",
+        "description": "art"
+    },
+
+    "publishedStickerText": "Request Info",
+    "unpublishedStickerText": "SOLD",
+    "showTitlesOnGroupedPage": true,
+
+    "feedback": {
+        "description": "If you are interested in purchasing any original artwork shown in this site, or simply have a question, please send us a message!",
+        "subject": "Art Feedback",
+        "email": "",
+        "messages": [
+            "I'm interested in '@title@'. Could you please email me with more information?"
+        ]
+    },
+
+    "fbAdminCode": "",
+    "pintrestCode": ""
+}

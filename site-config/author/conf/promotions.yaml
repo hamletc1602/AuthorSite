@@ -1,0 +1,14 @@
+- name: Promo 1
+  promoUrl:
+  image:
+    path: promotion/chaosbound-add-fb.jpg
+    type: image/jpeg
+  imageHeight: 627
+  imageWidth: 1200
+- name: Promo 2
+  promoUrl:
+  image:
+    path: promotion/chaosbound-add-fb.jpg
+    type: image/jpeg
+  imageHeight: 627
+  imageWidth: 1200

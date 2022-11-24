@@ -1,0 +1,8 @@
+- name: Series 1
+  image: series1.png
+  content:
+    file: series/series1.md
+- name: Series 2
+  image: series2.png
+  content:
+    file: series/series2.md

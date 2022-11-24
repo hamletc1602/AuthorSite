@@ -188,4 +188,15 @@ export default class Controller {
     return siteMetadata
   }
 
+  getKeyFieldName(objSchema) {
+    if (objSchema.properties) {
+      const names = Object.keys(objSchema.properties)
+      return names.find(name => {
+        const field = objSchema.properties[name]
+        return !!field.key
+      })
+    }
+    return null
+  }
+
 }

@@ -1,0 +1,45 @@
+
+{
+    "menu": {
+        "main": {
+            "name": "index",
+            "title": "ALL",
+            "desc": "All artwork!",
+            "template": "list.html"
+        },
+        "alt": {
+            "name": "grouped",
+            "title": "BY MEDIUM",
+            "desc": "Art by medium",
+            "template": "grouped.html"
+        },
+        "news": {
+            "name": "news",
+            "title": "NEWS",
+            "desc": "The latest updates!",
+            "template": "news.html"
+        },
+        "contact": {
+            "name": "contact_us",
+            "title": "CONTACT",
+            "template": "contact_us.html"
+        }
+    },
+
+    "templatesDir": "../config/artist/templates",
+
+    "paths": {
+        "rootPath": "",
+        "imagePath": "/image",
+        "fontPath": "/image",
+        "booksPath": "/w",
+        "authorPath": "/author",
+        "promoLinkPath": "/p",
+        "scriptPath": "/script",
+        "stylePath": "/style",
+        "newsPath": "/n"
+    },
+
+    "customPages": {
+    }
+}
