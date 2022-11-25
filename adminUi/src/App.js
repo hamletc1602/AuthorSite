@@ -108,13 +108,28 @@ function endFastPolling() {
   }
 }
 
+// Update the specific config value at the given item path and name, with the given value.
+function setConfig(config, itemPath, name, value) {
+  for (let i = 0; i < itemPath.length; ++i) {
+    const path = itemPath[i]
+    config = config[path]
+  }
+  if (config) {
+    config[name] = value
+  } else {
+    console.error(`Item path ${itemPath} does not match config`, config)
+  }
+}
+
 function EditorTab({editor, configs, setConfigs, editItems, setEditItems}) {
-  if (configs[editor.id]) {
+  const config = configs[editor.id]
+  if (config) {
     return <Editor
       editor={editor}
-      config={configs[editor.id]}
-      setConfig={() => {
+      config={{content: config.content, schema: config.schema, path: []}}
+      setConfig={(itemPath, name, newValue) => {
         const copy = Object.assign({}, configs)
+        setConfig(copy[editor.id].content, itemPath, name, newValue)
         setConfigs(copy)
       }}
       setEditItem={(item) => {
@@ -159,6 +174,7 @@ function App() {
   const [editors, setEditors] = React.useState([])
   const [configs, setConfigs] = React.useState({})
   const [editItems, setEditItems] = React.useState({})
+  const [fileContent, setFileContent] = React.useState({})
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
@@ -354,10 +370,17 @@ function App() {
                       <Box w='30%' minW='15em'>
                         <EditorValue
                           editor={editor}
-                          item={editItems[editor.id]}
-                          setConfig={() => {
+                          setConfig={(itemPath, name, newValue) => {
                             const copy = Object.assign({}, configs)
+                            setConfig(copy[editor.id].content, itemPath, name, newValue)
                             setConfigs(copy)
+                          }}
+                          item={editItems[editor.id]}
+                          fileContent={fileContent}
+                          setFileContent={(path, value) => {
+                            const copy = Object.assign({}, fileContent)
+                            copy[path] = value
+                            setFileContent(copy)
                           }}
                         />
                       </Box>

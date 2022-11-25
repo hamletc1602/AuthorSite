@@ -25,8 +25,7 @@ export default function Editor({editor, config, setConfig, setEditItem}) {
       >
         <EditorProperties
           id={config.id}
-          item={editor ? config.content : null}
-          itemSchema={config ? config.schema : null}
+          item={{content: config.content, schema: config.schema, path: []}}
           setConfig={setConfig}
           setEditItem={setEditItem}
         />

@@ -17,6 +17,10 @@ export default class Controller {
     Controller.lockId = lockId
   }
 
+  static sanitizeS3FileName(name) {
+    return name.replace(/[^a-zA-Z\d-!_'.*()]/g, '-')
+  }
+
   setPassword(password) {
     this.password = password
   }

@@ -8,10 +8,10 @@ import EditorProperties from './EditorProperties'
 export default function EditorList({editor, config, setConfig, setEditItem}) {
   const content = config.content
 
-  const [selected, setSelected] = React.useState({ index: 0, item: content[0] })
+  const [selected, setSelected] = React.useState({ index: 0, name: content[0][editor.listNameProp], path: [...config.path, 0], item: content[0] })
 
-  const itemSelected = (ev, index) => {
-    setSelected({ index: index, item: content[index] })
+  const itemSelected = (ev, index, name) => {
+    setSelected({ index: index, name: name, path: [...config.path, index], item: content[index] })
     setEditItem(null)
   }
 
@@ -26,18 +26,18 @@ export default function EditorList({editor, config, setConfig, setEditItem}) {
         divider={<StackDivider borderColor='brand.editorDivider' />}
       >
         {content.map((item, index) => {
+          const name = item[editor.listNameProp] || 'item' + index
           return <Box
             key={index}
-            onClick={ev => itemSelected(ev, index)}
-          >{item[editor.listNameProp] || 'item' + index}</Box>
+            onClick={ev => itemSelected(ev, index, name)}
+          >{name}</Box>
         })}
       </VStack>
     </GridItem>
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       {selected ? <EditorProperties
         id={selected ? selected.index : null}
-        item={selected.item}
-        itemSchema={config.schema.properties}
+        item={{name: selected.name, content: selected.item, schema: config.schema.properties, path: selected.path}}
         setConfig={setConfig}
         setEditItem={setEditItem}
       /> : null}
