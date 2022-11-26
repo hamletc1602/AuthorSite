@@ -84,6 +84,7 @@ const controller = new Controller()
 // Check state as needed (variable rate)
 let adminStatePoller = null
 let lockStatePoller = null
+let putContentWorker = null
 const FastPollingTimeoutMs = 5 * 60 * 1000
 let fastPollingTimeoutId = null
 let maxPollingLoopCount = 30 // Default 30s updates
@@ -109,7 +110,7 @@ function endFastPolling() {
 }
 
 // Update the specific config value at the given item path and name, with the given value.
-function setConfig(config, itemPath, name, value) {
+function setConfigInner(config, itemPath, name, value) {
   for (let i = 0; i < itemPath.length; ++i) {
     const path = itemPath[i]
     config = config[path]
@@ -121,18 +122,30 @@ function setConfig(config, itemPath, name, value) {
   }
 }
 
-function EditorTab({editor, configs, setConfigs, editItems, setEditItems}) {
+// EditorTab Component
+function EditorTab({editor, configs, setConfigs, editItems, setEditItems, setContentToGet}) {
+  const setConfig = (itemPath, name, newValue) => {
+    const copy = Object.assign({}, configs)
+    setConfigInner(copy[editor.id].content, itemPath, name, newValue)
+    setConfigs(copy)
+  }
   const config = configs[editor.id]
   if (config) {
     return <Editor
       editor={editor}
       config={{content: config.content, schema: config.schema, path: []}}
-      setConfig={(itemPath, name, newValue) => {
-        const copy = Object.assign({}, configs)
-        setConfig(copy[editor.id].content, itemPath, name, newValue)
-        setConfigs(copy)
-      }}
+      setConfig={setConfig}
       setEditItem={(item) => {
+        if (item.value && item.value.file) {
+          // Invoke content download (will set fileContent state when complete)
+          setContentToGet({ path: item.value.file, schema: item.schema })
+        } else {
+          // Set value to the expected file path on the server
+          const filePath = Controller.getContentFilePath(editor.id, item)
+          item.value = { file: filePath }
+          setConfig(item.path, item.name, item.value)
+        }
+        // Show the editor
         const copy = Object.assign({}, editItems)
         copy[editor.id] = item
         setEditItems(copy)
@@ -175,13 +188,23 @@ function App() {
   const [configs, setConfigs] = React.useState({})
   const [editItems, setEditItems] = React.useState({})
   const [fileContent, setFileContent] = React.useState({})
+  const [contentToGet, setContentToGet] = React.useState(null)
+  const [contentToPut, setContentToPut] = React.useState({})
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
   const editorsEnabled = editors.length > 0
 
   // Handlers
-  const viewPwdClick = () => setShowPwd(!showPwd)
+  const viewPwdClick = () => {
+    if ( ! showPwd) { // Pwd currently hidden, will be shown
+      // Re-hide the password after 10s
+      setTimeout(() => {
+        setShowPwd(false)
+      }, 10000)
+    }
+    setShowPwd(!showPwd)
+  }
   const generateDebugClick = () => setGenerateDebug(!generateDebug)
   const onTemplateIdChange = (ev) => {
     const templateId = ev.target.value
@@ -253,6 +276,8 @@ function App() {
   //  for handling server data access. Builds in refresh logic and integration with React state.
   useAdminStatePolling(adminState, setAdminState, setEditors)
   useLockStatePolling(setLocked)
+  usePutContentWorker(controller, fileContent, contentToPut, setContentToPut)
+  // Get config data from the server
   React.useEffect(() => {
     try {
       if (uiEnabled && editors.length === 0) {
@@ -275,6 +300,25 @@ function App() {
       console.error('Failed Get editors init.', error)
     }
   }, [uiEnabled])
+  // Get content data from the server on start editing
+  React.useEffect(() => {
+    if (contentToGet) {
+      console.log(`Get content: ${JSON.stringify(contentToGet)}`)
+      controller.getSiteContent(adminState.config.templateId, contentToGet.path)
+      .then(contentRec => {
+        const copy = Object.assign({}, fileContent)
+        copy[contentToGet.path] = contentRec
+        setFileContent(copy)
+      })
+      .catch(error => {
+        const copy = Object.assign({}, fileContent)
+        copy[contentToGet.path] = {
+          content: null,
+          contentType: contentToGet.schema.contentType }
+        setFileContent(copy)
+      })
+    }
+  },[contentToGet])
 
   // UI
   return (
@@ -359,28 +403,46 @@ function App() {
                   <TabPanel p='0' key={editor.id}>
                     <Flex w='100%' direction='row'>
                       <Box w='70%'>
-                        <EditorTab
-                          editor={editor}
-                          configs={configs}
-                          setConfigs={setConfigs}
-                          editItems={editItems}
-                          setEditItems={setEditItems}
-                        />
+                        <Skeleton isLoaded={configs[editor.id]}>
+                          <EditorTab
+                            editor={editor}
+                            configs={configs}
+                            setConfigs={setConfigs}
+                            editItems={editItems}
+                            setEditItems={setEditItems}
+                            setContentToGet={setContentToGet}
+                          />
+                        </Skeleton>
                       </Box>
                       <Box w='30%' minW='15em'>
                         <EditorValue
                           editor={editor}
                           setConfig={(itemPath, name, newValue) => {
                             const copy = Object.assign({}, configs)
-                            setConfig(copy[editor.id].content, itemPath, name, newValue)
+                            setConfigInner(copy[editor.id].content, itemPath, name, newValue)
                             setConfigs(copy)
                           }}
                           item={editItems[editor.id]}
                           fileContent={fileContent}
                           setFileContent={(path, value) => {
-                            const copy = Object.assign({}, fileContent)
-                            copy[path] = value
-                            setFileContent(copy)
+                            {
+                              const copy = Object.assign({}, fileContent)
+                              if (copy[path]) {
+                                copy[path].content = value
+                              }
+                              setFileContent(copy)
+                            }
+                            const toPut = contentToPut[path]
+                            if (!toPut || (toPut.state === 'done' && Date.now() - toPut.time > 3000)) {
+                              // This file has not been put OR the previous put is done and it's been >3s since
+                              // the last put request.
+                              const copy = Object.assign({}, contentToPut)
+                              copy[path] = {
+                                state: 'new',
+                                time: Date.now()
+                              }
+                              setContentToPut(copy)
+                            }
                           }}
                         />
                       </Box>
@@ -456,6 +518,42 @@ function useLockStatePolling(setLocked) {
     return () => {
       clearInterval(lockStatePoller)
       lockStatePoller = null
+    }
+  }, [])
+}
+
+// Check lock state now, and every 4 minutes after
+//    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
+function usePutContentWorker(controller, fileContent, contentToPut, setContentToPut) {
+  React.useEffect(() => {
+    if ( ! putContentWorker) {
+      putContentWorker = setInterval(async () => {
+        await Promise.all(Object.keys(contentToPut).map(async toPutId => {
+          const toPut = contentToPut[toPutId]
+          if (toPut.state === 'new') {
+            toPut.state = 'working'
+            {
+              const copy = Object.assign({}, contentToPut)
+              copy[toPutId] = toPut
+              setContentToPut(copy)
+            }
+            const content = fileContent[toPut.path]
+            if (content) {
+              await controller.putSiteContent(toPut.templateId, toPut.path, content.contentType, content.content)
+              toPut.state = 'done'
+            }
+            {
+              const copy = Object.assign({}, contentToPut)
+              copy[toPutId] = toPut
+              setContentToPut(copy)
+            }
+          }
+        }))
+      }, 3 * 1000)
+    }
+    return () => {
+      clearInterval(putContentWorker)
+      putContentWorker = null
     }
   }, [])
 }

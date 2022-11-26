@@ -21,6 +21,17 @@ export default class Controller {
     return name.replace(/[^a-zA-Z\d-!_'.*()]/g, '-')
   }
 
+  static getContentFilePath(editorId, item) {
+    if (item.item && item.item.name) {
+      // Property is part of a list. Use a sanitized version of the list item name as the file name
+      const fileName = Controller.sanitizeS3FileName(item.item.name)
+      //  Assuming all files are markdown for now - May provide a way for user to force text mode?
+      return `${editorId}/${item.name}/${fileName}.md`
+    } else {
+      return `${editorId}/${item.name}.md`
+    }
+  }
+
   setPassword(password) {
     this.password = password
   }
@@ -174,7 +185,7 @@ export default class Controller {
       body: Buffer.from(content)
     }).then(async (response) => {
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error(`Failed to put site content. Status: ${response.status}`);
       }
       return response.json()
     })
@@ -201,6 +212,51 @@ export default class Controller {
       })
     }
     return null
+  }
+
+  /** Get various site content files for the given template. */
+  async getSiteContent(templateId, contentPath) {
+    try {
+      return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
+        headers: new Headers({
+          'Authorization': this.basicAuth(),
+        })
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const type = response.headers.get('Content-Type')
+        let content = await response.arrayBuffer()
+        return {
+          contentType: type,
+          content: content
+        }
+      })
+    } catch (error) {
+      console.error('Failed to get site content.', error)
+      return {
+        contentType: null,
+        content: null
+      }
+    }
+  }
+
+  /** Put various site content files for the given template */
+  async putSiteContent(templateId, contentPath, contentType, content) {
+    return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
+      method: 'POST',
+      cache: 'no-cache',
+      headers: new Headers({
+        'Authorization': this.basicAuth(),
+        'Content-Type': contentType
+      }),
+      body: Buffer.from(content)
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to put site content. Status: ${response.status}`);
+      }
+      return response.json()
+    })
   }
 
 }

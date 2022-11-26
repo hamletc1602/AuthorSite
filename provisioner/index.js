@@ -16,11 +16,14 @@ const cfnCreateHandler = async (params) => {
     console.log(`Create invoked with: ${JSON.stringify(params)}`)
 
     // Copy the uploader password provided to the CFN Stack to the site admin bucket
+    const adminSecretData = {
+      password: params.UploaderPassword
+    }
     console.log('Create uploader password file.')
     await s3.putObject({
       Bucket: params.AdminBucket,
       Key: 'admin_secret',
-      Body: Buffer.from(params.UploaderPassword)
+      Body: Buffer.from(JSON.stringify(adminSecretData))
     }).promise()
 
     // Get the site templates metadata:

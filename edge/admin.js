@@ -5,6 +5,8 @@ const AwsUtils = require('./awsUtils')
 
 const targetRegion = 'us-east-1'
 const lambda = new AWS.Lambda({ region: targetRegion });
+const AuthFailWindowMs = 5 * 60 * 1000
+const MaxAuthFailedAttempts = 10
 
 // When run in rapid succession, AWS may retain some state between executions so we defined some
 // globals where it would be useful to retain state.
@@ -85,6 +87,13 @@ exports.handler = async (event, context) => {
       }
       return authResp
     }
+    else if (req.uri.indexOf('/admin/site-content/') === 0) {
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return siteContent(aws, req, adminBucket)
+      }
+      return authResp
+    }
   }
 
   // resolve request
@@ -93,9 +102,10 @@ exports.handler = async (event, context) => {
 
 /** Check the basic auth header in the request vs the site admin password in S3. */
 const authenticate = async (aws, req, adminBucket) => {
-  let uploaderPassword = null
+  let passwdInfo = null
   try {
-    uploaderPassword = (await aws.get(adminBucket, 'admin_secret')).Body.toString()
+    const passwdStr = (await aws.get(adminBucket, 'admin_secret')).Body.toString()
+    passwdInfo = JSON.parse(passwdStr)
   } catch (error) {
     console.error(`Unable to get admin password from ${adminBucket}: ${JSON.stringify(error)}`)
     return {
@@ -103,34 +113,51 @@ const authenticate = async (aws, req, adminBucket) => {
       statusDescription: 'Missing critical site configuration. See logs.'
     }
   }
-  let auth = null
-  if (req.headers.authorization) {
-    //console.log(`Got basic auth header: ${JSON.stringify(req.headers.authorization)}`)
-    const authValue = req.headers.authorization[0].value
-    let parts = authValue.split(' ')
-    if (parts[0] === 'BASIC') {
-      const plain = Buffer.from(parts[1], 'base64').toString()
-      //console.log(`Got basic auth header value: ${plain} vs. password ${JSON.stringify(uploaderPassword)}`)
-      parts = plain.split(":")
-      if (parts.length > 1 && parts[1] === uploaderPassword) {
-        //console.log(`Auth success with pwd: ${parts[1]}`)
-        auth = {
-          authorized: true,
-          user: parts[0]
+  try {
+    const time = Date.now()
+    if ((passwdInfo.lastFailTs - time) > AuthFailWindowMs) {
+      passwdInfo.failedCount = 0
+    } else {
+      if (passwdInfo.failedCount >= MaxAuthFailedAttempts) {
+        return {
+          status: '403',
+          statusDescription: 'Too many failed login attempts'
         }
-      } else {
-        //console.log(`Auth failed with creds: ${plain}`)
-        console.log(`Auth failed`)
       }
     }
-  }
-  if ( ! auth) {
-    return {
-      status: '403',
-      statusDescription: 'Invalid admin secret'
+    let auth = null
+    if (req.headers.authorization) {
+      //console.log(`Got basic auth header: ${JSON.stringify(req.headers.authorization)}`)
+      const authValue = req.headers.authorization[0].value
+      let parts = authValue.split(' ')
+      if (parts[0] === 'BASIC') {
+        const plain = Buffer.from(parts[1], 'base64').toString()
+        //console.log(`Got basic auth header value: ${plain} vs. password ${JSON.stringify(uploaderPassword)}`)
+        parts = plain.split(":")
+        if (parts.length > 1 && parts[1] === passwdInfo.password) {
+          //console.log(`Auth success with pwd: ${parts[1]}`)
+          auth = {
+            authorized: true,
+            user: parts[0]
+          }
+        } else {
+          //console.log(`Auth failed with creds: ${plain}`)
+          console.log(`Auth failed`)
+        }
+      }
     }
+    if ( ! auth) {
+      passwdInfo.lastFailTs = Date.now()
+      passwdInfo.failedCount++
+      return {
+        status: '403',
+        statusDescription: 'Invalid admin secret'
+      }
+    }
+    return auth
+  } finally {
+    await aws.put(adminBucket, 'admin_secret', 'application/json', JSON.stringify(passwdInfo))
   }
-  return auth
 }
 
 /** Handle commands posted to the admin interface */
@@ -272,7 +299,7 @@ const siteConfig = async (aws, req, adminBucket) => {
           status: '200',
           statusDescription: 'OK',
           headers: {
-            'Content-Type': ['application/json']
+            'Content-Type': [{ key: 'Content-Type', value: 'application/json' }]
           },
           body: `{"content": ${content.Body.toString()}, "schema": ${schema.Body.toString()} }`,
         }
@@ -281,7 +308,7 @@ const siteConfig = async (aws, req, adminBucket) => {
           status: '200',
           statusDescription: 'OK',
           headers: {
-            'Content-Type': [content.ContentType]
+            'Content-Type': [{ key: 'Content-Type', value: content.ContentType }]
           },
           body: content.Body.toString()
         }
@@ -317,6 +344,68 @@ const siteConfig = async (aws, req, adminBucket) => {
       }
     } catch (error) {
       console.error(`Failed to set content for site-config/${template}/${name}`, error)
+      return {
+        status: '500',
+        statusDescription: 'Unable to write content.',
+      }
+    }
+  }
+}
+
+/** Handle access to site content. Site content is stored in the admin bucket. */
+const siteContent = async (aws, req, adminBucket) => {
+  const uriParts = req.uri.split('/')
+  uriParts.shift() // /
+  uriParts.shift() // admin
+  uriParts.shift() // site-config
+  const template = uriParts.shift()
+  const contentPath = uriParts.join('/')
+  console.log(`Template: ${template}. Content path: ${contentPath}`)
+  const contentAbsPath = `site-config/${template}/${contentPath}`
+  if (req.method === 'GET') {
+    try {
+      const contentRec = await aws.get(adminBucket, contentAbsPath)
+      if (contentRec) {
+        return {
+          status: '200',
+          statusDescription: 'OK',
+          headers: {
+            'Content-Type': [{ key: 'Content-Type', value: contentRec.ContentType }]
+          },
+          body: contentRec.Body,
+        }
+      } else {
+        console.error(`Found empty content for ${contentAbsPath}`)
+        return {
+          status: '500',
+          statusDescription: 'Unable to read content.',
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to get content for ${contentAbsPath}`, error)
+      return {
+        status: '500',
+        statusDescription: 'Unable to read content.',
+      }
+    }
+  } else if (req.method === 'POST') {
+    try {
+      if (req.body && req.body.data) {
+        const body = Buffer.from(req.body.data, 'base64')
+        await aws.put(adminBucket, contentAbsPath, req.headers['content-type'], body)
+        return {
+          status: '200',
+          statusDescription: 'OK'
+        }
+      } else {
+        console.error(`Received empty content when setting ${contentAbsPath}`)
+        return {
+          status: '400',
+          statusDescription: 'Missing content. Unable to write.',
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to set content for ${contentAbsPath}`, error)
       return {
         status: '500',
         statusDescription: 'Unable to write content.',

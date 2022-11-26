@@ -3,7 +3,6 @@ import {
   Box, Textarea
 } from '@chakra-ui/react'
 import Editor from './Editor';
-import Controller from './Controller'
 
 /**  */
 export default function EditorValue({editor, item, fileContent, setConfig, setFileContent}) {
@@ -25,25 +24,20 @@ export default function EditorValue({editor, item, fileContent, setConfig, setFi
         />
 
       case 'text':
+        let content = null
+        if (item.value) {
+          const contentRec = fileContent[item.value.file]
+          if (contentRec) {
+            content = contentRec.content
+          }
+        }
         return <Textarea
           bg='white'
           color='brand.editorText'
-          defaultValue={item.value ? fileContent[item.value.file] : ''}
+          defaultValue={content}
           onChangeCapture={ev => {
-            // Set value to the expected file path on the server
-            //  Assuming all files are markdown for now - May provide a way for user to force text mode?
-            let filePath = null
-            if (item.item && item.item.name) {
-              // Property is part of a list. Use a sanitized version of the list item name as the file name
-              let fileName = item.item.name
-              fileName = Controller.sanitizeS3FileName(fileName)
-              filePath = `${editor.id}/${item.name}/${fileName}.md`
-            } else {
-              filePath = `${editor.id}/${item.name}.md`
-            }
-            setConfig(item.path, item.name, { file: filePath })
             // Set the file content in separate state (This will be used as the source for the periodic uploader)
-            setFileContent(filePath, ev.target.value)
+            setFileContent(item.value.file, ev.target.value)
           }}
         />
 
