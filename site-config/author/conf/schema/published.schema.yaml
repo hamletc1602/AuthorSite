@@ -3,7 +3,6 @@ elemType: object
 properties:
   isbn:
     type: string
-    key: true
   printIsbn:
     type: string
   title:
@@ -41,7 +40,6 @@ properties:
     type: string
   coverImage:
     type: image
-    tag: covers
   primaryDistributor:
     type: string
   smashwordsId:

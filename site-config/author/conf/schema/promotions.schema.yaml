@@ -8,7 +8,6 @@ properties:
     type: url
   image:
     type: image
-    tag: promotion
   imageHeight:
     type: number
   imageWidth:

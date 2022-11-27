@@ -13,12 +13,10 @@ properties:
         type: url
   bioPic:
       type: image
-      tag: image/bios
   bioPicLink:
       type: string
   bio:
       type: text
-      tag: bios
   external:
       type: boolean
   url:

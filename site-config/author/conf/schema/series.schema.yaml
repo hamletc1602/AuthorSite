@@ -3,7 +3,6 @@ elemType: object
 properties:
   name:
     type: string
-    key: true
   image:
     type: image
   content:

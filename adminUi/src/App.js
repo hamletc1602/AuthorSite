@@ -122,37 +122,21 @@ function setConfigInner(config, itemPath, name, value) {
   }
 }
 
-// EditorTab Component
-function EditorTab({editor, configs, setConfigs, editItems, setEditItems, setContentToGet}) {
-  const setConfig = (itemPath, name, newValue) => {
-    const copy = Object.assign({}, configs)
-    setConfigInner(copy[editor.id].content, itemPath, name, newValue)
-    setConfigs(copy)
+const scheduleContentPush = (contentToPut, setContentToPut, path, source, id) => {
+  const toPut = contentToPut[path]
+  //if (!toPut || (toPut.state === 'done' && (Date.now() - toPut.time) > 3000)) {
+  if (!toPut || ((Date.now() - toPut.time) > 3000)) {
+      // This file has not been put OR the previous put is done and it's been >3s since
+    // the last put request.
+    const copy = Object.assign({}, contentToPut)
+    copy[path] = {
+      source: source,
+      id: id,
+      state: 'new',
+      time: Date.now()
+    }
+    setContentToPut(copy)
   }
-  const config = configs[editor.id]
-  if (config) {
-    return <Editor
-      editor={editor}
-      config={{content: config.content, schema: config.schema, path: []}}
-      setConfig={setConfig}
-      setEditItem={(item) => {
-        if (item.value && item.value.file) {
-          // Invoke content download (will set fileContent state when complete)
-          setContentToGet({ path: item.value.file, schema: item.schema })
-        } else {
-          // Set value to the expected file path on the server
-          const filePath = Controller.getContentFilePath(editor.id, item)
-          item.value = { file: filePath }
-          setConfig(item.path, item.name, item.value)
-        }
-        // Show the editor
-        const copy = Object.assign({}, editItems)
-        copy[editor.id] = item
-        setEditItems(copy)
-      }}
-    />
-  }
-  return null
 }
 
 const authStates = {
@@ -257,6 +241,7 @@ function App() {
     if ( ! configs[configId]) {
       const configsCopy = Object.assign({}, configs)
       const raw = await controller.getSiteConfig(adminState.config.templateId, configId)
+      raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
       configsCopy[configId] = raw.content
       setConfigs(configsCopy)
     }
@@ -271,12 +256,46 @@ function App() {
     }
   }
 
+  // EditorTab Component
+  function EditorTab({editor}) {
+    const setConfig = (itemPath, name, newValue) => {
+      const copy = Object.assign({}, configs)
+      setConfigInner(copy[editor.id].content, itemPath, name, newValue)
+      setConfigs(copy)
+      scheduleContentPush(contentToPut, setContentToPut, editor.data, configs, editor.id)
+    }
+    const config = configs[editor.id]
+    if (config) {
+      return <Editor
+        editor={editor}
+        config={{content: config.content, schema: config.schema, path: []}}
+        setConfig={setConfig}
+        setEditItem={(item) => {
+          if (item.value && item.value.file) {
+            // Invoke content download (will set fileContent state when complete)
+            setContentToGet({ path: item.value.file, schema: item.schema })
+          } else {
+            // Set value to the expected file path on the server
+            const filePath = Controller.getContentFilePath(editor.id, item)
+            item.value = { file: filePath }
+            setConfig(item.path, item.name, item.value)
+          }
+          // Show the editor
+          const copy = Object.assign({}, editItems)
+          copy[editor.id] = item
+          setEditItems(copy)
+        }}
+      />
+    }
+    return null
+  }
+
   // Server State Polling
   // TODO: Definitely investigate this package: https://www.npmjs.com/package/use-remote-data
   //  for handling server data access. Builds in refresh logic and integration with React state.
   useAdminStatePolling(adminState, setAdminState, setEditors)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, fileContent, contentToPut, setContentToPut)
+  usePutContentWorker(controller, adminState, editors, configs, fileContent, contentToPut, setContentToPut)
   // Get config data from the server
   React.useEffect(() => {
     try {
@@ -289,6 +308,7 @@ function App() {
                 const configs = {}
                 const editorId = editorsData[0].id
                 const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
+                raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
                 configs[editorId] = raw.content
                 setConfigs(configs)
                 setEditors(editorsData)
@@ -314,7 +334,7 @@ function App() {
         const copy = Object.assign({}, fileContent)
         copy[contentToGet.path] = {
           content: null,
-          contentType: contentToGet.schema.contentType }
+          contentType: Controller.contentTypeFromSchemaType(contentToGet.schema.type) }
         setFileContent(copy)
       })
     }
@@ -421,6 +441,7 @@ function App() {
                             const copy = Object.assign({}, configs)
                             setConfigInner(copy[editor.id].content, itemPath, name, newValue)
                             setConfigs(copy)
+                            scheduleContentPush(contentToPut, setContentToPut, editors[editor.id].data, configs, editor.id)
                           }}
                           item={editItems[editor.id]}
                           fileContent={fileContent}
@@ -432,17 +453,7 @@ function App() {
                               }
                               setFileContent(copy)
                             }
-                            const toPut = contentToPut[path]
-                            if (!toPut || (toPut.state === 'done' && Date.now() - toPut.time > 3000)) {
-                              // This file has not been put OR the previous put is done and it's been >3s since
-                              // the last put request.
-                              const copy = Object.assign({}, contentToPut)
-                              copy[path] = {
-                                state: 'new',
-                                time: Date.now()
-                              }
-                              setContentToPut(copy)
-                            }
+                            scheduleContentPush(contentToPut, setContentToPut, path, fileContent, path)
                           }}
                         />
                       </Box>
@@ -524,7 +535,7 @@ function useLockStatePolling(setLocked) {
 
 // Check lock state now, and every 4 minutes after
 //    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
-function usePutContentWorker(controller, fileContent, contentToPut, setContentToPut) {
+function usePutContentWorker(controller, adminState, editors, configs, fileContent, contentToPut, setContentToPut) {
   React.useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
@@ -537,9 +548,14 @@ function usePutContentWorker(controller, fileContent, contentToPut, setContentTo
               copy[toPutId] = toPut
               setContentToPut(copy)
             }
-            const content = fileContent[toPut.path]
-            if (content) {
-              await controller.putSiteContent(toPut.templateId, toPut.path, content.contentType, content.content)
+            const sourceRec = toPut.source[toPut.id]
+            if (sourceRec) {
+              await controller.putSiteContent(
+                adminState.config.templateId,
+                toPutId,
+                toPut.contentType || sourceRec.contentType,
+                sourceRec.content
+              )
               toPut.state = 'done'
             }
             {
@@ -555,7 +571,7 @@ function usePutContentWorker(controller, fileContent, contentToPut, setContentTo
       clearInterval(putContentWorker)
       putContentWorker = null
     }
-  }, [])
+  }, [contentToPut])
 }
 
-export default App;
+export default App

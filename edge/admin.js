@@ -57,10 +57,10 @@ exports.handler = async (event, context) => {
         return postCommand(aws, req, adminBucket, awsAccountId, rootName)
       }
       return authResp
-    } else if (req.uri.indexOf('/admin/site-config/') === 0) {
+    } else if (req.uri.indexOf('/admin/site-content/') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return siteConfig(aws, req, adminBucket)
+        return siteContent(aws, req, adminBucket)
       }
       return authResp
     }
@@ -325,29 +325,6 @@ const siteConfig = async (aws, req, adminBucket) => {
         status: '500',
         statusDescription: 'Unable to read content.',
       }
-  }
-  } else if (req.method === 'POST') {
-    try {
-      if (req.body && req.body.data) {
-        const body = Buffer.from(req.body.data, 'base64')
-        await aws.put(adminBucket, `site-config/${template}/${name}`, req.headers['content-type'], body)
-        return {
-          status: '200',
-          statusDescription: 'OK'
-        }
-      } else {
-        console.error(`Received empty content when setting site-config/${template}/${name}`)
-        return {
-          status: '400',
-          statusDescription: 'Missing content. Unable to write.',
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to set content for site-config/${template}/${name}`, error)
-      return {
-        status: '500',
-        statusDescription: 'Unable to write content.',
-      }
     }
   }
 }
@@ -377,22 +354,22 @@ const siteContent = async (aws, req, adminBucket) => {
       } else {
         console.error(`Found empty content for ${contentAbsPath}`)
         return {
-          status: '500',
-          statusDescription: 'Unable to read content.',
+          status: '404',
+          statusDescription: 'Not found',
         }
       }
     } catch (error) {
       console.error(`Failed to get content for ${contentAbsPath}`, error)
       return {
-        status: '500',
-        statusDescription: 'Unable to read content.',
+        status: '404',
+        statusDescription: 'Not Found',
       }
     }
-  } else if (req.method === 'POST') {
+  } else if (req.method === 'POST' || req.method === 'PUT') {
     try {
       if (req.body && req.body.data) {
         const body = Buffer.from(req.body.data, 'base64')
-        await aws.put(adminBucket, contentAbsPath, req.headers['content-type'], body)
+        await aws.put(adminBucket, contentAbsPath, req.headers['content-type'][0].value, body)
         return {
           status: '200',
           statusDescription: 'OK'

@@ -32,6 +32,15 @@ export default class Controller {
     }
   }
 
+  static contentTypeFromSchemaType(schemaType) {
+    switch (schemaType) {
+      case 'text': return 'text/plain'
+      case 'image': return null   // Image content type is determined by the type of image selected by the user for upload
+      default:
+        console.log(`Unknown schema type: ${schemaType}`)
+    }
+  }
+
   setPassword(password) {
     this.password = password
   }
@@ -173,24 +182,6 @@ export default class Controller {
     }
   }
 
-  /** Put various config files for the given template */
-  async putSiteConfig(templateId, configSection, contentType, content) {
-    return fetch(`/admin/site-config/${templateId}/${configSection}`, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: new Headers({
-        'Authorization': this.basicAuth(),
-        'Content-Type': contentType
-      }),
-      body: Buffer.from(content)
-    }).then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`Failed to put site content. Status: ${response.status}`);
-      }
-      return response.json()
-    })
-  }
-
   async getEditors(templateId) {
     let siteMetadata = this.editors[templateId]
     if ( ! siteMetadata) {
@@ -243,6 +234,12 @@ export default class Controller {
 
   /** Put various site content files for the given template */
   async putSiteContent(templateId, contentPath, contentType, content) {
+    let body = null
+    if (contentType === 'application/json') {
+      body = JSON.stringify(content)
+    } else {
+      body = content
+    }
     return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
       method: 'POST',
       cache: 'no-cache',
@@ -250,7 +247,7 @@ export default class Controller {
         'Authorization': this.basicAuth(),
         'Content-Type': contentType
       }),
-      body: Buffer.from(content)
+      body: body
     }).then(async (response) => {
       if (!response.ok) {
         throw new Error(`Failed to put site content. Status: ${response.status}`);
