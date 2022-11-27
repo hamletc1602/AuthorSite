@@ -28,7 +28,7 @@ export default function EditorValue({editor, item, fileContent, setConfig, setFi
         if (item.value) {
           const contentRec = fileContent[item.value.file]
           if (contentRec) {
-            content = contentRec.content
+            content = contentRec.content ? contentRec.content.toString() : contentRec.content
           }
         }
         return <Textarea

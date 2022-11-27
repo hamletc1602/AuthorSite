@@ -293,9 +293,9 @@ function App() {
   // Server State Polling
   // TODO: Definitely investigate this package: https://www.npmjs.com/package/use-remote-data
   //  for handling server data access. Builds in refresh logic and integration with React state.
-  useAdminStatePolling(adminState, setAdminState, setEditors)
+  useAdminStatePolling(adminState, setAdminState)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, adminState, editors, configs, fileContent, contentToPut, setContentToPut)
+  usePutContentWorker(controller, adminState, contentToPut, setContentToPut)
   // Get config data from the server
   React.useEffect(() => {
     try {
@@ -323,7 +323,6 @@ function App() {
   // Get content data from the server on start editing
   React.useEffect(() => {
     if (contentToGet) {
-      console.log(`Get content: ${JSON.stringify(contentToGet)}`)
       controller.getSiteContent(adminState.config.templateId, contentToGet.path)
       .then(contentRec => {
         const copy = Object.assign({}, fileContent)
@@ -476,7 +475,7 @@ function App() {
 }
 
 /** Setup to get Admin state from the server */
-function useAdminStatePolling(adminState, setAdminState, setEditors) {
+function useAdminStatePolling(adminState, setAdminState) {
   if ( ! adminStatePoller) {
     controller.checkState().then(async () => {
       // Set inital state, whether it's changed or not
@@ -535,7 +534,7 @@ function useLockStatePolling(setLocked) {
 
 // Check lock state now, and every 4 minutes after
 //    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
-function usePutContentWorker(controller, adminState, editors, configs, fileContent, contentToPut, setContentToPut) {
+function usePutContentWorker(controller, adminState, contentToPut, setContentToPut) {
   React.useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {

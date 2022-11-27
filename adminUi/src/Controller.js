@@ -217,7 +217,13 @@ export default class Controller {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const type = response.headers.get('Content-Type')
-        let content = await response.arrayBuffer()
+        let content = await response.text()
+        // AWS Lambda handlers cannot directly return binary data, so all content types other than
+        // 'application/json' and 'text/plain' will be base64 encoded, and need to be decoded here,
+        // and will be returned as a buffer.
+        if ( ! (type === 'text/plain' || type === 'application/json')) {
+          content = Buffer.from(content, 'base64')
+        }
         return {
           contentType: type,
           content: content

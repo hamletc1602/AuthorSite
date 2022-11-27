@@ -334,22 +334,32 @@ const siteContent = async (aws, req, adminBucket) => {
   const uriParts = req.uri.split('/')
   uriParts.shift() // /
   uriParts.shift() // admin
-  uriParts.shift() // site-config
+  uriParts.shift() // site-content
   const template = uriParts.shift()
   const contentPath = uriParts.join('/')
   console.log(`Template: ${template}. Content path: ${contentPath}`)
   const contentAbsPath = `site-config/${template}/${contentPath}`
+  console.log(`Get S3 content from ${contentAbsPath}`)
   if (req.method === 'GET') {
     try {
       const contentRec = await aws.get(adminBucket, contentAbsPath)
       if (contentRec) {
+        let encoding = 'base64'
+        let base64 = true
+        if (contentRec.ContentType === 'text/plain'
+          || contentRec.ContentType === 'application/json'
+        ) {
+          encoding = 'utf8'
+          base64 = false
+        }
         return {
           status: '200',
           statusDescription: 'OK',
           headers: {
             'Content-Type': [{ key: 'Content-Type', value: contentRec.ContentType }]
           },
-          body: contentRec.Body,
+          body: contentRec.Body.toString(encoding),
+          isBase64Encoded: base64
         }
       } else {
         console.error(`Found empty content for ${contentAbsPath}`)
