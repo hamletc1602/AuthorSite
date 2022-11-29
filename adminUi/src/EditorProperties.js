@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {  } from 'react';
 import {
   Input, NumberInput, Grid, GridItem, Box, Button, Checkbox, Select,
   NumberInputField, NumberIncrementStepper, NumberDecrementStepper, NumberInputStepper
@@ -6,22 +6,23 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, item, setConfig, setEditItem, bg, color}) {
+export default function EditorProperties({id, schema, data, setData, editItem}) {
 
-  const editField = (schema, name, value) => {
+  // Upate item content values on control changes
+  function editField(schema, name, value) {
     const itemKey = id + '-' + name + '-edit-ctrl'
     switch (schema.type) {
       case 'string': return <Input key={itemKey} size='sm'
           defaultValue={value}
-          onChange={ev => { setConfig(item.path, name, ev.target.value) }}
+          onChange={ev => { setData(name, ev.target.value) }}
         />
       case 'url': return <Input key={itemKey} size='sm'
           defaultValue={value}
-          onChange={ev => { setConfig(item.path, name, ev.target.value) }}
+          onChange={ev => { setData(name, ev.target.value) }}
         />
       case 'number': return <NumberInput key={itemKey} size='sm'
           defaultValue={value}
-          onChange={value => { setConfig(item.path, name, value) }}
+          onChange={value => { setData(name, value) }}
         >
           <NumberInputField />
           <NumberInputStepper>
@@ -31,11 +32,11 @@ export default function EditorProperties({id, item, setConfig, setEditItem, bg, 
         </NumberInput>
       case 'boolean': return <Checkbox key={itemKey} size='sm'
         isChecked={value}
-        onChange={ev => { setConfig(item.path, name, ev.target.checked) }}
+        onChange={ev => { setData(name, ev.target.checked) }}
         />
       case 'color': return <Input key={itemKey} size='sm'
         defaultValue={value}
-        onChange={ev => { setConfig(item.path, name, ev.target.value) }}
+        onChange={ev => { setData(name, ev.target.value) }}
       />
       case 'list':
         if (schema.closed && schema.values) {
@@ -52,41 +53,39 @@ export default function EditorProperties({id, item, setConfig, setEditItem, bg, 
           return null
         }
       case 'object': return <Button key={itemKey} size='sm'
-        onClick={() => setEditItem({path: item.path, schema: schema, item: item, name: name, value: value})}
+        onClick={() => editItem(name)}
         >Edit</Button>
       case 'text': return <Button key={itemKey} size='sm'
-        onClick={() => setEditItem({path: item.path, schema: schema, item: item, name: name, value: value})}
+        onClick={() => editItem(name)}
         >Edit</Button>
       case 'image': return <Button key={itemKey} size='sm'
-        onClick={() => setEditItem({path: item.path, schema: schema, item: item, name: name, value: value})}
+        onClick={() => editItem(name)}
         >Edit</Button>
       default:
         console.warn(`Unnexpected config value type: ${schema.type}`)
     }
   }
 
-  if (item) {
-    const names = Object.keys(item.content)
-    return <Grid
-        templateAreas={`
-        "edit edit"
-      `}
-      templateColumns={'10em 1fr'}
-    >
-      {names.map(name => {
-        if ( ! (item.schema && item.schema[name])) {
-          return null
-        }
-        const schema = item.schema[name]
-        if (schema.hidden) {
-          return null
-        }
-        const value = item.content[name]
-        return [
-          <GridItem key={`${id}-${name}-label`} color={color} bg={bg}><Box>{name}</Box></GridItem>,
-          <GridItem key={`${id}-${name}-edit`} color={color} bg={bg}>{editField(schema, name, value)}</GridItem>
-        ]
-      }).flat()}
-      </Grid>
-  }
+  const names = Object.keys(data)
+  return <Grid
+      templateAreas={`
+      "edit edit"
+    `}
+    templateColumns={'10em 1fr'}
+  >
+    {names.map(name => {
+      if ( ! (schema && schema[name])) {
+        return null
+      }
+      const itemSchema = schema[name]
+      if (itemSchema.hidden) {
+        return null
+      }
+      const value = data[name]
+      return [
+        <GridItem key={`${id}-${name}-label`} color={color} bg={bg}><Box>{name}</Box></GridItem>,
+        <GridItem key={`${id}-${name}-edit`} color={color} bg={bg}>{editField(itemSchema, name, value)}</GridItem>
+      ]
+    }).flat()}
+    </Grid>
 }

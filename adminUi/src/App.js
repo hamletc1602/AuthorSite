@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useReducer, useRef } from 'react'
 import {
   ChakraProvider, extendTheme,
   Text, Input, Button, Link, Select, Box,
@@ -7,7 +7,8 @@ import {
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
   Spinner,
-  Skeleton
+  Skeleton,
+  list
 } from '@chakra-ui/react'
 import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
@@ -109,36 +110,6 @@ function endFastPolling() {
   }
 }
 
-// Update the specific config value at the given item path and name, with the given value.
-function setConfigInner(config, itemPath, name, value) {
-  for (let i = 0; i < itemPath.length; ++i) {
-    const path = itemPath[i]
-    config = config[path]
-  }
-  if (config) {
-    config[name] = value
-  } else {
-    console.error(`Item path ${itemPath} does not match config`, config)
-  }
-}
-
-const scheduleContentPush = (contentToPut, setContentToPut, path, source, id) => {
-  const toPut = contentToPut[path]
-  //if (!toPut || (toPut.state === 'done' && (Date.now() - toPut.time) > 3000)) {
-  if (!toPut || ((Date.now() - toPut.time) > 3000)) {
-      // This file has not been put OR the previous put is done and it's been >3s since
-    // the last put request.
-    const copy = Object.assign({}, contentToPut)
-    copy[path] = {
-      source: source,
-      id: id,
-      state: 'new',
-      time: Date.now()
-    }
-    setContentToPut(copy)
-  }
-}
-
 const authStates = {
   unknown: {
     icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
@@ -157,27 +128,88 @@ const authStates = {
 //
 function App() {
   // State
-  const [generateDebug, setGenerateDebug] = React.useState(false)
-  const [adminState, setAdminState] = React.useState({
+  const [generateDebug, setGenerateDebug] = useState(false)
+  const [adminState, setAdminState] = useState({
     live: false, config: {}, display: {}, latest: [], editors: [], templates: []
   })
-  const [showPwd, setShowPwd] = React.useState(false)
-  const [authState, setAuthState] = React.useState('unknown')
-  const [locked, setLocked] = React.useState(false)
+  const [showPwd, setShowPwd] = useState(false)
+  const [authState, setAuthState] = useState('unknown')
+  const [locked, setLocked] = useState(false)
   // TODO: Have local send command and state update update the 'busy' state
   //  Add UI to show when the app is busy with a command - maybe need to know
   // which command?
-  const [busy, setBusy] = React.useState(false)
-  const [editors, setEditors] = React.useState([])
-  const [configs, setConfigs] = React.useState({})
-  const [editItems, setEditItems] = React.useState({})
-  const [fileContent, setFileContent] = React.useState({})
-  const [contentToGet, setContentToGet] = React.useState(null)
-  const [contentToPut, setContentToPut] = React.useState({})
+  const [busy, setBusy] = useState(false)
+
+  const [editItems, setEditItems] = useState({})
+  const [fileContent, setFileContent] = useState({})
+  const [contentToGet, setContentToGet] = useState(null)
+  const [contentToPut, setContentToPut] = useState({})
+
+  // Global Refs
+  const editors = useRef([])
+  const configs = useRef({})
+  const prevEditorIndex = useRef(null)
+
+  // Push content into a queue to be uploaded to the server
+  const scheduleContentPush = (path, source, id) => {
+    const toPut = contentToPut[path]
+    //if (!toPut || (toPut.state === 'done' && (Date.now() - toPut.time) > 3000)) {
+    if (!toPut || ((Date.now() - toPut.time) > 3000)) {
+        // This file has not been put OR the previous put is done and it's been >3s since
+      // the last put request.
+      const copy = Object.assign({}, contentToPut)
+      copy[path] = {
+        source: source,
+        id: id,
+        state: 'new',
+        time: Date.now()
+      }
+      setContentToPut(copy)
+    }
+  }
+
+  // Update global configs
+  function updateConfigs(path, state) {
+    let config = configs.current[path[0]]
+    for (let i = 1; i < path.length - 1; ++i) {
+      const p = path[i]
+      config = config[p]
+    }
+    if (config) {
+      config[path[path.length - 1]] = state
+    } else {
+      console.error(`Current path ${path} does not match config`, config)
+    }
+  }
+
+  // Current active config properties
+  const [path, setPath] = useState([])
+  const [content, dispatchContent] = useReducer(updateContent, {
+    schema: null,
+    data: null
+  })
+  function updateContent(state, action) {
+    // Dump entire current state and replace
+    if (action.reset) {
+      // Update this section of the global config before the currently editing data set is changed
+      updateConfigs([...action.path], Object.assign({}, state.data))
+      // Schedule a push of this config section to the server (Reset will include the current path, and path[0] is always the editor ID)
+      scheduleContentPush(state.data, configs, action.path[0])
+      // Reset
+      return action.reset
+    }
+    // Update current state
+    const currValue = state.data[action.name]
+    if (action.value !== currValue) {
+      state.data[action.name] = action.value
+      return Object.assign({}, state)
+    }
+    return state
+  }
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
-  const editorsEnabled = editors.length > 0
+  const editorsEnabled = content.editor
 
   // Handlers
   const viewPwdClick = () => {
@@ -236,15 +268,32 @@ function App() {
       }
     }, 500)
   }
+
+  // On Editor tab change, pull the config file for this tab, if we haven't already cached it
   const editorTabChange = async (index) => {
-    const configId = editors[index].id
-    if ( ! configs[configId]) {
-      const configsCopy = Object.assign({}, configs)
+    //
+    const prevEditor = editors.current[prevEditorIndex.current]
+    prevEditor.lastEditPath = [...path]
+    //
+    const editor = editors.current[index]
+    const configId = editor.id
+    if ( ! configs.current[configId]) {
       const raw = await controller.getSiteConfig(adminState.config.templateId, configId)
       raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
-      configsCopy[configId] = raw.content
-      setConfigs(configsCopy)
+      configs.current[configId] = raw.content
     }
+    const config = configs.current[configId]
+    dispatchContent({
+      reset: {
+        editor: editors[index],
+        schema: config.content.schema,
+        data: config.content.content
+      },
+      path: path
+    })
+    setPath(editor.lastEditPath)
+    //
+    prevEditorIndex.current = index
   }
 
   // Dynamic Content
@@ -258,19 +307,24 @@ function App() {
 
   // EditorTab Component
   function EditorTab({editor}) {
-    const setConfig = (itemPath, name, newValue) => {
-      const copy = Object.assign({}, configs)
-      setConfigInner(copy[editor.id].content, itemPath, name, newValue)
-      setConfigs(copy)
-      scheduleContentPush(contentToPut, setContentToPut, editor.data, configs, editor.id)
-    }
-    const config = configs[editor.id]
+    const config = configs.current[editor.id]
     if (config) {
       return <Editor
-        editor={editor}
-        config={{content: config.content, schema: config.schema, path: []}}
-        setConfig={setConfig}
-        setEditItem={(item) => {
+        content={content}
+        dispatchContent={(state, update) => {
+          return dispatchContent(state, update)
+        }}
+        editItem={(newPath) => {
+          dispatchContent({
+            reset: {
+              editor: editor, // Editor UI will never switch tabs on the user.
+              schema: config.content.schema, // Get sub-schema based on the path
+              data: config.content.content // Get the sub-content based on the path
+            },
+            path: newPath
+          })
+
+          /*
           if (item.value && item.value.file) {
             // Invoke content download (will set fileContent state when complete)
             setContentToGet({ path: item.value.file, schema: item.schema })
@@ -284,6 +338,7 @@ function App() {
           const copy = Object.assign({}, editItems)
           copy[editor.id] = item
           setEditItems(copy)
+          */
         }}
       />
     }
@@ -305,13 +360,11 @@ function App() {
            controller.getEditors(adminState.config.templateId)
             .then(async editorsData => {
               if (editorsData) {
-                const configs = {}
                 const editorId = editorsData[0].id
                 const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
                 raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
-                configs[editorId] = raw.content
-                setConfigs(configs)
-                setEditors(editorsData)
+                configs.current[editorId] = raw.content
+                editors.current = editorsData
               }
             })
         }
@@ -413,50 +466,16 @@ function App() {
           <Skeleton isLoaded={editorsEnabled}>
             <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList>
-                {editors.map((editor) => (
+                {editors.current.map((editor) => (
                   <Tab color='white' key={editor.id} disabled={!uiEnabled}>{editor.title}</Tab>
                 ))}
               </TabList>
               <TabPanels bg='brand.base'>
-                {editors.map((editor) => (
+                {editors.current.map((editor) => (
                   <TabPanel p='0' key={editor.id}>
-                    <Flex w='100%' direction='row'>
-                      <Box w='70%'>
-                        <Skeleton isLoaded={configs[editor.id]}>
-                          <EditorTab
-                            editor={editor}
-                            configs={configs}
-                            setConfigs={setConfigs}
-                            editItems={editItems}
-                            setEditItems={setEditItems}
-                            setContentToGet={setContentToGet}
-                          />
-                        </Skeleton>
-                      </Box>
-                      <Box w='30%' minW='15em'>
-                        <EditorValue
-                          editor={editor}
-                          setConfig={(itemPath, name, newValue) => {
-                            const copy = Object.assign({}, configs)
-                            setConfigInner(copy[editor.id].content, itemPath, name, newValue)
-                            setConfigs(copy)
-                            scheduleContentPush(contentToPut, setContentToPut, editors[editor.id].data, configs, editor.id)
-                          }}
-                          item={editItems[editor.id]}
-                          fileContent={fileContent}
-                          setFileContent={(path, value) => {
-                            {
-                              const copy = Object.assign({}, fileContent)
-                              if (copy[path]) {
-                                copy[path].content = value
-                              }
-                              setFileContent(copy)
-                            }
-                            scheduleContentPush(contentToPut, setContentToPut, path, fileContent, path)
-                          }}
-                        />
-                      </Box>
-                    </Flex>
+                    <Skeleton isLoaded={configs[editor.id]}>
+                      <EditorTab editor={editor} />
+                    </Skeleton>
                   </TabPanel>
                 ))}
               </TabPanels>
