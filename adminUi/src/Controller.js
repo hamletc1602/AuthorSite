@@ -17,30 +17,6 @@ export default class Controller {
     Controller.lockId = lockId
   }
 
-  static sanitizeS3FileName(name) {
-    return name.replace(/[^a-zA-Z\d-!_'.*()]/g, '-')
-  }
-
-  static getContentFilePath(editorId, item) {
-    if (item.item && item.item.name) {
-      // Property is part of a list. Use a sanitized version of the list item name as the file name
-      const fileName = Controller.sanitizeS3FileName(item.item.name)
-      //  Assuming all files are markdown for now - May provide a way for user to force text mode?
-      return `${editorId}/${item.name}/${fileName}.md`
-    } else {
-      return `${editorId}/${item.name}.md`
-    }
-  }
-
-  static contentTypeFromSchemaType(schemaType) {
-    switch (schemaType) {
-      case 'text': return 'text/plain'
-      case 'image': return null   // Image content type is determined by the type of image selected by the user for upload
-      default:
-        console.log(`Unknown schema type: ${schemaType}`)
-    }
-  }
-
   setPassword(password) {
     this.password = password
   }

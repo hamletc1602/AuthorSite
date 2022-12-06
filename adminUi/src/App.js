@@ -6,9 +6,7 @@ import {
   Flex, Spacer,
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
-  Spinner,
-  Skeleton,
-  list
+  Spinner, Skeleton
 } from '@chakra-ui/react'
 import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
@@ -16,8 +14,8 @@ import {
 } from '@chakra-ui/icons'
 //import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller';
+import Util from './Util'
 import Editor from './Editor'
-import EditorValue from './EditorValue'
 
 // Theme
 // Will likely need a full style config, like here: https://chakra-ui.com/docs/components/tabs/theming
@@ -139,11 +137,14 @@ function App() {
   //  Add UI to show when the app is busy with a command - maybe need to know
   // which command?
   const [busy, setBusy] = useState(false)
+  const [editorsEnabled, setEditorsEnabled] = useState(false)
 
-  const [editItems, setEditItems] = useState({})
   const [fileContent, setFileContent] = useState({})
   const [contentToGet, setContentToGet] = useState(null)
   const [contentToPut, setContentToPut] = useState({})
+
+  // Calculated State
+  const uiEnabled = !locked && authState === 'success'
 
   // Global Refs
   const editors = useRef([])
@@ -168,48 +169,34 @@ function App() {
     }
   }
 
-  // Update global configs
-  function updateConfigs(path, state) {
-    let config = configs.current[path[0]]
-    for (let i = 1; i < path.length - 1; ++i) {
-      const p = path[i]
-      config = config[p]
-    }
-    if (config) {
-      config[path[path.length - 1]] = state
-    } else {
-      console.error(`Current path ${path} does not match config`, config)
-    }
-  }
-
   // Current active config properties
   const [path, setPath] = useState([])
-  const [content, dispatchContent] = useReducer(updateContent, {
-    schema: null,
-    data: null
-  })
-  function updateContent(state, action) {
-    // Dump entire current state and replace
-    if (action.reset) {
-      // Update this section of the global config before the currently editing data set is changed
-      updateConfigs([...action.path], Object.assign({}, state.data))
-      // Schedule a push of this config section to the server (Reset will include the current path, and path[0] is always the editor ID)
-      scheduleContentPush(state.data, configs, action.path[0])
-      // Reset
-      return action.reset
-    }
-    // Update current state
-    const currValue = state.data[action.name]
-    if (action.value !== currValue) {
-      state.data[action.name] = action.value
-      return Object.assign({}, state)
-    }
-    return state
-  }
-
-  // Calculated State
-  const uiEnabled = !locked && authState === 'success'
-  const editorsEnabled = content.editor
+  // const [content, dispatchContent] = useReducer(updateContent, {
+  //   editor: null,  // Looks like this is used for editor config values, like listNameProp ?
+  //   schema: null,
+  //   data: null,
+  //   editorComp: null  // Someone needs to determine appropriate edtitor component for the content type, when we switch to it (reset)
+  // })
+  // function updateContent(state, action) {
+  //   // Dump entire current state and replace
+  //   if (action.reset) {
+  //     // Update this section of the global config before the currently editing data set is changed
+  //     Util.updateConfigs(configs, [...action.path], Object.assign({}, state.data))
+  //     // Schedule a push of this config section to the server (Reset will include the current path, and path[0] is always the editor ID)
+  //     scheduleContentPush(state.data, configs, action.path[0])
+  //     // Set new editor component (editorComp) in state
+  //     action.editorComp = editorForType(action.schema.type)
+  //     // Reset
+  //     return action.reset
+  //   }
+  //   // Update current state
+  //   const currValue = state.data[action.name]
+  //   if (action.value !== currValue) {
+  //     state.data[action.name] = action.value
+  //     return Object.assign({}, state)
+  //   }
+  //   return state
+  // }
 
   // Handlers
   const viewPwdClick = () => {
@@ -315,11 +302,17 @@ function App() {
           return dispatchContent(state, update)
         }}
         editItem={(newPath) => {
+          const schema = Util.getSchemaForPath(configs, newPath)
+          const content = Util.getContentorPath(configs, newPath)
+
+
+
+
           dispatchContent({
             reset: {
               editor: editor, // Editor UI will never switch tabs on the user.
-              schema: config.content.schema, // Get sub-schema based on the path
-              data: config.content.content // Get the sub-content based on the path
+              schema: schema,
+              data: content
             },
             path: newPath
           })
@@ -328,16 +321,14 @@ function App() {
           if (item.value && item.value.file) {
             // Invoke content download (will set fileContent state when complete)
             setContentToGet({ path: item.value.file, schema: item.schema })
-          } else {
+          }
+
+          else {
             // Set value to the expected file path on the server
             const filePath = Controller.getContentFilePath(editor.id, item)
             item.value = { file: filePath }
             setConfig(item.path, item.name, item.value)
           }
-          // Show the editor
-          const copy = Object.assign({}, editItems)
-          copy[editor.id] = item
-          setEditItems(copy)
           */
         }}
       />
@@ -354,7 +345,7 @@ function App() {
   // Get config data from the server
   React.useEffect(() => {
     try {
-      if (uiEnabled && editors.length === 0) {
+      if (uiEnabled && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
         if (adminState.config.templateId) {
            controller.getEditors(adminState.config.templateId)
@@ -365,6 +356,7 @@ function App() {
                 raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
                 configs.current[editorId] = raw.content
                 editors.current = editorsData
+                setEditorsEnabled(true)
               }
             })
         }
@@ -386,7 +378,7 @@ function App() {
         const copy = Object.assign({}, fileContent)
         copy[contentToGet.path] = {
           content: null,
-          contentType: Controller.contentTypeFromSchemaType(contentToGet.schema.type) }
+          contentType: Util.contentTypeFromSchemaType(contentToGet.schema.type) }
         setFileContent(copy)
       })
     }

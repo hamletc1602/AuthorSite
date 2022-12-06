@@ -5,7 +5,7 @@ import {
 import Editor from './Editor';
 
 /**  */
-export default function EditorValue({editor, item, fileContent, setConfig, setFileContent}) {
+export default function EditorText({editor, item, fileContent, setConfig, setFileContent}) {
   if (editor && item) {
     switch (item.schema.type) {
       case 'object':

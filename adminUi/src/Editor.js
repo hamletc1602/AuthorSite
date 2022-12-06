@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import {
   VStack, HStack, StackDivider, Grid, GridItem, Box
 } from '@chakra-ui/react'
+import EditorProperties from './EditorProperties';
+import EditorText from './EditorText';
+import EditorImage from './EditorImage';
 
 /**  */
 export default function Editor({content, dispatchContent, initPath, setPath, editItem}) {
@@ -16,9 +19,9 @@ export default function Editor({content, dispatchContent, initPath, setPath, edi
   const item = hasList ? data[index] : data
   const SubEditor = content.editorComp
 
-  const itemSelected = (ev, index) => {
+  const itemSelected = (ev, index, name) => {
     setIndex(index)
-    setPath([...rootPath, { index: index }])
+    setPath([...rootPath, { index: index, itemName: name }])
   }
 
   // Create grid col widths
@@ -57,7 +60,7 @@ export default function Editor({content, dispatchContent, initPath, setPath, edi
           const name = item[content.editor.listNameProp] || 'item' + index
           return <Box
             key={index}
-            onClick={ev => itemSelected(ev, index)}
+            onClick={ev => itemSelected(ev, index, name)}
           >{name}</Box>
         })}
       </VStack> : null }
@@ -84,4 +87,17 @@ function getInitIndex(path) {
     }
   }
   return null
+}
+
+function editorForType(type) {
+  switch (type) {
+    case 'object':
+      return EditorProperties
+    case 'image':
+      return EditorImage
+    case 'text':
+      return EditorText
+    default:
+      throw new Error(`Unknown object type ${type}`)
+  }
 }
