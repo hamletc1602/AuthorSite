@@ -133,15 +133,24 @@ function App() {
   const [showPwd, setShowPwd] = useState(false)
   const [authState, setAuthState] = useState('unknown')
   const [locked, setLocked] = useState(false)
-  // TODO: Have local send command and state update update the 'busy' state
-  //  Add UI to show when the app is busy with a command - maybe need to know
-  // which command?
   const [busy, setBusy] = useState(false)
   const [editorsEnabled, setEditorsEnabled] = useState(false)
-
-  const [fileContent, setFileContent] = useState({})
+  const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
-  const [contentToPut, setContentToPut] = useState({})
+
+  // Content push to server pool
+  const [contentToPut, dispatchContentToPut] = useReducer(updateContentToPut, {})
+  function updateContentToPut(state, action) {
+    state[action.path] = action.content
+    return Object.assign({}, state)
+  }
+
+  // File content cache
+  const [fileContent, dispatchFileContent] = useReducer(updateFileContent, {})
+  function updateFileContent(state, action) {
+    state[action.path] = action.content
+    return Object.assign({}, state)
+  }
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
@@ -153,50 +162,24 @@ function App() {
 
   // Push content into a queue to be uploaded to the server
   const scheduleContentPush = (path, source, id) => {
+    source = source || fileContent
+    id = id || path
     const toPut = contentToPut[path]
     //if (!toPut || (toPut.state === 'done' && (Date.now() - toPut.time) > 3000)) {
     if (!toPut || ((Date.now() - toPut.time) > 3000)) {
-        // This file has not been put OR the previous put is done and it's been >3s since
+      // This file has not been put OR the previous put is done and it's been >3s since
       // the last put request.
-      const copy = Object.assign({}, contentToPut)
-      copy[path] = {
-        source: source,
-        id: id,
-        state: 'new',
-        time: Date.now()
-      }
-      setContentToPut(copy)
+      dispatchContentToPut({
+        path: path,
+        content: {
+          source: source,
+          id: id,
+          state: 'new',
+          time: Date.now()
+        }
+      })
     }
   }
-
-  // Current active config properties
-  const [path, setPath] = useState([])
-  // const [content, dispatchContent] = useReducer(updateContent, {
-  //   editor: null,  // Looks like this is used for editor config values, like listNameProp ?
-  //   schema: null,
-  //   data: null,
-  //   editorComp: null  // Someone needs to determine appropriate edtitor component for the content type, when we switch to it (reset)
-  // })
-  // function updateContent(state, action) {
-  //   // Dump entire current state and replace
-  //   if (action.reset) {
-  //     // Update this section of the global config before the currently editing data set is changed
-  //     Util.updateConfigs(configs, [...action.path], Object.assign({}, state.data))
-  //     // Schedule a push of this config section to the server (Reset will include the current path, and path[0] is always the editor ID)
-  //     scheduleContentPush(state.data, configs, action.path[0])
-  //     // Set new editor component (editorComp) in state
-  //     action.editorComp = editorForType(action.schema.type)
-  //     // Reset
-  //     return action.reset
-  //   }
-  //   // Update current state
-  //   const currValue = state.data[action.name]
-  //   if (action.value !== currValue) {
-  //     state.data[action.name] = action.value
-  //     return Object.assign({}, state)
-  //   }
-  //   return state
-  // }
 
   // Handlers
   const viewPwdClick = () => {
@@ -257,6 +240,7 @@ function App() {
   }
 
   // On Editor tab change, pull the config file for this tab, if we haven't already cached it
+  // and set the current edit item path to the last saved ath for this editor.
   const editorTabChange = async (index) => {
     //
     const prevEditor = editors.current[prevEditorIndex.current]
@@ -269,17 +253,7 @@ function App() {
       raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
       configs.current[configId] = raw.content
     }
-    const config = configs.current[configId]
-    dispatchContent({
-      reset: {
-        editor: editors[index],
-        schema: config.content.schema,
-        data: config.content.content
-      },
-      path: path
-    })
     setPath(editor.lastEditPath)
-    //
     prevEditorIndex.current = index
   }
 
@@ -297,40 +271,14 @@ function App() {
     const config = configs.current[editor.id]
     if (config) {
       return <Editor
-        content={content}
-        dispatchContent={(state, update) => {
-          return dispatchContent(state, update)
-        }}
-        editItem={(newPath) => {
-          const schema = Util.getSchemaForPath(configs, newPath)
-          const content = Util.getContentorPath(configs, newPath)
-
-
-
-
-          dispatchContent({
-            reset: {
-              editor: editor, // Editor UI will never switch tabs on the user.
-              schema: schema,
-              data: content
-            },
-            path: newPath
-          })
-
-          /*
-          if (item.value && item.value.file) {
-            // Invoke content download (will set fileContent state when complete)
-            setContentToGet({ path: item.value.file, schema: item.schema })
-          }
-
-          else {
-            // Set value to the expected file path on the server
-            const filePath = Controller.getContentFilePath(editor.id, item)
-            item.value = { file: filePath }
-            setConfig(item.path, item.name, item.value)
-          }
-          */
-        }}
+        editor={editor}
+        configs={configs}
+        path={path}
+        setPath={setPath}
+        fileContent={fileContent}
+        dispatchFileContent={dispatchFileContent}
+        getContent={setContentToGet}
+        pushContent={scheduleContentPush}
       />
     }
     return null
@@ -341,7 +289,7 @@ function App() {
   //  for handling server data access. Builds in refresh logic and integration with React state.
   useAdminStatePolling(adminState, setAdminState)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, adminState, contentToPut, setContentToPut)
+  usePutContentWorker(controller, adminState, contentToPut, dispatchContentToPut)
   // Get config data from the server
   React.useEffect(() => {
     try {
@@ -352,6 +300,11 @@ function App() {
             .then(async editorsData => {
               if (editorsData) {
                 const editorId = editorsData[0].id
+                // Init local editor data values
+                editorsData = editorsData.map(editor => {
+                  editor.lastEditPath = [editor.id]
+                  return editor
+                })
                 const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
                 raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
                 configs.current[editorId] = raw.content
@@ -370,16 +323,20 @@ function App() {
     if (contentToGet) {
       controller.getSiteContent(adminState.config.templateId, contentToGet.path)
       .then(contentRec => {
-        const copy = Object.assign({}, fileContent)
-        copy[contentToGet.path] = contentRec
-        setFileContent(copy)
+        dispatchFileContent({
+          path: contentToGet.path,
+          content: Object.assign(contentRec, { state: 'complete'})
+        })
       })
       .catch(error => {
-        const copy = Object.assign({}, fileContent)
-        copy[contentToGet.path] = {
-          content: null,
-          contentType: Util.contentTypeFromSchemaType(contentToGet.schema.type) }
-        setFileContent(copy)
+        dispatchFileContent({
+          path: contentToGet.path,
+          content: {
+            state: 'failed',
+            content: null,
+            contentType: null
+          }
+        })
       })
     }
   },[contentToGet])
@@ -545,7 +502,7 @@ function useLockStatePolling(setLocked) {
 
 // Check lock state now, and every 4 minutes after
 //    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
-function usePutContentWorker(controller, adminState, contentToPut, setContentToPut) {
+function usePutContentWorker(controller, adminState, contentToPut, dispatchContentToPut) {
   React.useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
@@ -553,11 +510,7 @@ function usePutContentWorker(controller, adminState, contentToPut, setContentToP
           const toPut = contentToPut[toPutId]
           if (toPut.state === 'new') {
             toPut.state = 'working'
-            {
-              const copy = Object.assign({}, contentToPut)
-              copy[toPutId] = toPut
-              setContentToPut(copy)
-            }
+            dispatchContentToPut({ path: toPutId, content: toPut })
             const sourceRec = toPut.source[toPut.id]
             if (sourceRec) {
               await controller.putSiteContent(
@@ -568,11 +521,7 @@ function usePutContentWorker(controller, adminState, contentToPut, setContentToP
               )
               toPut.state = 'done'
             }
-            {
-              const copy = Object.assign({}, contentToPut)
-              copy[toPutId] = toPut
-              setContentToPut(copy)
-            }
+            dispatchContentToPut({ path: toPutId, content: toPut })
           }
         }))
       }, 3 * 1000)

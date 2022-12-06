@@ -6,7 +6,7 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, schema, data, setData, editItem}) {
+export default function EditorProperties({id, content, schema, setData, editItem}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
@@ -66,7 +66,7 @@ export default function EditorProperties({id, schema, data, setData, editItem}) 
     }
   }
 
-  const names = Object.keys(data)
+  const names = Object.keys(content)
   return <Grid
       templateAreas={`
       "edit edit"
@@ -81,7 +81,7 @@ export default function EditorProperties({id, schema, data, setData, editItem}) 
       if (itemSchema.hidden) {
         return null
       }
-      const value = data[name]
+      const value = content[name]
       return [
         <GridItem key={`${id}-${name}-label`} color={color} bg={bg}><Box>{name}</Box></GridItem>,
         <GridItem key={`${id}-${name}-edit`} color={color} bg={bg}>{editField(itemSchema, name, value)}</GridItem>
