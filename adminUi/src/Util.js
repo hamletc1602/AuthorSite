@@ -27,15 +27,15 @@ export default class Util {
 
   // Get config schema for a given content path
   static getSchemaForPath(configs, path) {
-    let config = configs.current[path[0]]
+    let config = configs.current[path[0].name]
     if ( ! config) {
       throw new Error(`Missing config for editor ${path[0]}`)
     }
-    config = config.content.schema
+    config = config.schema
     for (let i = 1; i < path.length; ++i) {
       const p = path[i]
       // Ignore index markers in the path, they are meaningless for schema
-      if (p.name) {
+      if (p.index === undefined) {
         config = config[p.name]
       }
     }
@@ -48,31 +48,23 @@ export default class Util {
 
   // Get config content data for a given content path
   static getContentForPath(configs, path) {
-    let config = configs.current[path[0]]
+    let config = configs.current[path[0].name]
     if ( ! config) {
       throw new Error(`Missing config for editor ${path[0]}`)
     }
-    config = config.content.content
+    config = config.content
     for (let i = 1; i < path.length; ++i) {
       const p = path[i]
-      config = config[p.name || p.index]
+      if (p.index === undefined) {
+        config = config[p.name]
+      } else {
+        config = config[p.index]
+      }
     }
     if (config) {
       return config
     } else {
       console.error(`Current path ${path} does not match content config`, configs.current)
-    }
-  }
-
-  // Update global configs
-  static updateConfigs(configs, path, state) {
-    // Get the config for the 2nd-last element in the path
-    const config = Util.getContentForPath(configs, path.slice(0, -1))
-    if (config) {
-      // Update the value for the property named as the last element in the path
-      config[path[path.length - 1]] = state
-    } else {
-      console.error(`Current path ${path} does not match config`, configs.current)
     }
   }
 

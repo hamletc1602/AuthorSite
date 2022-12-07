@@ -1,4 +1,4 @@
-import StripJsonComments from 'strip-json-comments'
+import StripComments from 'strip-comments'
 
 /**  */
 export default class Controller {
@@ -143,7 +143,7 @@ export default class Controller {
         }
         const type = response.headers.get('Content-Type')
         let contentStr = await response.text()
-        contentStr = StripJsonComments(contentStr)
+        contentStr = StripComments(contentStr)
         return {
           contentType: type,
           content: JSON.parse(contentStr)

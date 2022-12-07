@@ -67,6 +67,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
   }
 
   const names = Object.keys(content)
+  const properties = schema.properties
   return <Grid
       templateAreas={`
       "edit edit"
@@ -74,17 +75,17 @@ export default function EditorProperties({id, content, schema, setData, editItem
     templateColumns={'10em 1fr'}
   >
     {names.map(name => {
-      if ( ! (schema && schema[name])) {
+      if ( ! (properties && properties[name])) {
         return null
       }
-      const itemSchema = schema[name]
+      const itemSchema = properties[name]
       if (itemSchema.hidden) {
         return null
       }
       const value = content[name]
       return [
-        <GridItem key={`${id}-${name}-label`} color={color} bg={bg}><Box>{name}</Box></GridItem>,
-        <GridItem key={`${id}-${name}-edit`} color={color} bg={bg}>{editField(itemSchema, name, value)}</GridItem>
+        <GridItem key={`${id}-${name}-label`} color='brand.editorText' bg='brand.editor'><Box>{name}</Box></GridItem>,
+        <GridItem key={`${id}-${name}-edit`} color='brand.editorText' bg='brand.editor'>{editField(itemSchema, name, value)}</GridItem>
       ]
     }).flat()}
     </Grid>

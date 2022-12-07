@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { } from 'react';
 import {
   VStack, HStack, StackDivider, Grid, GridItem, Box
 } from '@chakra-ui/react'
@@ -10,14 +10,20 @@ import EditorImage from './EditorImage';
 /**  */
 export default function Editor({editor, configs, path, setPath, fileContent, dispatchFileContent, getContent, pushContent}) {
 
-  const content = Util.getContentForPath(configs, path)
+  //const initIndex = hasList ? getInitIndex(path) : null
   const schema = Util.getSchemaForPath(configs, path)
-  const hasList = Array.isArray(content)
-  const initIndex = hasList ? getInitIndex(path) : null
+  const hasList = schema.type === 'list'
   const rootPath = hasList ? getRootPath(path) : [...path]
-  const SubEditor = editorForType(schema.type)
+  const content = Util.getContentForPath(configs, path)
 
-  const [index, setIndex] = useState(initIndex)
+  if (hasList && rootPath.length === path.length) {
+    setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
+    return
+  }
+
+  const SubEditor = editorForType(hasList ? schema.elemType : schema.type)
+
+  //const [index, setIndex] = useState(initIndex)
 
   // For types with associated file content, if the file content is not already in the
   // content cach, start a get from the server.
@@ -48,7 +54,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
   }
 
   const itemSelected = (ev, index, name) => {
-    setIndex(index)
+    //setIndex(index)
     setPath([...rootPath, { index: index, itemName: name }])
   }
 
@@ -127,16 +133,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
 }
 
 // Get inital list index from the index elem at the end of the path, or 0 if there's no index elem.
-function getInitIndex(path) {
-  if (path.length > 0) {
-    const last = path[path.length - 1]
-    if (last.index) {
-      return last.index
-    }
-    return 0
-  }
-  return null
-}
+// function getInitIndex(path) {
+//   if (path.length > 0) {
+//     const last = path[path.length - 1]
+//     if (last.index) {
+//       return last.index
+//     }
+//     return 0
+//   }
+//   return null
+// }
 
 // Get the root path less any initial index (if there's an index at the end of the path)
 function getRootPath(path) {

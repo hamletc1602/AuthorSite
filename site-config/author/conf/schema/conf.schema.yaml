@@ -1,57 +1,59 @@
-siteName:
-  type: string
-copyrightShort:
-  type: string
-copyright:
-  type: string
+type: object
+properties:
+  siteName:
+    type: string
+  copyrightShort:
+    type: string
+  copyright:
+    type: string
 
-license:
-  type: object
-  properties:
-    url:
-      type: url
-    imageUrl:
-      type: url
-    description:
-      type: string
+  license:
+    type: object
+    properties:
+      url:
+        type: url
+      imageUrl:
+        type: url
+      description:
+        type: string
 
-publishedStickerText:
-  type: string
-unpublishedStickerText:
-  type: string
+  publishedStickerText:
+    type: string
+  unpublishedStickerText:
+    type: string
 
-metadata:
-  type: object
-  properties:
-    ogType:
-      type: string
-    title:
-      type: string
-    description:
-      type: string
-    image:
-      type: image
-    imageType:
-      type: string
-    imageWidth:
-      type: number
-    imageHeight:
-      type: number
+  metadata:
+    type: object
+    properties:
+      ogType:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      image:
+        type: image
+      imageType:
+        type: string
+      imageWidth:
+        type: number
+      imageHeight:
+        type: number
 
-feedback:
-  type: object
-  properties:
-    description:
-      type: string
-    subject:
-      type: string
-    email:
-      type: string
-    messages:
-      type: list
-      elemType: string
+  feedback:
+    type: object
+    properties:
+      description:
+        type: string
+      subject:
+        type: string
+      email:
+        type: string
+      messages:
+        type: list
+        elemType: string
 
-fbAdminCode:
-  type: string
-pintrestCode:
-  type: string
+  fbAdminCode:
+    type: string
+  pintrestCode:
+    type: string

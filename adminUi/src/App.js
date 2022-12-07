@@ -244,7 +244,9 @@ function App() {
   const editorTabChange = async (index) => {
     //
     const prevEditor = editors.current[prevEditorIndex.current]
-    prevEditor.lastEditPath = [...path]
+    if (prevEditor) {
+      prevEditor.lastEditPath = [...path]
+    }
     //
     const editor = editors.current[index]
     const configId = editor.id
@@ -302,13 +304,21 @@ function App() {
                 const editorId = editorsData[0].id
                 // Init local editor data values
                 editorsData = editorsData.map(editor => {
-                  editor.lastEditPath = [editor.id]
+                  editor.lastEditPath = [{ name: editor.id }]
                   return editor
                 })
                 const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
+                // Hack: Workaroud general schema missing type & properties, for now:
+                if (raw.content.schema && !raw.content.schema.properties) {
+                  raw.content.schema = {
+                    type: 'object',
+                    properties: raw.content.schema
+                  }
+                }
                 raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
                 configs.current[editorId] = raw.content
                 editors.current = editorsData
+                setPath([{ name: editorId }])
                 setEditorsEnabled(true)
               }
             })
