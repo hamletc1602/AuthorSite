@@ -1,7 +1,8 @@
 import React, { } from 'react';
 import {
-  VStack, HStack, StackDivider, Grid, GridItem, Box
+  VStack, HStack, StackDivider, Grid, GridItem, Box, IconButton
 } from '@chakra-ui/react'
+import { DeleteIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import EditorProperties from './EditorProperties';
 import EditorText from './EditorText';
@@ -47,7 +48,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     } else {
       // file type, but without a path in the config. Set a default file path based on the current
       // item path and update the server config.
-      Util.setContentForPath(path, { file: Util.createFilePath(path, schema) })
+      Util.setContentForPath(configs, path, { file: Util.createFilePath(path, schema) })
       pushContent(editor.data, configs, editor.id)
       if ( ! fileContent[content.file]) {
         dispatchFileContent({
@@ -58,8 +59,29 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     }
   }
 
+  // Select a different item
   const itemSelected = (ev, index, name) => {
     setPath([...rootPath, { index: index, name: name }])
+  }
+
+  // Create a new item for a list
+  const newItem = (ev) => {
+    // Transform list schema into an item schema
+    //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
+    const newIndex = rootContent.length
+    const newObj = Util.createNewFromSchema({ type: schema.elemType, properties: schema.properties })
+    newObj[editor.listNameProp] = 'item' + newIndex
+    rootContent.push(newObj)
+    pushContent(editor.data, configs, editor.id)
+    itemSelected(null, newIndex)
+  }
+
+  // Delete an item from a list
+  const deleteItem = (ev) => {
+    const index = getCurrIndex(path)
+    rootContent.splice(index, 1)
+    pushContent(editor.data, configs, editor.id)
+    itemSelected(null, index > 0 ? index - 1 : 0)
   }
 
   // Update this data value in the config. Push the config data to the server if the value has
@@ -92,11 +114,12 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     colWidths.push('0em')
   }
   colWidths.push('10em')
+  colWidths.push('1em')
 
   //
   return <Grid
     templateAreas={`
-      "path list edit"
+      "path list edit operations"
       `}
     templateColumns={colWidths}
   >
@@ -120,11 +143,18 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
       >
         {rootContent.map((item, index) => {
           const name = item[editor.listNameProp] || 'item' + index
+          // TODO: Highlight current selected index item
           return <Box
             key={index}
+            cursor='pointer'
             onClick={ev => itemSelected(ev, index, name)}
           >{name}</Box>
-        })}
+        }).concat([
+          <Box
+            key={-1}
+            onClick={ev => newItem(ev)}
+          >{'New ' + editor.title}</Box>
+        ])}
       </VStack> : null }
     </GridItem>
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
@@ -140,20 +170,23 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
         ></SubEditor>
       </HStack>
     </GridItem>
+    <GridItem color='brand.editorText' bg='brand.editorBgHack'>
+      {hasList ? <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/> : null}
+    </GridItem>
   </Grid>
 }
 
-// Get inital list index from the index elem at the end of the path, or 0 if there's no index elem.
-// function getInitIndex(path) {
-//   if (path.length > 0) {
-//     const last = path[path.length - 1]
-//     if (last.index) {
-//       return last.index
-//     }
-//     return 0
-//   }
-//   return null
-// }
+// Get inital list index from the index elem at the end of the path, or -1 if there's no index elem.
+function getCurrIndex(path) {
+  if (path.length > 0) {
+    const last = path[path.length - 1]
+    if (last.index) {
+      return last.index
+    }
+    return -1
+  }
+  return null
+}
 
 // Get the root path less any initial index (if there's an index at the end of the path)
 function getRootPath(path) {

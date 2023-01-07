@@ -81,3 +81,8 @@ it('Create file path', () => {
   expect(Util.createFilePath(prop1_path, { type: 'text' })).toEqual('config1/prop1.md')
   expect(Util.createFilePath(conf2_elem0_path, { type: 'image'}, 'png')).toEqual('config2/name1_0.png')
 });
+
+it('Create new from schema', () => {
+  expect(Util.createNewFromSchema(config1.schema)).toEqual({ prop1: [], prop2: ''})
+  expect(Util.createNewFromSchema(config2.schema)).toEqual([])
+});

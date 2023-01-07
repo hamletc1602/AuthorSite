@@ -127,4 +127,32 @@ export default class Util {
     }
   }
 
+  // Create a new object of the type of the provided schema
+  static createNewFromSchema(schema) {
+    if (schema.type === 'object') {
+      const obj = {}
+      Object.keys(schema.properties).forEach(key => {
+        const prop = schema.properties[key]
+        obj[key] = Util.createNewFromSchema(prop)
+      })
+      return obj
+    } else {
+      return Util.getDefaultValue(schema.type, schema.properties)
+    }
+  }
+
+  // Return a default (single) value for the given type.
+  static getDefaultValue(type) {
+    switch(type) {
+      case 'text': return {}
+      case 'image': return {}
+      case 'string': return ''
+      case 'number': return 0
+      case 'url': return ''
+      case 'color': return ''
+      case 'list': return []
+      case 'object': throw new Error(`Should never see type 'object' here.`)
+    }
+  }
+
 }
