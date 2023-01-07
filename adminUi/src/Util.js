@@ -5,15 +5,52 @@ export default class Util {
     return name.replace(/[^a-zA-Z\d-!_'.*()]/g, '-')
   }
 
-  static getContentFilePath(editorId, item) {
-    if (item.item && item.item.name) {
-      // Property is part of a list. Use a sanitized version of the list item name as the file name
-      const fileName = Util.sanitizeS3FileName(item.item.name)
-      //  Assuming all files are markdown for now - May provide a way for user to force text mode?
-      return `${editorId}/${item.name}/${fileName}.md`
-    } else {
-      return `${editorId}/${item.name}.md`
+  // Generate a file path string from the given routing path and schema
+  static createFilePath(path, schema, ext) {
+    // The file name will be generated from the last path entry name, or the last index entry, if there is one or more.
+    const reversePath = [...path].reverse()
+    const filePath = []
+    let fileName = null
+    let foundIndex = false
+    reversePath.forEach((entry, index) => {
+      if (index === 0) {
+        fileName = entry.name
+      } else {
+        if ( ! foundIndex && entry.index) {
+          // re-add the last (first) elem to the end of the path, since we're using the index name as the file name now.
+          filePath.push(fileName)
+          fileName = entry.name
+          foundIndex = true
+        } else {
+          filePath.unshift(entry.name)
+        }
+      }
+    })
+    // Ext. type should be set during initial editing, but need a default guess for some existing config files
+    if ( ! ext) {
+      switch (schema.type) {
+        case 'image':
+          ext = 'jpg'
+          break
+        case 'text':
+          ext = 'md'
+          break
+        default:
+          ext = 'txt'
+      }
     }
+    fileName += ('.' + ext)
+    // Add the file name to the end of the path
+    filePath.push(fileName)
+    // Format the file path
+    let filePathStr = ''
+    filePath.forEach((item, index) => {
+      if (index !== 0) {
+        filePathStr += '/'
+      }
+      filePathStr += this.sanitizeS3FileName(item)
+    })
+    return filePathStr
   }
 
   static contentTypeFromSchemaType(schemaType) {
@@ -36,13 +73,13 @@ export default class Util {
       const p = path[i]
       // Ignore index markers in the path, they are meaningless for schema
       if (p.index === undefined) {
-        config = config[p.name]
+        config = config.properties[p.name]
       }
     }
     if (config) {
       return config
     } else {
-      console.error(`Current path ${path} does not match schema config`, configs.current)
+      console.error(`Current path ${JSON.stringify(path)} does not match schema config`, configs.current)
     }
   }
 
@@ -61,8 +98,30 @@ export default class Util {
         config = config[p.index]
       }
     }
-    if (config) {
+    if (config !== undefined) {
       return config
+    } else {
+      console.error(`Current path ${path} does not match content config`, configs.current)
+    }
+  }
+
+  // Completely replace the content at the current path with this new content
+  static setContentForPath(configs, path, content) {
+    let config = configs.current[path[0].name]
+    if ( ! config) {
+      throw new Error(`Missing config for editor ${path[0]}`)
+    }
+    config = config.content
+    for (let i = 1; i < (path.length - 1); ++i) {
+      const p = path[i]
+      if (p.index === undefined) {
+        config = config[p.name]
+      } else {
+        config = config[p.index]
+      }
+    }
+    if (config !== undefined) {
+      config[path[path.length - 1].name] = content
     } else {
       console.error(`Current path ${path} does not match content config`, configs.current)
     }

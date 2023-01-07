@@ -13,15 +13,19 @@ const config1 = {
   },
   schema: {
     type: 'object',
-    prop1: {
-      type: 'list',
-      elemType: 'object',
-      prop3: {
+    properties: {
+      prop1: {
+        type: 'list',
+        elemType: 'object',
+        properties: {
+          prop3: {
+            type: 'string'
+          }
+        }
+      },
+      prop2: {
         type: 'string'
       }
-    },
-    prop2: {
-      type: 'string'
     }
   }
 }
@@ -68,6 +72,12 @@ it('get from config by path', () => {
 
 it('Get schema by path', () => {
   expect(Util.getSchemaForPath(configs, prop3_1_path)).toEqual({type: 'string'})
-  expect(Util.getSchemaForPath(configs, prop1_path)).toEqual(config1.schema.prop1)
+  expect(Util.getSchemaForPath(configs, prop1_path)).toEqual(config1.schema.properties.prop1)
   expect(Util.getSchemaForPath(configs, conf2_elem0_path)).toEqual(config2.schema)
+});
+
+it('Create file path', () => {
+  expect(Util.createFilePath(prop3_1_path, { type: 'image' })).toEqual('config1/prop1/prop3/name3_1.jpg')
+  expect(Util.createFilePath(prop1_path, { type: 'text' })).toEqual('config1/prop1.md')
+  expect(Util.createFilePath(conf2_elem0_path, { type: 'image'}, 'png')).toEqual('config2/name1_0.png')
 });

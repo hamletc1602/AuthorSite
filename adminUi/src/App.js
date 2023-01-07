@@ -279,7 +279,7 @@ function App() {
         setPath={setPath}
         fileContent={fileContent}
         dispatchFileContent={dispatchFileContent}
-        getContent={setContentToGet}
+        getContent={path => setContentToGet({ path: path })}
         pushContent={scheduleContentPush}
       />
     }
@@ -287,7 +287,7 @@ function App() {
   }
 
   // Server State Polling
-  // TODO: Definitely investigate this package: https://www.npmjs.com/package/use-remote-data
+  // TODO: investigate this package: https://www.npmjs.com/package/use-remote-data
   //  for handling server data access. Builds in refresh logic and integration with React state.
   useAdminStatePolling(adminState, setAdminState)
   useLockStatePolling(setLocked)
@@ -432,7 +432,7 @@ function App() {
               <TabPanels bg='brand.base'>
                 {editors.current.map((editor) => (
                   <TabPanel p='0' key={editor.id}>
-                    <Skeleton isLoaded={configs[editor.id]}>
+                    <Skeleton isLoaded={configs.current[editor.id]}>
                       <EditorTab editor={editor} />
                     </Skeleton>
                   </TabPanel>
@@ -455,6 +455,7 @@ function App() {
 /** Setup to get Admin state from the server */
 function useAdminStatePolling(adminState, setAdminState) {
   if ( ! adminStatePoller) {
+    console.log(`First admin state poll`)
     controller.checkState().then(async () => {
       // Set inital state, whether it's changed or not
       const state = controller.getConfig()
@@ -468,6 +469,7 @@ function useAdminStatePolling(adminState, setAdminState) {
           try {
             if (await controller.checkState() || !adminState.live) {
               // There is new state available. Trigger UI refresh
+              console.log(`Scheduled admin state poll`)
               const newState = Object.assign({}, controller.getConfig(), { live: true })
               setAdminState(newState)
             }

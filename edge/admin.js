@@ -115,10 +115,12 @@ const authenticate = async (aws, req, adminBucket) => {
   }
   try {
     const time = Date.now()
-    if ((passwdInfo.lastFailTs - time) > AuthFailWindowMs) {
+    if ((time - passwdInfo.lastFailTs) > AuthFailWindowMs) {
+      console.log(`login lockout reset after ${AuthFailWindowMs}ms`)
       passwdInfo.failedCount = 0
     } else {
       if (passwdInfo.failedCount >= MaxAuthFailedAttempts) {
+        console.log('Too many failed login attempts')
         return {
           status: '403',
           statusDescription: 'Too many failed login attempts'
@@ -149,6 +151,7 @@ const authenticate = async (aws, req, adminBucket) => {
     if ( ! auth) {
       passwdInfo.lastFailTs = Date.now()
       passwdInfo.failedCount++
+      console.log('Invalid admin secret')
       return {
         status: '403',
         statusDescription: 'Invalid admin secret'

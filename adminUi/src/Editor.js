@@ -10,11 +10,16 @@ import EditorImage from './EditorImage';
 /**  */
 export default function Editor({editor, configs, path, setPath, fileContent, dispatchFileContent, getContent, pushContent}) {
 
-  //const initIndex = hasList ? getInitIndex(path) : null
+  // Ignore changes if we're not the current editor in the path
+  if (path[0].name !== editor.id) {
+    return
+  }
+
   const schema = Util.getSchemaForPath(configs, path)
   const hasList = schema.type === 'list'
   const rootPath = hasList ? getRootPath(path) : [...path]
   const content = Util.getContentForPath(configs, path)
+  const rootContent = Util.getContentForPath(configs, rootPath)
 
   if (hasList && rootPath.length === path.length) {
     setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
@@ -42,7 +47,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     } else {
       // file type, but without a path in the config. Set a default file path based on the current
       // item path and update the server config.
-      content.file = Util.createFilePath(path)
+      Util.setContentForPath(path, { file: Util.createFilePath(path, schema) })
       pushContent(editor.data, configs, editor.id)
       if ( ! fileContent[content.file]) {
         dispatchFileContent({
@@ -54,8 +59,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
   }
 
   const itemSelected = (ev, index, name) => {
-    //setIndex(index)
-    setPath([...rootPath, { index: index, itemName: name }])
+    setPath([...rootPath, { index: index, name: name }])
   }
 
   // Update this data value in the config. Push the config data to the server if the value has
@@ -77,29 +81,36 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
 
   // Create grid col widths
   const colWidths = []
-  if (path) {
-    colWidths.push('' + path.length + 'em')
+  if (path && path.length > 1) {
+    colWidths.push('' + path.length - 1 + 'em')
+  } else {
+    colWidths.push('0em')
   }
   if (hasList) {
     colWidths.push('10em')
+  } else {
+    colWidths.push('0em')
   }
   colWidths.push('10em')
-  colWidths.push('1fr')
 
   //
   return <Grid
-      templateAreas={`
-      "path list edit edit"
-    `}
+    templateAreas={`
+      "path list edit"
+      `}
     templateColumns={colWidths}
   >
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       <HStack>
-        {path.map((elem, index) => {
+        {rootPath.map((elem, index) => {
           if (index === 0) { return null } // Don't add an element for the editor (tab) part of the path
           return <Box
+            key={index}
             onClick={() => setPath(rootPath.slice(0, index))}
-          >{elem}</Box>
+            transform="rotate: '90deg'"
+            h='100%'
+            w='1em'
+          >{elem.name}</Box>
         })}
       </HStack>
     </GridItem>
@@ -107,7 +118,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
       {hasList ? <VStack
         divider={<StackDivider borderColor='brand.editorDivider' />}
       >
-        {content.data.map((item, index) => {
+        {rootContent.map((item, index) => {
           const name = item[editor.listNameProp] || 'item' + index
           return <Box
             key={index}
@@ -148,7 +159,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
 function getRootPath(path) {
   if (path.length > 0) {
     const last = path[path.length - 1]
-    if (last.index) {
+    if (last.index !== undefined) {
       return path.slice(0, -1)
     }
     return [...path]

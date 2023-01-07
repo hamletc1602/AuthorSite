@@ -11,7 +11,7 @@ export default function EditorText({id, content, fileContent, dispatchFileConten
       key={id}
       bg='white'
       color='brand.editorText'
-      defaultValue={content}
+      defaultValue={contentRec.content}
       onChangeCapture={ev => {
         dispatchFileContent({
           path: content.file,
