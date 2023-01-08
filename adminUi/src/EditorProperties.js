@@ -6,11 +6,11 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, content, schema, setData, editItem}) {
+export default function EditorProperties({key, content, schema, setData, editItem}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
-    const itemKey = id + '-' + name + '-edit-ctrl'
+    const itemKey = key + '-' + name + '-edit-ctrl'
     switch (schema.type) {
       case 'string': return <Input key={itemKey} size='sm'
           defaultValue={value}
@@ -46,11 +46,14 @@ export default function EditorProperties({id, content, schema, setData, editItem
             })}
           </Select>
         } else {
-          // TODO: Component not quite done
+          // TODO: Component not quite done. Maybe Use a comma-sep list for now?
           // return <EditableTags key={itemKey} tags={value} setTags={tags => {
           //   setConfig(item.path, name, tags)
           // }}/>
-          return null
+          return <Input key={itemKey} size='sm'
+            defaultValue={value}
+            onChange={ev => { setData(name, ev.target.value) }}
+          />
         }
       case 'object': return <Button key={itemKey} size='sm'
         onClick={() => editItem(name)}
@@ -69,6 +72,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
   const names = Object.keys(content)
   const properties = schema.properties
   return <Grid
+      key={'PropsEdit' + key}
       templateAreas={`
       "edit edit"
     `}
@@ -84,8 +88,8 @@ export default function EditorProperties({id, content, schema, setData, editItem
       }
       const value = content[name]
       return [
-        <GridItem key={`${id}-${name}-label`} color='brand.editorText' bg='brand.editor'><Box>{name}</Box></GridItem>,
-        <GridItem key={`${id}-${name}-edit`} color='brand.editorText' bg='brand.editor'>{editField(itemSchema, name, value)}</GridItem>
+        <GridItem key={`${key}-${name}-label`} color='brand.editorText' bg='brand.editor'><Box>{name}</Box></GridItem>,
+        <GridItem key={`${key}-${name}-edit`} color='brand.editorText' bg='brand.editor'>{editField(itemSchema, name, value)}</GridItem>
       ]
     }).flat()}
     </Grid>

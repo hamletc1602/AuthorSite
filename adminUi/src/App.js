@@ -1,7 +1,7 @@
-import React, { useState, useReducer, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   ChakraProvider, extendTheme,
-  Text, Input, Button, Link, Select, Box,
+  Text, Input, Button, Link, Select,
   InputGroup, InputRightElement,
   Flex, Spacer,
   Grid,GridItem,
@@ -14,8 +14,8 @@ import {
 } from '@chakra-ui/icons'
 //import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller';
-import Util from './Util'
 import Editor from './Editor'
+import deepEqual from 'deep-equal'
 
 // Theme
 // Will likely need a full style config, like here: https://chakra-ui.com/docs/components/tabs/theming
@@ -127,30 +127,17 @@ const authStates = {
 function App() {
   // State
   const [generateDebug, setGenerateDebug] = useState(false)
-  const [adminState, setAdminState] = useState({
-    live: false, config: {}, display: {}, latest: [], editors: [], templates: []
-  })
+  const [adminLive, setAdminLive] = useState(false)
+  const [adminConfig, setAdminConfig] = useState({})
+  const [adminDisplay, setAdminDisplay] = useState({})
+  const [adminLog, setAdminLog] = useState([])
+  const [adminTemplates, setAdminTemplates] = useState([])
   const [showPwd, setShowPwd] = useState(false)
   const [authState, setAuthState] = useState('unknown')
   const [locked, setLocked] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [editorsEnabled, setEditorsEnabled] = useState(false)
   const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
-
-  // Content push to server pool
-  const [contentToPut, dispatchContentToPut] = useReducer(updateContentToPut, {})
-  function updateContentToPut(state, action) {
-    state[action.path] = action.content
-    return Object.assign({}, state)
-  }
-
-  // File content cache
-  const [fileContent, dispatchFileContent] = useReducer(updateFileContent, {})
-  function updateFileContent(state, action) {
-    state[action.path] = action.content
-    return Object.assign({}, state)
-  }
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
@@ -159,25 +146,17 @@ function App() {
   const editors = useRef([])
   const configs = useRef({})
   const prevEditorIndex = useRef(null)
+  const contentToPut = useRef({})
+  const fileContent = useRef({})
 
-  // Push content into a queue to be uploaded to the server
+  // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id) => {
-    source = source || fileContent
+    source = source || fileContent.current
     id = id || path
-    const toPut = contentToPut[path]
-    //if (!toPut || (toPut.state === 'done' && (Date.now() - toPut.time) > 3000)) {
-    if (!toPut || ((Date.now() - toPut.time) > 3000)) {
-      // This file has not been put OR the previous put is done and it's been >3s since
-      // the last put request.
-      dispatchContentToPut({
-        path: path,
-        content: {
-          source: source,
-          id: id,
-          state: 'new',
-          time: Date.now()
-        }
-      })
+    contentToPut.current[path] = {
+      source: source,
+      id: id,
+      state: 'new'
     }
   }
 
@@ -195,22 +174,22 @@ function App() {
   const onTemplateIdChange = (ev) => {
     const templateId = ev.target.value
     controller.sendCommand('config', { templateId: templateId })
-    const newState = Object.assign({}, adminState)
-    newState.config.templateId = templateId
-    setAdminState(newState)
+    const newConfig = Object.assign({}, adminConfig)
+    newConfig.templateId = templateId
+    setAdminConfig(newConfig)
     // On template change, destroy and re-buld the editor panels to the state of the new template
     // Or - Keep duplicate (hidden) edit panels around?
     // Switching templates back and forth is unlikely to be a common action for prod sites (Since
     // you'd need to re-buld the site each time to see the results.)
   }
   const onPrepare = () => {
-    controller.sendCommand('template', { id: adminState.config.templateId })
+    controller.sendCommand('template', { id: adminConfig.templateId })
     startFastPolling()
     // TODO: When prepare is run for a different template than the current one, need to clear all existing
     // editor components and re-build them with the config layout (and data) of the new template.
   }
   const onGenerate = () => {
-    controller.sendCommand('build', { id: adminState.config.templateId, debug: generateDebug })
+    controller.sendCommand('build', { id: adminConfig.templateId, debug: generateDebug })
     startFastPolling()
   }
   const onPublish = () => {
@@ -251,7 +230,7 @@ function App() {
     const editor = editors.current[index]
     const configId = editor.id
     if ( ! configs.current[configId]) {
-      const raw = await controller.getSiteConfig(adminState.config.templateId, configId)
+      const raw = await controller.getSiteConfig(adminConfig.templateId, configId)
       raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
       configs.current[configId] = raw.content
     }
@@ -261,8 +240,8 @@ function App() {
 
   // Dynamic Content
   const latestLogUpdate = () => {
-    if (adminState.latest.length > 0) {
-      return <Text size='xs' whiteSpace='nowrap' noOfLines={1}>{adminState.display.stepMsg}: {adminState.latest[0].msg}</Text>
+    if (adminLog.length > 0) {
+      return <Text size='xs' whiteSpace='nowrap' noOfLines={1}>{adminDisplay.stepMsg}: {adminLog[0].msg}</Text>
     } else {
       return <Text size='xs' whiteSpace='nowrap' noOfLines={1} color='brand.disabledBaseText'>No log messages yet...</Text>
     }
@@ -278,8 +257,10 @@ function App() {
         path={path}
         setPath={setPath}
         fileContent={fileContent}
-        dispatchFileContent={dispatchFileContent}
-        getContent={path => setContentToGet({ path: path })}
+        getContent={path => {
+          fileContent.current[path] = { state: 'pending' }
+          setContentToGet({ path: path })
+        }}
         pushContent={scheduleContentPush}
       />
     }
@@ -289,16 +270,43 @@ function App() {
   // Server State Polling
   // TODO: investigate this package: https://www.npmjs.com/package/use-remote-data
   //  for handling server data access. Builds in refresh logic and integration with React state.
-  useAdminStatePolling(adminState, setAdminState)
+
+  // Invoke when admin state polling determines something in the state has changed (new state from server)
+  const setAdminState = (adminState) => {
+    if ( ! adminLive) {
+      setAdminConfig(adminState.config)
+      setAdminDisplay(adminState.display)
+      setAdminLog(adminState.logs)
+      setAdminTemplates(adminState.templates)
+      setAdminLive(true)
+    } else {
+      if ( ! deepEqual(adminState.config, adminConfig)) {
+        setAdminConfig(adminState.config)
+      }
+      if ( ! deepEqual(adminState.display, adminDisplay)) {
+        setAdminDisplay(adminState.display)
+      }
+      if ( ! deepEqual(adminState.logs, adminLog)) {
+        setAdminLog(adminState.logs)
+      }
+      if ( ! deepEqual(adminState.templates, adminTemplates)) {
+        setAdminTemplates(adminState.templates)
+      }
+    }
+  }
+
+  //
+  useAdminStatePolling(adminLive, setAdminState)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, adminState, contentToPut, dispatchContentToPut)
+  usePutContentWorker(controller, adminConfig, contentToPut)
+
   // Get config data from the server
   React.useEffect(() => {
     try {
       if (uiEnabled && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
-        if (adminState.config.templateId) {
-           controller.getEditors(adminState.config.templateId)
+        if (adminConfig.templateId) {
+           controller.getEditors(adminConfig.templateId)
             .then(async editorsData => {
               if (editorsData) {
                 const editorId = editorsData[0].id
@@ -307,7 +315,7 @@ function App() {
                   editor.lastEditPath = [{ name: editor.id }]
                   return editor
                 })
-                const raw = await controller.getSiteConfig(adminState.config.templateId, editorId)
+                const raw = await controller.getSiteConfig(adminConfig.templateId, editorId)
                 // Hack: Workaroud general schema missing type & properties, for now:
                 if (raw.content.schema && !raw.content.schema.properties) {
                   raw.content.schema = {
@@ -327,29 +335,32 @@ function App() {
     } catch (error) {
       console.error('Failed Get editors init.', error)
     }
-  }, [uiEnabled])
+  }, [adminConfig, uiEnabled])
+
   // Get content data from the server on start editing
   React.useEffect(() => {
     if (contentToGet) {
-      controller.getSiteContent(adminState.config.templateId, contentToGet.path)
-      .then(contentRec => {
-        dispatchFileContent({
-          path: contentToGet.path,
-          content: Object.assign(contentRec, { state: 'complete'})
+      let toGet = fileContent.current[contentToGet.path]
+      if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
+        if ( ! toGet) {
+          toGet = {}
+          fileContent.current[contentToGet.path] = toGet
+        }
+        toGet.state = 'pending'
+        controller.getSiteContent(adminConfig.templateId, contentToGet.path)
+        .then(contentRec => {
+          setContentToGet(null)
+          toGet.content = contentRec.content
+          toGet.contentType = contentRec.contentType
+          toGet.state = 'complete'
         })
-      })
-      .catch(error => {
-        dispatchFileContent({
-          path: contentToGet.path,
-          content: {
-            state: 'failed',
-            content: null,
-            contentType: null
-          }
+        .catch(error => {
+          setContentToGet(null)
+          toGet.state = 'failed'
         })
-      })
+      }
     }
-  },[contentToGet])
+  },[adminConfig, contentToGet])
 
   // UI
   return (
@@ -390,11 +401,11 @@ function App() {
             <Select
               variant='flushed' size='sm' w='10em' m='3px'
               placeholder='Select a template...'
-              value={adminState.config.templateId}
+              value={adminConfig.templateId}
               onChange={onTemplateIdChange}
               disabled={!uiEnabled}
             >
-              {adminState.templates.map(tpl => {
+              {adminTemplates.map(tpl => {
                 return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
               })}
             </Select>
@@ -431,9 +442,9 @@ function App() {
               </TabList>
               <TabPanels bg='brand.base'>
                 {editors.current.map((editor) => (
-                  <TabPanel p='0' key={editor.id}>
+                  <TabPanel p='0' key={'Tab_' + editor.id}>
                     <Skeleton isLoaded={configs.current[editor.id]}>
-                      <EditorTab editor={editor} />
+                      <EditorTab key={'EditorTab_' + editor.id} editor={editor} />
                     </Skeleton>
                   </TabPanel>
                 ))}
@@ -453,13 +464,12 @@ function App() {
 }
 
 /** Setup to get Admin state from the server */
-function useAdminStatePolling(adminState, setAdminState) {
+function useAdminStatePolling(adminLive, setAdminState) {
   if ( ! adminStatePoller) {
     console.log(`First admin state poll`)
     controller.checkState().then(async () => {
-      // Set inital state, whether it's changed or not
-      const state = controller.getConfig()
-      setAdminState(state)
+      console.log(`First admin state`)
+      setAdminState(controller.getConfig())
     })
   }
   React.useEffect(() => {
@@ -467,11 +477,10 @@ function useAdminStatePolling(adminState, setAdminState) {
       adminStatePoller = setInterval(async () => {
         if (pollLoopCount >= maxPollingLoopCount) {
           try {
-            if (await controller.checkState() || !adminState.live) {
-              // There is new state available. Trigger UI refresh
-              console.log(`Scheduled admin state poll`)
-              const newState = Object.assign({}, controller.getConfig(), { live: true })
-              setAdminState(newState)
+            console.log(`Scheduled admin state poll`)
+            if (await controller.checkState() || !adminLive) {
+              console.log(`Admin state changed`)
+              setAdminState(controller.getConfig())
             }
             if ( ! controller.isBusy()) {
               endFastPolling()
@@ -490,11 +499,10 @@ function useAdminStatePolling(adminState, setAdminState) {
       clearInterval(adminStatePoller)
       adminStatePoller = null
     };
-  }, [])
+  }, [adminLive, setAdminState])
 }
 
 // Check lock state now, and every 4 minutes after
-//    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
 function useLockStatePolling(setLocked) {
   if ( ! lockStatePoller) {
     controller.getLockState().then(locked => { setLocked(locked) })
@@ -509,31 +517,29 @@ function useLockStatePolling(setLocked) {
       clearInterval(lockStatePoller)
       lockStatePoller = null
     }
-  }, [])
+  }, [setLocked])
 }
 
-// Check lock state now, and every 4 minutes after
-//    ( CORS is not enabled for lock state path, so turn this off in the client in dev. mode, for now )
-function usePutContentWorker(controller, adminState, contentToPut, dispatchContentToPut) {
+// Periodically push updated content to the server
+function usePutContentWorker(controller, adminConfig, contentToPut) {
   React.useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
-        await Promise.all(Object.keys(contentToPut).map(async toPutId => {
-          const toPut = contentToPut[toPutId]
+        await Promise.all(Object.keys(contentToPut.current).map(async toPutId => {
+          const toPut = contentToPut.current[toPutId]
           if (toPut.state === 'new') {
+            console.log(`Push content to server for ${toPutId}`)
             toPut.state = 'working'
-            dispatchContentToPut({ path: toPutId, content: toPut })
             const sourceRec = toPut.source[toPut.id]
             if (sourceRec) {
               await controller.putSiteContent(
-                adminState.config.templateId,
+                adminConfig.templateId,
                 toPutId,
                 toPut.contentType || sourceRec.contentType,
                 sourceRec.content
               )
               toPut.state = 'done'
             }
-            dispatchContentToPut({ path: toPutId, content: toPut })
           }
         }))
       }, 3 * 1000)
@@ -542,7 +548,7 @@ function usePutContentWorker(controller, adminState, contentToPut, dispatchConte
       clearInterval(putContentWorker)
       putContentWorker = null
     }
-  }, [contentToPut])
+  }, [adminConfig, contentToPut, controller])
 }
 
 export default App

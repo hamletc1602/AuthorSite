@@ -9,7 +9,7 @@ import EditorText from './EditorText';
 import EditorImage from './EditorImage';
 
 /**  */
-export default function Editor({editor, configs, path, setPath, fileContent, dispatchFileContent, getContent, pushContent}) {
+export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent}) {
 
   // Ignore changes if we're not the current editor in the path
   if (path[0].name !== editor.id) {
@@ -38,23 +38,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
   //   content download completes?
   if (schema.type === 'image' || schema.type === 'text') {
     if (content.file) {
-      if ( ! fileContent[content.file]) {
-        dispatchFileContent({
-          path: content.file,
-          content: { state: 'pending' }
-        })
+      if ( ! fileContent.current[content.file]) {
         getContent(content.file)
       }
     } else {
       // file type, but without a path in the config. Set a default file path based on the current
       // item path and update the server config.
       Util.setContentForPath(configs, path, { file: Util.createFilePath(path, schema) })
-      pushContent(editor.data, configs, editor.id)
-      if ( ! fileContent[content.file]) {
-        dispatchFileContent({
-          path: content.file,
-          content: { state: 'complete' }
-        })
+      pushContent(editor.data, configs.current, editor.id)
+      if ( ! fileContent.current[content.file]) {
+        fileContent.current[content.file] = { state: 'complete' }
       }
     }
   }
@@ -72,7 +65,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     const newObj = Util.createNewFromSchema({ type: schema.elemType, properties: schema.properties })
     newObj[editor.listNameProp] = 'item' + newIndex
     rootContent.push(newObj)
-    pushContent(editor.data, configs, editor.id)
+    pushContent(editor.data, configs.current, editor.id)
     itemSelected(null, newIndex)
   }
 
@@ -80,7 +73,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
   const deleteItem = (ev) => {
     const index = getCurrIndex(path)
     rootContent.splice(index, 1)
-    pushContent(editor.data, configs, editor.id)
+    pushContent(editor.data, configs.current, editor.id)
     itemSelected(null, index > 0 ? index - 1 : 0)
   }
 
@@ -90,11 +83,11 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     const oldValue = content[name]
     if (value !== oldValue) {
       content[name] = value
-      pushContent(editor.data, configs, editor.id)
+      pushContent(editor.data, configs.current, editor.id)
     }
     if (name === 'file' && (schema.type === 'image' || schema.type === 'text')) {
       // The subEditor will have already updated the fileContent cache in this case.
-      pushContent(value, fileContent, value)
+      pushContent(value, fileContent.current, value)
     }
   }
 
@@ -118,6 +111,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
 
   //
   return <Grid
+    key='Editor'
     templateAreas={`
       "path list edit operations"
       `}
@@ -126,10 +120,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       <HStack>
         {rootPath.map((elem, index) => {
+          // These hierarchy buttons need to be set up differently, depending on whether there's index
+          // elements in the path or not (The 'index + 1' in the slice call below works for index in path,
+          // but not for non-index.
+          // And, when there's an index elem, with a sub elem, suddenly the path jumps 2 entries, not one, with
+          // the drill-down, so there's an odd UX where 2 hierarchy buttons jump in.
+          //
           if (index === 0) { return null } // Don't add an element for the editor (tab) part of the path
           return <Box
             key={index}
-            onClick={() => setPath(rootPath.slice(0, index))}
+            onClick={() => setPath(rootPath.slice(0, index + 1))}
             transform="rotate: '90deg'"
             h='100%'
             w='1em'
@@ -160,11 +160,11 @@ export default function Editor({editor, configs, path, setPath, fileContent, dis
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       <HStack>
         <SubEditor
-          id='editor'
+          //key={'SubEditor_' + editor.id}
+          key={editor.id}
           content={content}
           schema={schema}
           fileContent={fileContent}
-          dispatchFileContent={dispatchFileContent}
           setData={setData}
           editItem={editItem}
         ></SubEditor>

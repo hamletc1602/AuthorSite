@@ -234,7 +234,7 @@ export default class Controller {
       if (!response.ok) {
         throw new Error(`Failed to put site content. Status: ${response.status}`);
       }
-      return response.json()
+      return response.text()
     })
   }
 

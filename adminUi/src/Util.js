@@ -152,6 +152,7 @@ export default class Util {
       case 'color': return ''
       case 'list': return []
       case 'object': throw new Error(`Should never see type 'object' here.`)
+      default: return null
     }
   }
 

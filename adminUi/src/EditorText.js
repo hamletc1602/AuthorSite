@@ -4,23 +4,22 @@ import {
 } from '@chakra-ui/react'
 
 /**  */
-export default function EditorText({id, content, fileContent, dispatchFileContent, setData}) {
-  const contentRec = fileContent[content.file]
+export default function EditorText({key, content, fileContent, setData}) {
+  const contentRec = fileContent.current[content.file]
   return <Skeleton isLoaded={contentRec && contentRec.state !== 'pending'}>
     <Textarea
-      key={id}
+      key={'TextEdit_' + key}
       bg='white'
       color='brand.editorText'
-      defaultValue={contentRec.content}
+      defaultValue={contentRec ? contentRec.content : null}
+      disabled={ ! contentRec}
+      placeholder={contentRec ? null : 'Loading...'}
       onChangeCapture={ev => {
-        dispatchFileContent({
-          path: content.file,
-          content: {
-            state: 'complete',
-            content: ev.target.value,
-            contentType: 'text/plain'
-          }
-        })
+        fileContent.current[content.file] = {
+          state: 'complete',
+          content: ev.target.value,
+          contentType: 'text/plain'
+        }
         // Triggers content push, even if file path is unchanged
         setData('file', content.file)
       }}
