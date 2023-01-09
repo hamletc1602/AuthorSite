@@ -86,3 +86,36 @@ it('Create new from schema', () => {
   expect(Util.createNewFromSchema(config1.schema)).toEqual({ prop1: [], prop2: ''})
   expect(Util.createNewFromSchema(config2.schema)).toEqual([])
 });
+
+it('Set content for path', () => {
+});
+
+it('Condense path', () => {
+  expect(Util.condensePath(prop3_1_path)).toEqual([
+    {name:'config1',origIndex:0},
+    {name:'prop1',origIndex:1},
+    {indexName: 'name3_1', name:'prop3',origIndex:2}
+  ])
+  expect(Util.condensePath(prop1_path)).toEqual([
+    {name:'config1',origIndex:0},
+    {name:'prop1',origIndex:1}
+  ])
+  expect(Util.condensePath([
+    {name:'config1'},
+    {index:6,name:'name1_6'},
+    {name:'prop1'},
+    {name:'prop3'}
+  ])).toEqual([
+    {name:'config1',origIndex:0},
+    {indexName:'name1_6',name:'prop1',origIndex:1},
+    {name:'prop3',origIndex:3}
+  ])
+   // Not really a valid case, but does not crash
+  expect(Util.condensePath(conf2_elem0_path)).toEqual([
+    {name:'config2',origIndex:0}
+  ])
+});
+
+it('Get path index', () => {
+  expect(Util.getCurrIndex([{name: 'prop1'}, {index: 1, name: 'name3_1'}])).toEqual(1)
+});

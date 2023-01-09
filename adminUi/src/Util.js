@@ -1,6 +1,30 @@
 /**  */
 export default class Util {
 
+  // Get inital list index from the index elem at the end of the path, or -1 if there's no index elem.
+  static getCurrIndex(path) {
+    if (path.length > 0) {
+      const last = path[path.length - 1]
+      if (last.index !== undefined) {
+        return last.index
+      }
+      return -1
+    }
+    return null
+  }
+
+  // Get the root path less any initial index (if there's an index at the end of the path)
+  static getRootPath(path) {
+    if (path.length > 0) {
+      const last = path[path.length - 1]
+      if (last.index !== undefined) {
+        return path.slice(0, -1)
+      }
+      return [...path]
+    }
+    return []
+  }
+
   static sanitizeS3FileName(name) {
     return name.replace(/[^a-zA-Z\d-!_'.*()]/g, '-')
   }
@@ -154,6 +178,33 @@ export default class Util {
       case 'object': throw new Error(`Should never see type 'object' here.`)
       default: return null
     }
+  }
+
+  // Fold index elements into a prefix for the following name entry so we can treat
+  // paths with index elements the same as ones without.
+  static condensePath(path) {
+    const newPath = []
+    let prevIndexElem = null
+    path.forEach((elem, index) => {
+      if (elem.index !== undefined) {
+        prevIndexElem = elem
+      } else {
+        if (prevIndexElem) {
+          newPath.push({
+            indexName: prevIndexElem.name,
+            name: elem.name,
+            origIndex: index - 1
+          })
+        } else {
+          newPath.push({
+            name: elem.name,
+            origIndex: index
+          })
+        }
+        prevIndexElem = null
+      }
+    })
+    return newPath
   }
 
 }

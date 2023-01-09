@@ -1,8 +1,8 @@
 import React, { } from 'react';
 import {
-  VStack, HStack, StackDivider, Grid, GridItem, Box, IconButton
+  VStack, HStack, Grid, GridItem, Box, IconButton
 } from '@chakra-ui/react'
-import { DeleteIcon } from '@chakra-ui/icons'
+import { DeleteIcon, AddIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import EditorProperties from './EditorProperties';
 import EditorText from './EditorText';
@@ -18,9 +18,11 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
 
   const schema = Util.getSchemaForPath(configs, path)
   const hasList = schema.type === 'list'
-  const rootPath = hasList ? getRootPath(path) : [...path]
+  const rootPath = hasList ? Util.getRootPath(path) : [...path]
   const content = Util.getContentForPath(configs, path)
   const rootContent = Util.getContentForPath(configs, rootPath)
+  const hierarchyPath = Util.condensePath(rootPath).slice(1)
+  const pathIndex = hasList ? Util.getCurrIndex(path) : 0
 
   if (hasList && rootPath.length === path.length) {
     setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
@@ -71,10 +73,9 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
 
   // Delete an item from a list
   const deleteItem = (ev) => {
-    const index = getCurrIndex(path)
-    rootContent.splice(index, 1)
+    rootContent.splice(pathIndex, 1)
     pushContent(editor.data, configs.current, editor.id)
-    itemSelected(null, index > 0 ? index - 1 : 0)
+    itemSelected(null, pathIndex > 0 ? pathIndex - 1 : 0)
   }
 
   // Update this data value in the config. Push the config data to the server if the value has
@@ -96,11 +97,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
 
   // Create grid col widths
   const colWidths = []
-  if (path && path.length > 1) {
-    colWidths.push('' + path.length - 1 + 'em')
-  } else {
-    colWidths.push('0em')
-  }
+  colWidths.push('' + hierarchyPath.length + 'em')
   if (hasList) {
     colWidths.push('10em')
   } else {
@@ -119,42 +116,47 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   >
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       <HStack>
-        {rootPath.map((elem, index) => {
-          // These hierarchy buttons need to be set up differently, depending on whether there's index
-          // elements in the path or not (The 'index + 1' in the slice call below works for index in path,
-          // but not for non-index.
-          // And, when there's an index elem, with a sub elem, suddenly the path jumps 2 entries, not one, with
-          // the drill-down, so there's an odd UX where 2 hierarchy buttons jump in.
-          //
-          if (index === 0) { return null } // Don't add an element for the editor (tab) part of the path
+        {hierarchyPath.map((elem, index) => {
+          let name = elem.name
+          if (elem.indexName) {
+            name = elem.indexName + ' / ' + elem.name
+          }
           return <Box
-            key={index}
-            onClick={() => setPath(rootPath.slice(0, index + 1))}
+            key={'hierarchy_' + index}
+            onClick={() => setPath(rootPath.slice(0, elem.origIndex))}
             transform="rotate: '90deg'"
             h='100%'
             w='1em'
-          >{elem.name}</Box>
+          >{name}</Box>
         })}
       </HStack>
     </GridItem>
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
       {hasList ? <VStack
-        divider={<StackDivider borderColor='brand.editorDivider' />}
+        //divider={<StackDivider borderColor='brand.editorDivider' />}
       >
-        {rootContent.map((item, index) => {
-          const name = item[editor.listNameProp] || 'item' + index
-          // TODO: Highlight current selected index item
-          return <Box
-            key={index}
-            cursor='pointer'
-            onClick={ev => itemSelected(ev, index, name)}
-          >{name}</Box>
-        }).concat([
+        [
+          {rootContent.map((item, index) => {
+            const name = item[editor.listNameProp] || 'item' + index
+            return <Box
+              key={index}
+              size='sm'
+              bg={index === pathIndex ? 'gray.200' : 'white'} // 'brand.listSelected' : 'brand.editorBgHack'}
+              width='10em'
+              padding='3px'
+              cursor='pointer'
+              onClick={ev => itemSelected(ev, index, name)}
+            >{name}</Box>
+            })}
+          ,
           <Box
             key={-1}
+            width='10em'
+            padding='3px'
+            bg='blue.200' // 'brand.listNew'
             onClick={ev => newItem(ev)}
-          >{'New ' + editor.title}</Box>
-        ])}
+          >{[<AddIcon/>, ' ', 'New ' + editor.title]}</Box>
+        ]
       </VStack> : null }
     </GridItem>
     <GridItem color='brand.editorText' bg='brand.editorBgHack'>
@@ -174,30 +176,6 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       {hasList ? <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/> : null}
     </GridItem>
   </Grid>
-}
-
-// Get inital list index from the index elem at the end of the path, or -1 if there's no index elem.
-function getCurrIndex(path) {
-  if (path.length > 0) {
-    const last = path[path.length - 1]
-    if (last.index) {
-      return last.index
-    }
-    return -1
-  }
-  return null
-}
-
-// Get the root path less any initial index (if there's an index at the end of the path)
-function getRootPath(path) {
-  if (path.length > 0) {
-    const last = path[path.length - 1]
-    if (last.index !== undefined) {
-      return path.slice(0, -1)
-    }
-    return [...path]
-  }
-  return []
 }
 
 // Return the editor component to use for this data type.

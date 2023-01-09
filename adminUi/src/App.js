@@ -52,6 +52,8 @@ const customTheme = extendTheme({
         default: 'gray.300',
         _dark: 'gray.600'
       },
+      listSelected: 'gray.200',
+      listNew: 'blue.100'
     }
   },
   semanticTokens: {
