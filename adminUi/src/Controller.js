@@ -229,6 +229,9 @@ export default class Controller {
 
   /** Put various site content files for the given template. Content will always be a string (may be base64 encoded binary) */
   async putSiteContent(templateId, contentPath, contentType, content) {
+    // TODO: Encode part count and current parts in the URL path. Send file data as binary (octet stream) to the server, to reduce
+    // todal request size and the number of chunks neded, which will reduce time taken to upload.
+    // (Could potentially also gzip the files??)
     const contentB64 = Controller.arrayBufferToBase64(content)
     if (contentB64.length < Controller.BODY_UPLOAD_MAX_SIZE) {
       return this.putSiteContentPart(templateId, contentPath, contentType, 1, 1, contentB64)

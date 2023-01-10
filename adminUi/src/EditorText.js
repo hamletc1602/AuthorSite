@@ -9,6 +9,8 @@ export default function EditorText({key, content, fileContent, setData}) {
   return <Skeleton isLoaded={contentRec && contentRec.state !== 'pending'}>
     <Textarea
       key={'TextEdit_' + key}
+      w='100%'
+      h='15em'
       bg='white'
       color='brand.editorText'
       defaultValue={contentRec ? contentRec.content : null}
