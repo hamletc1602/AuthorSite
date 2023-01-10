@@ -22,28 +22,23 @@ export default function EditorImage({key, content, fileContent, setData}) {
 
   const inputRef = useRef();
 
-  function arrayBufferToBase64( buffer ) {
-    var binary = '';
-    var bytes = new Uint8Array( buffer );
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode( bytes[ i ] );
-    }
-    return btoa( binary );
-  }
-
-  const handleUpload = (e) => {
-    setFiles(e, 'w');
-    setTimeout(async () => {
-      fileContent.current[content.file] = {
-          state: 'complete',
-          content: arrayBufferToBase64(await files[0].arrayBuffer()),
-          contentType: fileTypes[0]
+  const handleUpload = React.useCallback((e) => {
+      setFiles(e, 'w');
+      setTimeout(() => {
+        if (files.length > 0) {
+          console.log(`Found file: ${files[0].name}. Size: ${files[0].size}`)
+          files[0].arrayBuffer().then(fileBuffer => {
+            fileContent.current[content.file] = {
+              state: 'complete',
+              content: fileBuffer,
+              contentType: fileTypes[0]
+            }
+            // Triggers content push, even if file path is unchanged
+            setData('file', content.file)
+          })
         }
-      // Triggers content push, even if file path is unchanged
-      setData('file', content.file)
-    }, 1000)
-  }
+      }, 5000)
+  }, [setFiles, files, fileTypes, content, fileContent, setData])
 
   return (
     <div css={CSS}>
@@ -58,6 +53,7 @@ export default function EditorImage({key, content, fileContent, setData}) {
           }}
         >
           <Center
+            key={'dropTarget_' + key}
             h='10em'
             w='20em'
             bg='gray.200'
@@ -66,6 +62,7 @@ export default function EditorImage({key, content, fileContent, setData}) {
             <p>Drag and drop image here</p>
           </Center>
           <Center
+            key={'uploadButton_' + key}
             w='20em'
             margin='0.5em'
           >

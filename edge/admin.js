@@ -42,6 +42,11 @@ exports.handler = async (event, context) => {
   const adminBucket = functionName
   const adminUiBucket = adminBucket + '-ui'
 
+  // Get the lambda function ARN prefix, so we can use it to construct ARNs for other lambdas to invoke
+  // Eg. arn:aws:lambda:us-east-1:376845798252:function:demo2-braevitae-com- ...
+  // NOTE: This code assumes the specific part of the name of this lambda has no '-' in it!
+  const arnPrefix = `arn:aws:lambda:${targetRegion}:${awsAccountId}:function:${rootName}`
+
   const aws = new AwsUtils({
     files: null,  // Not needed (though perhaps this suggests we need two different modules)
     s3: new AWS.S3(),
@@ -54,13 +59,13 @@ exports.handler = async (event, context) => {
     if (req.uri.indexOf('/admin/command/') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return postCommand(aws, req, adminBucket, awsAccountId, rootName)
+        return postCommand(aws, req, adminBucket, arnPrefix)
       }
       return authResp
     } else if (req.uri.indexOf('/admin/site-content/') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return siteContent(aws, req, adminBucket)
+        return siteContent(aws, req, adminBucket, arnPrefix)
       }
       return authResp
     }
@@ -164,17 +169,13 @@ const authenticate = async (aws, req, adminBucket) => {
 }
 
 /** Handle commands posted to the admin interface */
-const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
+const postCommand = async (aws, req, adminBucket, arnPrefix) => {
   const parts = req.uri.split('/')
   parts.shift() // /
   parts.shift() // admin
   const action = parts.shift()
   console.log(`Action: ${action}`)
   if (action === 'command') {
-    // Get the lambda function ARN prefix, so we can use it to construct ARNs for other lambdas to invoke
-    // Eg. arn:aws:lambda:us-east-1:376845798252:function:demo2-braevitae-com- ...
-    // NOTE: This code assumes the specific part of the name of this lambda has no '-' in it!
-    const arnPrefix = `arn:aws:lambda:${targetRegion}:${awsAccountId}:function:${rootName}`
     let ret = null
     const command = parts.shift()
     let body = null
@@ -205,13 +206,13 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
         // Set the current template in the admin state
         await aws.adminStateUpdate({ config: { templateId: params.id } })
         // Invoke worker to copy template files
-        ret = deploySite(command, arnPrefix + '-admin-worker', params)
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
       case 'build':
         ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', params)
         break
       case 'publish':
-        ret = deploySite(command, arnPrefix + '-admin-worker', params)
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
       default:
         ret = {
@@ -224,7 +225,7 @@ const postCommand = async (aws, req, adminBucket, awsAccountId, rootName) => {
   }
 }
 
-const deploySite = async (command, adminWorkerArn, params) => {
+const invokeAdminWorker = async (command, adminWorkerArn, params) => {
   try {
     const payload = JSON.stringify({ command: command, body: params })
     console.log(`Send command ${command} site to admin-worker. Payload: ${payload}`)
@@ -333,17 +334,17 @@ const siteConfig = async (aws, req, adminBucket) => {
 }
 
 /** Handle access to site content. Site content is stored in the admin bucket. */
-const siteContent = async (aws, req, adminBucket) => {
+const siteContent = async (aws, req, adminBucket, arnPrefix) => {
   const uriParts = req.uri.split('/')
   uriParts.shift() // /
   uriParts.shift() // admin
   uriParts.shift() // site-content
   const template = uriParts.shift()
   const contentPath = uriParts.join('/')
-  console.log(`Template: ${template}. Content path: ${contentPath}`)
-  const contentAbsPath = `site-config/${template}/${contentPath}`
-  console.log(`Get S3 content from ${contentAbsPath}`)
+  console.log(`${req.method} Template: ${template}. Content path: ${contentPath}`)
   if (req.method === 'GET') {
+    const contentAbsPath = `site-config/${template}/${contentPath}`
+    console.log(`Get S3 content from ${contentAbsPath}`)
     try {
       const contentRec = await aws.get(adminBucket, contentAbsPath)
       if (contentRec) {
@@ -381,21 +382,42 @@ const siteContent = async (aws, req, adminBucket) => {
   } else if (req.method === 'POST' || req.method === 'PUT') {
     try {
       if (req.body && req.body.data) {
+        //const reqContentType = req.headers['content-type'][0].value // Should always be JSON now
         const body = Buffer.from(req.body.data, 'base64')
-        await aws.put(adminBucket, contentAbsPath, req.headers['content-type'][0].value, body)
-        return {
+        console.log(`Upload: Body: ${body.toString()}`)
+        const data = JSON.parse(body.toString())
+        const contentAbsPath = `site-config/${template}/${data.path}`
+        let ret = {
           status: '200',
           statusDescription: 'OK'
         }
+        if (data.partCount > 1) {
+          // Part of a multi-part upload (Note: this is still base64 encoded data)
+          await aws.put(adminBucket, contentAbsPath + '.part_' + data.part, 'text/plain', data.content)
+          if (data.part == data.partCount) {
+            // Last part received. Invoke worker lambda to Load previous parts from S3 and concatenate into the final file
+            console.log(`Invoke worker to assemble ${data.partCount} uploaded file parts.`)
+            ret = invokeAdminWorker('completeUpload', arnPrefix + '-admin-worker', {
+              basePath: contentAbsPath,
+              partCount: data.partCount,
+              contentType: data.contentType
+            })
+          }
+        } else {
+          // If there's only one part, total, we can just put it directly
+          const content = Buffer.from(data.content, 'base64')
+          await aws.put(adminBucket, contentAbsPath, data.contentType, content)
+        }
+        return ret
       } else {
-        console.error(`Received empty content when setting ${contentAbsPath}`)
+        console.error(`Received empty content when setting ${contentPath}`)
         return {
           status: '400',
           statusDescription: 'Missing content. Unable to write.',
         }
       }
     } catch (error) {
-      console.error(`Failed to set content for ${contentAbsPath}`, error)
+      console.error(`Failed to set content for ${contentPath}`, error)
       return {
         status: '500',
         statusDescription: 'Unable to write content.',

@@ -3,6 +3,9 @@ import StripComments from 'strip-comments'
 /**  */
 export default class Controller {
   //
+  static BODY_UPLOAD_MAX_SIZE = 1024 * 39  // 1K under 40K CloudFront viewer request body size limit
+
+  //
   static lockId = ''
 
   constructor() {
@@ -214,22 +217,47 @@ export default class Controller {
     }
   }
 
-  /** Put various site content files for the given template */
-  async putSiteContent(templateId, contentPath, contentType, content) {
-    let body = null
-    if (contentType === 'application/json') {
-      body = JSON.stringify(content)
-    } else {
-      body = content
+  static arrayBufferToBase64(buffer) {
+    var binary = '';
+    var bytes = new Uint8Array( buffer );
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
     }
-    return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
+    return btoa( binary );
+  }
+
+  /** Put various site content files for the given template. Content will always be a string (may be base64 encoded binary) */
+  async putSiteContent(templateId, contentPath, contentType, content) {
+    const contentB64 = Controller.arrayBufferToBase64(content)
+    if (contentB64.length < Controller.BODY_UPLOAD_MAX_SIZE) {
+      return this.putSiteContentPart(templateId, contentPath, contentType, 1, 1, contentB64)
+    } else {
+      // Push file to the server in parts. The server will merge the parts.
+      const partCount = Math.floor(contentB64.length / Controller.BODY_UPLOAD_MAX_SIZE) + 1
+      for (let i = 0; i < partCount; ++i) {
+        const partContent = contentB64.substring(Controller.BODY_UPLOAD_MAX_SIZE * i, Controller.BODY_UPLOAD_MAX_SIZE * (i + 1))
+        await this.putSiteContentPart(templateId, contentPath, contentType, i + 1, partCount, partContent)
+      }
+    }
+  }
+
+  async putSiteContentPart(templateId, contentPath, contentType, part, partCount, content) {
+    const body = {
+      path: contentPath,
+      part: part,
+      partCount: partCount,
+      contentType: contentType,
+      content: content
+    }
+    return fetch(`/admin/site-content/${templateId}/${contentPath}/${part}`, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({
         'Authorization': this.basicAuth(),
         'Content-Type': contentType
       }),
-      body: body
+      body: JSON.stringify(body)
     }).then(async (response) => {
       if (!response.ok) {
         throw new Error(`Failed to put site content. Status: ${response.status}`);

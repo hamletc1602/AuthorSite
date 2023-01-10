@@ -35,6 +35,8 @@ exports.handler = async (event, _context) => {
       return applyTemplate(publicBucket, adminBucket, event.body)
     case 'publish':
       return deploySite(testSiteBucket, siteBucket, event.body)
+    case 'completeUpload':
+      return completeFileUpload(adminBucket, event.body)
     default:
       return {
         status: '404',
@@ -135,12 +137,35 @@ async function applyTemplate(publicBucket, adminBucket, params) {
       await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
     }
   } catch (error) {
-    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${JSON.stringify(error)}. Check log.`)
+    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${JSON.stringify(error)}.`)
   } finally {
     if (success) {
       await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
     } else {
-      await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template. Check log.`)
+      await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template.`)
     }
+  }
+}
+
+async function completeFileUpload(adminBucket, params) {
+  try {
+    // Get all content parts
+    const contentList = []
+    for (let i = 1; i <= params.partCount; ++i) {
+      const partContent = await aws.get(adminBucket, params.basePath + '.part_' + i)
+      contentList.push(partContent.Body.toString())
+    }
+    // Put complete file to the original path
+    const finalStr = contentList.join('')
+    const finalContent = Buffer.from(finalStr, 'base64')
+    await aws.put(adminBucket, params.basePath, params.contentType, finalContent)
+    // Clean up parts
+    for (let i = 1; i <= params.partCount; ++i) {
+      await aws.delete(adminBucket, params.basePath + '.part_' + i)
+    }
+  } catch (error) {
+    const msg = `Failed upload for ${params.basePath}. Error: ${JSON.stringify(error)}.`
+    console.log(msg)
+    await aws.displayUpdate({}, 'upload', msg)
   }
 }
