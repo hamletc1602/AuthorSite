@@ -156,8 +156,8 @@ async function completeFileUpload(adminBucket, params) {
       contentList.push(partContent.Body.toString())
     }
     // Put complete file to the original path
-    const finalStr = contentList.join('')
-    const finalContent = Buffer.from(finalStr, 'base64')
+    const finalBuff = contentList.join('')
+    const finalContent = Buffer.from(finalBuff, 'base64')
     await aws.put(adminBucket, params.basePath, params.contentType, finalContent)
     // Clean up parts
     for (let i = 1; i <= params.partCount; ++i) {
