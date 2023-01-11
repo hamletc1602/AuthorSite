@@ -1,6 +1,6 @@
-import React, { } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
-  VStack, HStack, Grid, GridItem, Box, IconButton
+  VStack, Flex, StackDivider, Box, IconButton
 } from '@chakra-ui/react'
 import { DeleteIcon, AddIcon } from '@chakra-ui/icons'
 import Util from './Util'
@@ -11,24 +11,30 @@ import EditorImage from './EditorImage';
 /**  */
 export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent}) {
 
+  const schema = Util.getSchemaForPath(configs, path)
+  const hasList = schema.type === 'list'
+  const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
+  const content = Util.getContentForPath(configs, path)
+
+  // This setPath call was triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)."
+  // warning. Wrapping it in useEffect appears to resolve that warning, but I'm not sure I fully understand why, so this could
+  // be a misleading fix. Possibly it would be better to ponder how the 'path' state is handled - does it need to be state at the
+  // App level, or can it just be state for Editor??
+  useEffect(() => {
+    if (hasList && rootPath.length === path.length) {
+      setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
+      return
+    }
+  }, [hasList, rootPath, path, setPath, content, editor])
+
   // Ignore changes if we're not the current editor in the path
   if (path[0].name !== editor.id) {
     return
   }
 
-  const schema = Util.getSchemaForPath(configs, path)
-  const hasList = schema.type === 'list'
-  const rootPath = hasList ? Util.getRootPath(path) : [...path]
-  const content = Util.getContentForPath(configs, path)
   const rootContent = Util.getContentForPath(configs, rootPath)
-  const hierarchyPath = Util.condensePath(rootPath).slice(1)
+  const hierarchyPath = Util.condensePath(rootPath).slice(1).reverse()
   const pathIndex = hasList ? Util.getCurrIndex(path) : 0
-
-  if (hasList && rootPath.length === path.length) {
-    setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
-    return
-  }
-
   const SubEditor = editorForType(hasList ? schema.elemType : schema.type)
 
   //const [index, setIndex] = useState(initIndex)
@@ -106,16 +112,30 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   colWidths.push('10em')
   colWidths.push('1em')
 
+  const hierarchyStackHeight = 10
+
   //
-  return <Grid
+  return <Flex
     key='Editor'
-    templateAreas={`
-      "path list edit operations"
-      `}
-    templateColumns={colWidths}
   >
-    <GridItem color='brand.editorText' bg='brand.editorBgHack'>
-      <HStack>
+    <Flex
+      align='flex-start'
+      color='brand.editorText'
+      bg='blue.100'
+      w={(hierarchyPath.length * 1.3) + 'em'}
+    >
+      <VStack
+        spacing={0}
+        transform='rotate(90deg)'
+        align='left'
+        position='relative'
+        minW={hierarchyStackHeight + 'em'}
+        //top={(4) + 'em'}
+        //left={((hierarchyPath.length * 1.3) + ((4 - hierarchyStackHeight))) + 'em'}
+        top={4 + 'em'}
+        left={-4 + 'em'}
+        divider={<StackDivider borderColor='brand.editorDivider' />}
+      >
         {hierarchyPath.map((elem, index) => {
           let name = elem.name
           if (elem.indexName) {
@@ -124,22 +144,32 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
           return <Box
             key={'hierarchy_' + index}
             onClick={() => setPath(rootPath.slice(0, elem.origIndex))}
-            transform="rotate: '90deg'"
-            h='100%'
-            w='1em'
+            bg='blue:200'
+            fontWeight='bold'
+            cursor='pointer'
+            whiteSpace='nowrap'
+            textTransform='capitalize'
           >{name}</Box>
         })}
-      </HStack>
-    </GridItem>
-    <GridItem color='brand.editorText' bg='brand.editorBgHack'>
+      </VStack>
+    </Flex>
+    <Flex color='brand.editorText' bg='brand.editorBgHack' w={(hasList ? 10 : 0) + 'em'}>
       {hasList ? <VStack
-        //divider={<StackDivider borderColor='brand.editorDivider' />}
+        spacing={0}
       >
         [
+          <Box
+            key={'listNew_' + editor.id}
+            width='10em'
+            padding='3px'
+            bg='blue.200' // 'brand.listNew'
+            onClick={ev => newItem(ev)}
+          >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + (editor.addTitle || editor.title)]}</Box>
+          ,
           {rootContent.map((item, index) => {
             const name = item[editor.listNameProp] || 'item' + index
             return <Box
-              key={index}
+              key={'list' + index + '_' + editor.id}
               size='sm'
               bg={index === pathIndex ? 'gray.200' : 'white'} // 'brand.listSelected' : 'brand.editorBgHack'}
               width='10em'
@@ -148,34 +178,30 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
               onClick={ev => itemSelected(ev, index, name)}
             >{name}</Box>
             })}
-          ,
-          <Box
-            key={-1}
-            width='10em'
-            padding='3px'
-            bg='blue.200' // 'brand.listNew'
-            onClick={ev => newItem(ev)}
-          >{[<AddIcon/>, ' ', 'New ' + editor.title]}</Box>
         ]
       </VStack> : null }
-    </GridItem>
-    <GridItem color='brand.editorText' bg='brand.editorBgHack'>
-      <HStack>
-        <SubEditor
-          //key={'SubEditor_' + editor.id}
-          key={editor.id}
-          content={content}
-          schema={schema}
-          fileContent={fileContent}
-          setData={setData}
-          editItem={editItem}
-        ></SubEditor>
-      </HStack>
-    </GridItem>
-    <GridItem color='brand.editorText' bg='brand.editorBgHack'>
+    </Flex>
+    <Flex
+      flex='1'
+      minH='10em'
+      padding='0.3em'
+      color='brand.editorText'
+      bg='brand.editorBgHack'
+    >
+      <SubEditor
+        key={editor.id}
+        id={editor.id}
+        content={content}
+        schema={schema}
+        fileContent={fileContent}
+        setData={setData}
+        editItem={editItem}
+      ></SubEditor>
+    </Flex>
+    <Flex key='ops' color='brand.editorText' bg='brand.editorBgHack'>
       {hasList ? <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/> : null}
-    </GridItem>
-  </Grid>
+    </Flex>
+  </Flex>
 }
 
 // Return the editor component to use for this data type.

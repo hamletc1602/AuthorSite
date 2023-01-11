@@ -5,7 +5,7 @@ import {
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({key, content, fileContent, setData}) {
+export default function EditorImage({id, content, fileContent, setData}) {
 
   const [cooldown, setCooldown] = useState(false)
   const imageUrl = useRef(null)
@@ -47,17 +47,22 @@ export default function EditorImage({key, content, fileContent, setData}) {
   }, [content, fileContent, setData, cooldown, setImage])
   const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
 
+  // Text outline props
+  const ow = 1
+  const ocolor = 'lightgray'
+
   return (
-    <div {...getRootProps()}>
+    <div {...getRootProps()} style={{ width: '100%'}}>
       <input {...getInputProps()} disabled={cooldown}/>
       {
         <Center
-          key={'dropTarget_' + key}
+          key={'dropTarget_' + id}
           w='95%'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
           minH='15em'
           margin='0.5em'
-          color='yellow'
-          textShadow='0 0 5px black, 0 0 8px white'
+          color='black'
+          textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
+          bg={ocolor}
           bgImage={`url('${imageUrl.current}')`}
           bgRepeat='no-repeat'
           bgPosition='center top'

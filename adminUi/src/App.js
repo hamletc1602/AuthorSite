@@ -261,6 +261,7 @@ function App() {
         fileContent={fileContent}
         getContent={path => {
           fileContent.current[path] = { state: 'pending' }
+          // TODO: This setPath call is triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)." warning
           setContentToGet({ path: path })
         }}
         pushContent={scheduleContentPush}
@@ -393,7 +394,7 @@ function App() {
                 onChangeCapture={passwordChanging}
               />
               <InputRightElement color='brand.accentText' onClick={viewPwdClick}>
-                {showPwd ? <ViewOffIcon/> : <ViewIcon/>}
+                {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
               </InputRightElement>
             </InputGroup>
           </Flex>

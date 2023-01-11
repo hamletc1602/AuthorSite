@@ -6,11 +6,11 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({key, content, schema, setData, editItem}) {
+export default function EditorProperties({id, content, schema, setData, editItem}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
-    const itemKey = key + '-' + name + '-edit-ctrl'
+    const itemKey = id + '-' + name + '-edit-ctrl'
     switch (schema.type) {
       case 'string': return <Input key={itemKey} size='sm'
           defaultValue={value}
@@ -42,7 +42,7 @@ export default function EditorProperties({key, content, schema, setData, editIte
         if (schema.closed && schema.values) {
           return <Select key={itemKey} size='sm'>
             {schema.values.map((value, index) => {
-              return <option value={index}>{value}</option>
+              return <option key={itemKey + '_opt' + index} value={index}>{value}</option>
             })}
           </Select>
         } else {
@@ -72,11 +72,14 @@ export default function EditorProperties({key, content, schema, setData, editIte
   const names = Object.keys(content)
   const properties = schema.properties
   return <Grid
-      key={'PropsEdit' + key}
+      key={'PropsEdit' + id}
+      w='100%'
       templateAreas={`
       "edit edit"
     `}
     templateColumns={'10em 1fr'}
+    color='brand.editorText'
+    bg='brand.editor'
   >
     {names.map(name => {
       if ( ! (properties && properties[name])) {
@@ -88,8 +91,9 @@ export default function EditorProperties({key, content, schema, setData, editIte
       }
       const value = content[name]
       return [
-        <GridItem key={`${key}-${name}-label`} color='brand.editorText' bg='brand.editor'><Box>{name}</Box></GridItem>,
-        <GridItem key={`${key}-${name}-edit`} color='brand.editorText' bg='brand.editor'>{editField(itemSchema, name, value)}</GridItem>
+        <GridItem
+          key={`${id}-${name}-label`}><Box textTransform='capitalize'>{name}</Box></GridItem>,
+        <GridItem key={`${id}-${name}-edit`}>{editField(itemSchema, name, value)}</GridItem>
       ]
     }).flat()}
     </Grid>
