@@ -21,6 +21,10 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // be a misleading fix. Possibly it would be better to ponder how the 'path' state is handled - does it need to be state at the
   // App level, or can it just be state for Editor??
   useEffect(() => {
+    // Ignore changes if we're not the current editor in the path
+    if (path[0].name !== editor.id) {
+      return
+    }
     if (hasList && rootPath.length === path.length) {
       setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
       return
@@ -163,6 +167,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
             width='10em'
             padding='3px'
             bg='blue.200' // 'brand.listNew'
+            cursor='pointer'
             onClick={ev => newItem(ev)}
           >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + (editor.addTitle || editor.title)]}</Box>
           ,

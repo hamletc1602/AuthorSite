@@ -279,7 +279,7 @@ function App() {
     if ( ! adminLive) {
       setAdminConfig(adminState.config)
       setAdminDisplay(adminState.display)
-      setAdminLog(adminState.logs)
+      setAdminLog(adminState.latest)
       setAdminTemplates(adminState.templates)
       setAdminLive(true)
     } else {
@@ -289,8 +289,8 @@ function App() {
       if ( ! deepEqual(adminState.display, adminDisplay)) {
         setAdminDisplay(adminState.display)
       }
-      if ( ! deepEqual(adminState.logs, adminLog)) {
-        setAdminLog(adminState.logs)
+      if ( ! deepEqual(adminState.latest, adminLog)) {
+        setAdminLog(adminState.latest)
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)

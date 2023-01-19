@@ -341,9 +341,9 @@ const siteContent = async (aws, req, adminBucket, arnPrefix) => {
   uriParts.shift() // site-content
   const template = uriParts.shift()
   const contentPath = uriParts.join('/')
+  const contentAbsPath = `site-config/${template}/${contentPath}`
   console.log(`${req.method} Template: ${template}. Content path: ${contentPath}`)
   if (req.method === 'GET') {
-    const contentAbsPath = `site-config/${template}/${contentPath}`
     console.log(`Get S3 content from ${contentAbsPath}`)
     try {
       const contentRec = await aws.get(adminBucket, contentAbsPath)
@@ -382,31 +382,30 @@ const siteContent = async (aws, req, adminBucket, arnPrefix) => {
   } else if (req.method === 'POST' || req.method === 'PUT') {
     try {
       if (req.body && req.body.data) {
-        //const reqContentType = req.headers['content-type'][0].value // Should always be JSON now
-        const body = Buffer.from(req.body.data, 'base64')
-        console.log(`Upload: Body: ${body.toString()}`)
-        const data = JSON.parse(body.toString())
-        const contentAbsPath = `site-config/${template}/${data.path}`
+        const reqContentType = req.headers['content-type'][0].value
+        const queryObj = new URLSearchParams(req.querystring)
+        const totalParts = queryObj.get('total')
+        const part = queryObj.get('part')
+        const contentBuff = Buffer.from(req.body.data, 'base64')
         let ret = {
           status: '200',
           statusDescription: 'OK'
         }
-        if (data.partCount > 1) {
-          // Part of a multi-part upload (Note: this is still base64 encoded data)
-          await aws.put(adminBucket, contentAbsPath + '.part_' + data.part, 'text/plain', data.content)
-          if (data.part == data.partCount) {
+        if (totalParts > 1) {
+          // Part of a multi-part upload
+          await aws.put(adminBucket, contentAbsPath + '.part_' + part, reqContentType, contentBuff)
+          if (part == totalParts) {
             // Last part received. Invoke worker lambda to Load previous parts from S3 and concatenate into the final file
-            console.log(`Invoke worker to assemble ${data.partCount} uploaded file parts.`)
+            console.log(`Invoke worker to assemble ${totalParts} uploaded file parts.`)
             ret = invokeAdminWorker('completeUpload', arnPrefix + '-admin-worker', {
               basePath: contentAbsPath,
-              partCount: data.partCount,
-              contentType: data.contentType
+              partCount: totalParts,
+              contentType: reqContentType
             })
           }
         } else {
           // If there's only one part, total, we can just put it directly
-          const content = Buffer.from(data.content, 'base64')
-          await aws.put(adminBucket, contentAbsPath, data.contentType, content)
+          await aws.put(adminBucket, contentAbsPath, reqContentType, contentBuff)
         }
         return ret
       } else {

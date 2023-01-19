@@ -217,6 +217,43 @@ export default class Controller {
     }
   }
 
+  /** Put various site content files for the given template. */
+  async putSiteContent(templateId, contentPath, contentType, content) {
+    if (contentType === 'application/json' && ( ! content.substring)) {
+      // Looks like this is a config file object. Need to serialize it before we upload it.
+      content = JSON.stringify(content)
+    }
+    const contentLength = content.byteLength || content.length
+    if (contentLength < Controller.BODY_UPLOAD_MAX_SIZE) {
+      return this.putSiteContentPart(templateId, contentPath, contentType, 1, 1, content)
+    } else {
+      // Push file to the server in parts. The server will merge the parts.
+      const partCount = Math.floor(contentLength / Controller.BODY_UPLOAD_MAX_SIZE) + 1
+      for (let i = 0; i < partCount; ++i) {
+        const partContent = content.slice(Controller.BODY_UPLOAD_MAX_SIZE * i, Controller.BODY_UPLOAD_MAX_SIZE * (i + 1))
+        await this.putSiteContentPart(templateId, contentPath, contentType, i + 1, partCount, partContent)
+      }
+    }
+  }
+
+  /** Upload one part of content that may otherwise be too large for a 'viewer' lambda@Edge to handle. */
+  async putSiteContentPart(templateId, contentPath, contentType, part, partCount, content) {
+    return fetch(`/admin/site-content/${templateId}/${contentPath}?part=${part}&total=${partCount}`, {
+      method: 'POST',
+      cache: 'no-cache',
+      headers: new Headers({
+        'Authorization': this.basicAuth(),
+        'Content-Type': contentType
+      }),
+      body: content
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to put site content. Status: ${response.status}`);
+      }
+      return response.text()
+    })
+  }
+
   static arrayBufferToBase64(buffer) {
     var binary = '';
     var bytes = new Uint8Array( buffer );
@@ -225,52 +262,6 @@ export default class Controller {
         binary += String.fromCharCode( bytes[ i ] );
     }
     return btoa( binary );
-  }
-
-  /** Put various site content files for the given template. Content will always be a string (may be base64 encoded binary) */
-  async putSiteContent(templateId, contentPath, contentType, content) {
-    // TODO: Encode part count and current parts in the URL path. Send file data as binary (octet stream) to the server, to reduce
-    // todal request size and the number of chunks neded, which will reduce time taken to upload.
-    // (Could potentially also gzip the files??)
-
-    // Oops - In changing this function (or the admin edge server code) to support image upload, I've broken text config file upload.
-    // TODO: Separate image file upload handling from text file handling.
-
-    const contentB64 = Controller.arrayBufferToBase64(content)
-    if (contentB64.length < Controller.BODY_UPLOAD_MAX_SIZE) {
-      return this.putSiteContentPart(templateId, contentPath, contentType, 1, 1, contentB64)
-    } else {
-      // Push file to the server in parts. The server will merge the parts.
-      const partCount = Math.floor(contentB64.length / Controller.BODY_UPLOAD_MAX_SIZE) + 1
-      for (let i = 0; i < partCount; ++i) {
-        const partContent = contentB64.substring(Controller.BODY_UPLOAD_MAX_SIZE * i, Controller.BODY_UPLOAD_MAX_SIZE * (i + 1))
-        await this.putSiteContentPart(templateId, contentPath, contentType, i + 1, partCount, partContent)
-      }
-    }
-  }
-
-  async putSiteContentPart(templateId, contentPath, contentType, part, partCount, content) {
-    const body = {
-      path: contentPath,
-      part: part,
-      partCount: partCount,
-      contentType: contentType,
-      content: content
-    }
-    return fetch(`/admin/site-content/${templateId}/${contentPath}/${part}`, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: new Headers({
-        'Authorization': this.basicAuth(),
-        'Content-Type': contentType
-      }),
-      body: JSON.stringify(body)
-    }).then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`Failed to put site content. Status: ${response.status}`);
-      }
-      return response.text()
-    })
   }
 
 }
