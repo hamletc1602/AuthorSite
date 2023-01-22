@@ -187,21 +187,28 @@ export default class Controller {
   /** Get various site content files for the given template. */
   async getSiteContent(templateId, contentPath) {
     try {
-      return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
+      return fetch(`/content/${templateId}/${contentPath}`, {
         headers: new Headers({
           'Authorization': this.basicAuth(),
         })
       }).then(async (response) => {
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+            // Errors like 404 etc. should not throw an exception
+            if (response.status >= 500 || response.status === 403) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          } else {
+            return null
+          }
         }
         const type = response.headers.get('Content-Type')
-        let content = await response.text()
-        // AWS Lambda handlers cannot directly return binary data, so all content types other than
-        // 'application/json' and 'text/plain' will be base64 encoded, and need to be decoded here,
-        // and will be returned as a buffer.
-        if ( ! (type === 'text/plain' || type === 'application/json')) {
-          content = Buffer.from(content, 'base64')
+        // Content could be text, json or (default) binary
+        let content = null
+        if (type === 'application/json') {
+          content = await response.json()
+        } else if (type.indexOf('text/') === 0) {
+          content = await response.text()
+        } else {
+          content = await response.arrayBuffer()
         }
         return {
           contentType: type,
@@ -217,28 +224,39 @@ export default class Controller {
     }
   }
 
-  /** Put various site content files for the given template. */
-  async putSiteContent(templateId, contentPath, contentType, content) {
-    if (contentType === 'application/json' && ( ! content.substring)) {
+  /** Put various site config files for the given template. */
+  async putSiteConfig(templateId, contentPath, contentType, content) {
+    if (contentType === 'application/json' && ! content.substring) {
       // Looks like this is a config file object. Need to serialize it before we upload it.
+      // Non-JSON config should always be a string.
       content = JSON.stringify(content)
     }
+    return this.putSiteContentInner('site-config', templateId, contentPath, contentType, content)
+  }
+
+  /** Put various site content files for the given template. */
+  async putSiteContent(templateId, contentPath, contentType, content) {
+    return this.putSiteContentInner('site-content', templateId, contentPath, contentType, content)
+  }
+
+  /** Uplaod files to S3 via lambda@Edge Admin viewer func. */
+  async putSiteContentInner(command, templateId, contentPath, contentType, content) {
     const contentLength = content.byteLength || content.length
     if (contentLength < Controller.BODY_UPLOAD_MAX_SIZE) {
-      return this.putSiteContentPart(templateId, contentPath, contentType, 1, 1, content)
+      return this.putSiteContentPart(command, templateId, contentPath, contentType, 1, 1, content)
     } else {
       // Push file to the server in parts. The server will merge the parts.
       const partCount = Math.floor(contentLength / Controller.BODY_UPLOAD_MAX_SIZE) + 1
       for (let i = 0; i < partCount; ++i) {
         const partContent = content.slice(Controller.BODY_UPLOAD_MAX_SIZE * i, Controller.BODY_UPLOAD_MAX_SIZE * (i + 1))
-        await this.putSiteContentPart(templateId, contentPath, contentType, i + 1, partCount, partContent)
+        await this.putSiteContentPart(command, templateId, contentPath, contentType, i + 1, partCount, partContent)
       }
     }
   }
 
   /** Upload one part of content that may otherwise be too large for a 'viewer' lambda@Edge to handle. */
-  async putSiteContentPart(templateId, contentPath, contentType, part, partCount, content) {
-    return fetch(`/admin/site-content/${templateId}/${contentPath}?part=${part}&total=${partCount}`, {
+  async putSiteContentPart(command, templateId, contentPath, contentType, part, partCount, content) {
+    return fetch(`/admin/${command}/${templateId}/${contentPath}?part=${part}&total=${partCount}`, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({
@@ -252,16 +270,6 @@ export default class Controller {
       }
       return response.text()
     })
-  }
-
-  static arrayBufferToBase64(buffer) {
-    var binary = '';
-    var bytes = new Uint8Array( buffer );
-    var len = bytes.byteLength;
-    for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode( bytes[ i ] );
-    }
-    return btoa( binary );
   }
 
 }

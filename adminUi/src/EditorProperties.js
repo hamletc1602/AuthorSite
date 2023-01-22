@@ -77,9 +77,9 @@ export default function EditorProperties({id, content, schema, setData, editItem
       templateAreas={`
       "edit edit"
     `}
-    templateColumns={'10em 1fr'}
-    color='brand.editorText'
-    bg='brand.editor'
+    templateColumns={'12em 1fr'}
+    color='editorText'
+    bg='editor'
   >
     {names.map(name => {
       if ( ! (properties && properties[name])) {

@@ -7,12 +7,12 @@ const JsonContentType = 'application/json'
 
 const publicBucket = process.env.publicBucket
 const adminBucket = process.env.adminBucket
+const adminUiBucket = process.env.adminUiBucket
 const siteBucket = process.env.siteBucket
 const testSiteBucket = process.env.testSiteBucket
 const stateQueueUrl = process.env.stateQueueUrl
 
 // Other config available from stack if needed
-//const adminUiBucket = process.env.adminUiBucket
 //const maxAgeBrowser = process.env.maxAgeBrowser
 //const maxAgeCloudFront = process.env.maxAgeCloudFront
 
@@ -36,7 +36,7 @@ exports.handler = async (event, _context) => {
     case 'publish':
       return deploySite(testSiteBucket, siteBucket, event.body)
     case 'completeUpload':
-      return completeFileUpload(adminBucket, event.body)
+      return completeFileUpload(adminBucket, adminUiBucket, event.body)
     default:
       return {
         status: '404',
@@ -147,8 +147,9 @@ async function applyTemplate(publicBucket, adminBucket, params) {
   }
 }
 
-async function completeFileUpload(adminBucket, params) {
+async function completeFileUpload(adminBucket, adminUiBucket, params) {
   try {
+    const destBucket = params.isConfig ? adminBucket : adminUiBucket
     // Get all content parts
     const contentList = []
     for (let i = 1; i <= params.partCount; ++i) {
@@ -157,7 +158,7 @@ async function completeFileUpload(adminBucket, params) {
     }
     // Put complete file to the original path
     const finalBuff = Buffer.concat(contentList)
-    await aws.put(adminBucket, params.basePath, params.contentType, finalBuff)
+    await aws.put(destBucket, params.basePath, params.contentType, finalBuff, 0, 0)
     // Clean up parts
     for (let i = 1; i <= params.partCount; ++i) {
       await aws.delete(adminBucket, params.basePath + '.part_' + i)

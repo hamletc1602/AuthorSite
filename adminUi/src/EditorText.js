@@ -12,7 +12,7 @@ export default function EditorText({id, content, fileContent, setData}) {
       w='100%'
       h='15em'
       bg='white'
-      color='brand.editorText'
+      color='editorText'
       defaultValue={contentRec ? contentRec.content : null}
       disabled={ ! contentRec}
       placeholder={contentRec ? null : 'Loading...'}

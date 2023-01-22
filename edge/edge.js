@@ -127,13 +127,3 @@ function getAsin(uri) {
     code: code
   }
 }
-
-// Add CORS header to the response, Mainly for local development. Not generally enabled in the stack
-exports.corsResponse = async function(event) {
-  console.log(JSON.stringify(event))
-  var response = event.Records[0].cf.response
-  if ( ! response.headers['access-control-allow-origin']) {
-      response.headers['access-control-allow-origin'] = [{ key: 'access-control-allow-origin', value: '*'}]
-  }
-  return response
-}

@@ -62,10 +62,18 @@ exports.handler = async (event, context) => {
         return postCommand(aws, req, adminBucket, arnPrefix)
       }
       return authResp
-    } else if (req.uri.indexOf('/admin/site-content/') === 0) {
+    } else if (req.uri.indexOf('/admin/site-config/') === 0) {
+      // Config uploads to the admin bucket, no external access.
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return siteContent(aws, req, adminBucket, arnPrefix)
+        return siteContent(aws, req, true, adminBucket, adminUiBucket, arnPrefix)
+      }
+      return authResp
+    } else if (req.uri.indexOf('/admin/site-content/') === 0) {
+      // Content uploads to the adminUI bucket for direct GET access
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return siteContent(aws, req, false, adminBucket, adminUiBucket, arnPrefix)
       }
       return authResp
     }
@@ -92,16 +100,9 @@ exports.handler = async (event, context) => {
       }
       return authResp
     }
-    else if (req.uri.indexOf('/admin/site-content/') === 0) {
-      const authResp = await authenticate(aws, req, adminBucket)
-      if (authResp.authorized) {
-        return siteContent(aws, req, adminBucket)
-      }
-      return authResp
-    }
   }
 
-  // resolve request
+  // Default: resolve request using S3 Origin (adminUi bucket)
   return req
 };
 
@@ -334,52 +335,18 @@ const siteConfig = async (aws, req, adminBucket) => {
 }
 
 /** Handle access to site content. Site content is stored in the admin bucket. */
-const siteContent = async (aws, req, adminBucket, arnPrefix) => {
+const siteContent = async (aws, req, isConfig, adminBucket, adminUiBucket, arnPrefix) => {
   const uriParts = req.uri.split('/')
   uriParts.shift() // /
   uriParts.shift() // admin
   uriParts.shift() // site-content
   const template = uriParts.shift()
   const contentPath = uriParts.join('/')
-  const contentAbsPath = `site-config/${template}/${contentPath}`
+  const destBucket = isConfig ? adminBucket : adminUiBucket
+  const pathRoot = isConfig ? 'site-config' : 'content'
+  const contentAbsPath = `${pathRoot}/${template}/${contentPath}`
   console.log(`${req.method} Template: ${template}. Content path: ${contentPath}`)
-  if (req.method === 'GET') {
-    console.log(`Get S3 content from ${contentAbsPath}`)
-    try {
-      const contentRec = await aws.get(adminBucket, contentAbsPath)
-      if (contentRec) {
-        let encoding = 'base64'
-        let base64 = true
-        if (contentRec.ContentType === 'text/plain'
-          || contentRec.ContentType === 'application/json'
-        ) {
-          encoding = 'utf8'
-          base64 = false
-        }
-        return {
-          status: '200',
-          statusDescription: 'OK',
-          headers: {
-            'Content-Type': [{ key: 'Content-Type', value: contentRec.ContentType }]
-          },
-          body: contentRec.Body.toString(encoding),
-          isBase64Encoded: base64
-        }
-      } else {
-        console.error(`Found empty content for ${contentAbsPath}`)
-        return {
-          status: '404',
-          statusDescription: 'Not found',
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to get content for ${contentAbsPath}`, error)
-      return {
-        status: '404',
-        statusDescription: 'Not Found',
-      }
-    }
-  } else if (req.method === 'POST' || req.method === 'PUT') {
+  if (req.method === 'POST' || req.method === 'PUT') {
     try {
       if (req.body && req.body.data) {
         const reqContentType = req.headers['content-type'][0].value
@@ -400,12 +367,13 @@ const siteContent = async (aws, req, adminBucket, arnPrefix) => {
             ret = invokeAdminWorker('completeUpload', arnPrefix + '-admin-worker', {
               basePath: contentAbsPath,
               partCount: totalParts,
-              contentType: reqContentType
+              contentType: reqContentType,
+              isConfig: isConfig
             })
           }
         } else {
           // If there's only one part, total, we can just put it directly
-          await aws.put(adminBucket, contentAbsPath, reqContentType, contentBuff)
+          await aws.put(destBucket, contentAbsPath, reqContentType, contentBuff, 0, 0)
         }
         return ret
       } else {

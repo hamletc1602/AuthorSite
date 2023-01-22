@@ -118,16 +118,24 @@ AwsUtils.prototype.get = async function(bucket, key) {
   return this.s3.getObject({ Bucket: bucket, Key: key }).promise()
 }
 
-AwsUtils.prototype.put = async function(bucket, key, type, content) {
+AwsUtils.prototype.put = async function(bucket, key, type, content, maxAgeBrowser, maxAgeCloudFront) {
   if ( ! content) {
     console.log(`Put to S3 ${bucket}:${key} with empty content. Problem?`)
+  }
+  const ageCloudFront = maxAgeCloudFront !== undefined ? maxAgeCloudFront : this.maxAgeCloudFront
+  let cacheControl = null
+  if (maxAgeBrowser === 0) {
+    cacheControl = `no-cache,s-maxage=${ageCloudFront}`
+  } else {
+    const ageBrowser = maxAgeBrowser !== undefined ? maxAgeBrowser : this.maxAgeBrowser
+    cacheControl = `max-age=${ageBrowser},s-maxage=${ageCloudFront}`
   }
   return this.s3.putObject({
     Bucket: bucket,
     Key: key,
     Body: content,
     ContentType: type,
-    CacheControl: `max-age=${this.maxAgeBrowser},s-maxage=${this.maxAgeCloudFront}`
+    CacheControl: cacheControl
   }).promise()
 }
 

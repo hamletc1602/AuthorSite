@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   VStack, Flex, StackDivider, Box, IconButton
 } from '@chakra-ui/react'
-import { DeleteIcon, AddIcon } from '@chakra-ui/icons'
+import { DeleteIcon, CloseIcon, AddIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import EditorProperties from './EditorProperties';
 import EditorText from './EditorText';
@@ -15,6 +15,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   const hasList = schema.type === 'list'
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
   const content = Util.getContentForPath(configs, path)
+  const [inDelete, setInDelete] = useState(false)
 
   // This setPath call was triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)."
   // warning. Wrapping it in useEffect appears to resolve that warning, but I'm not sure I fully understand why, so this could
@@ -81,11 +82,21 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
     itemSelected(null, newIndex)
   }
 
-  // Delete an item from a list
+  // Indicate desire to delete an item from a list
+  const cancelDeleteItem = (ev) => {
+    setInDelete(false)
+  }
+
+  // Really Delete an item from a list
   const deleteItem = (ev) => {
-    rootContent.splice(pathIndex, 1)
-    pushContent(editor.data, configs.current, editor.id)
-    itemSelected(null, pathIndex > 0 ? pathIndex - 1 : 0)
+    if (inDelete) {
+      rootContent.splice(pathIndex, 1)
+      pushContent(editor.data, configs.current, editor.id)
+      itemSelected(null, pathIndex > 0 ? pathIndex - 1 : 0)
+      setInDelete(false)
+    } else {
+      setInDelete(true)
+    }
   }
 
   // Update this data value in the config. Push the config data to the server if the value has
@@ -124,7 +135,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   >
     <Flex
       align='flex-start'
-      color='brand.editorText'
+      color='editorText'
       bg='blue.100'
       w={(hierarchyPath.length * 1.3) + 'em'}
     >
@@ -138,7 +149,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         //left={((hierarchyPath.length * 1.3) + ((4 - hierarchyStackHeight))) + 'em'}
         top={4 + 'em'}
         left={-4 + 'em'}
-        divider={<StackDivider borderColor='brand.editorDivider' />}
+        divider={<StackDivider borderColor='editorDivider' />}
       >
         {hierarchyPath.map((elem, index) => {
           let name = elem.name
@@ -157,7 +168,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         })}
       </VStack>
     </Flex>
-    <Flex color='brand.editorText' bg='brand.editorBgHack' w={(hasList ? 10 : 0) + 'em'}>
+    <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'}>
       {hasList ? <VStack
         spacing={0}
       >
@@ -166,7 +177,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
             key={'listNew_' + editor.id}
             width='10em'
             padding='3px'
-            bg='blue.200' // 'brand.listNew'
+            bg='listNew'
             cursor='pointer'
             onClick={ev => newItem(ev)}
           >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + (editor.addTitle || editor.title)]}</Box>
@@ -176,7 +187,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
             return <Box
               key={'list' + index + '_' + editor.id}
               size='sm'
-              bg={index === pathIndex ? 'gray.200' : 'white'} // 'brand.listSelected' : 'brand.editorBgHack'}
+              bg={index === pathIndex ? 'listSelected' : 'editorBg'}
               width='10em'
               padding='3px'
               cursor='pointer'
@@ -190,8 +201,8 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       flex='1'
       minH='10em'
       padding='0.3em'
-      color='brand.editorText'
-      bg='brand.editorBgHack'
+      color='editorText'
+      bg='editorBg'
     >
       <SubEditor
         key={editor.id}
@@ -203,8 +214,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         editItem={editItem}
       ></SubEditor>
     </Flex>
-    <Flex key='ops' color='brand.editorText' bg='brand.editorBgHack'>
-      {hasList ? <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/> : null}
+    <Flex key='ops' color='editorText' bg='editorBg'>
+      {hasList ?
+        inDelete ?
+          <VStack>
+            <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
+            <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
+          </VStack>
+        :
+          <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/>
+      : null}
     </Flex>
   </Flex>
 }

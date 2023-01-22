@@ -12,53 +12,32 @@ import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
   ExternalLinkIcon, InfoOutlineIcon
 } from '@chakra-ui/icons'
-//import { mode } from '@chakra-ui/theme-tools'
+import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller';
 import Editor from './Editor'
 import deepEqual from 'deep-equal'
 
 // Theme
-// Will likely need a full style config, like here: https://chakra-ui.com/docs/components/tabs/theming
+const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
 const customTheme = extendTheme({
-  initialColorMode: 'light',
+  initialColorMode: props.colorMode,
   useSystemColorMode: true,
-  colors: {
-    brand: {
-      base: {
-        default: 'grey.300',
-        _dark: 'grey.700'
-      },
-      baseText: {
-        default: 'black',
-        _dark: 'white'
-      },
-      disabledBaseText: {
-        default: 'gray.600',
-        _dark: 'gray.800'
-      },
-      accent: 'blue',
-      accentText: 'white',
-      accentActiveText: 'orange',
-      editor: {
-        default: 'white',
-        _dark: 'black'
-      },
-      editorText: {
-        default: 'black',
-        _dark: 'white'
-      },
-      editorBgHack: 'white',
-      editorDivider: {
-        default: 'gray.300',
-        _dark: 'gray.600'
-      },
-      listSelected: 'gray.200',
-      listNew: 'blue.100'
-    }
-  },
   semanticTokens: {
     colors: {
-    },
+      base: mode('gray.300', 'gray.700')(props),
+      baseText: mode('black', 'white')(props),
+      disabledBaseText: mode('gray.600', 'gray.800')(props),
+      accent: mode('blue', 'blue')(props),
+      accentText: mode('white', 'white')(props),
+      accentActiveText: mode('orange', 'orange')(props),
+      editor: mode('white', 'black')(props),
+      editorText: mode('black', 'white')(props),
+      editorBg: mode('white', 'black')(props),
+      editorDivider: mode('gray.300','gray.600')(props),
+      listSelected: mode('gray.200', 'gray.200')(props),
+      listNew: mode('blue.100', 'blue.100')(props),
+      danger: mode('red', 'red')(props)
+    }
   },
 })
 
@@ -153,8 +132,6 @@ function App() {
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id) => {
-    source = source || fileContent.current
-    id = id || path
     contentToPut.current[path] = {
       source: source,
       id: id,
@@ -234,6 +211,7 @@ function App() {
     if ( ! configs.current[configId]) {
       const raw = await controller.getSiteConfig(adminConfig.templateId, configId)
       raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
+      raw.content.isConfig = true // Add config flag, for use later in uploading.
       configs.current[configId] = raw.content
     }
     setPath(editor.lastEditPath)
@@ -245,7 +223,7 @@ function App() {
     if (adminLog.length > 0) {
       return <Text size='xs' whiteSpace='nowrap' noOfLines={1}>{adminDisplay.stepMsg}: {adminLog[0].msg}</Text>
     } else {
-      return <Text size='xs' whiteSpace='nowrap' noOfLines={1} color='brand.disabledBaseText'>No log messages yet...</Text>
+      return <Text size='xs' whiteSpace='nowrap' noOfLines={1} color='disabledBaseText'>No log messages yet...</Text>
     }
   }
 
@@ -353,9 +331,11 @@ function App() {
         controller.getSiteContent(adminConfig.templateId, contentToGet.path)
         .then(contentRec => {
           setContentToGet(null)
-          toGet.content = contentRec.content
-          toGet.contentType = contentRec.contentType
-          toGet.state = 'complete'
+          if (contentRec) {
+            toGet.content = contentRec.content
+            toGet.contentType = contentRec.contentType
+            toGet.state = 'complete'
+          }
         })
         .catch(error => {
           setContentToGet(null)
@@ -380,26 +360,26 @@ function App() {
         templateRows={'2em 2em 1.5em 1fr 1em'}
         templateColumns={'17em 13em 1fr'}
       >
-        <GridItem colSpan={3} color='brand.base' bg='brand.accent'>
+        <GridItem colSpan={3} color='base' bg='accent'>
           <Flex>
-            <InfoIcon color='brand.accentText' m='5px'/>
-            <Text color='brand.accentText' m='2px'>Site Admin</Text>
+            <InfoIcon color='accentText' m='5px'/>
+            <Text color='accentText' m='2px'>Site Admin</Text>
             <Spacer/>
             {authStates[authState].icon}
             <InputGroup w='10em' size='xs' m='2px'>
               <Input
                 type={showPwd ? 'text' : 'password'}
-                color='brand.accentText'
+                color='accentText'
                 placeholder='Password...'
                 onChangeCapture={passwordChanging}
               />
-              <InputRightElement color='brand.accentText' onClick={viewPwdClick}>
+              <InputRightElement color='accentText' onClick={viewPwdClick}>
                 {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
               </InputRightElement>
             </InputGroup>
           </Flex>
         </GridItem>
-        <GridItem bg='brand.base'>
+        <GridItem bg='base'>
           <Flex>
             <Select
               variant='flushed' size='sm' w='10em' m='3px'
@@ -415,7 +395,7 @@ function App() {
             <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled}>{editorsEnabled ? 'Re-Init' : 'Init'}</Button>
           </Flex>
         </GridItem>
-        <GridItem bg='brand.base'>
+        <GridItem bg='base'>
           <Flex>
             <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>
               {generateDebug ? 'Generate Debug' : 'Generate'}
@@ -423,7 +403,7 @@ function App() {
             <Link href={`https://${testSiteHost}/`} size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
-        <GridItem bg='brand.base'>
+        <GridItem bg='base'>
           <Flex>
             <Button size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled}>Publish</Button>
             <Link href={`https://${siteHost}/`} size='sm' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
@@ -434,16 +414,16 @@ function App() {
         </GridItem>
         <GridItem
           colSpan={3}
-          bg='brand.accent'
+          bg='accent'
         >
           <Skeleton isLoaded={editorsEnabled}>
             <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList>
                 {editors.current.map((editor) => (
-                  <Tab color='white' key={editor.id} disabled={!uiEnabled}>{editor.title}</Tab>
+                  <Tab color='accentText' key={editor.id} disabled={!uiEnabled}>{editor.title}</Tab>
                 ))}
               </TabList>
-              <TabPanels bg='brand.base'>
+              <TabPanels bg='base'>
                 {editors.current.map((editor) => (
                   <TabPanel p='0' key={'Tab_' + editor.id}>
                     <Skeleton isLoaded={configs.current[editor.id]}>
@@ -455,10 +435,10 @@ function App() {
             </Tabs>
           </Skeleton>
         </GridItem>
-        <GridItem h='1.55em' colSpan={3} bg='brand.accent'>
+        <GridItem h='1.55em' colSpan={3} bg='accent'>
           <Flex>
-              <Text fontSize='xs' m='2px 5px' color='brand.accentText'>Copyright BraeVitae 2022</Text>
-              <InfoOutlineIcon m='3px' color={generateDebug ? 'brand.accentActiveText' : 'brand.accentText'} onClick={generateDebugClick}/>
+              <Text fontSize='xs' m='2px 5px' color='accentText'>Copyright BraeVitae 2022</Text>
+              <InfoOutlineIcon m='3px' color={generateDebug ? 'accentActiveText' : 'accentText'} onClick={generateDebugClick}/>
           </Flex>
         </GridItem>
       </Grid>
@@ -535,12 +515,21 @@ function usePutContentWorker(controller, adminConfig, contentToPut) {
             toPut.state = 'working'
             const sourceRec = toPut.source[toPut.id]
             if (sourceRec) {
-              await controller.putSiteContent(
-                adminConfig.templateId,
-                toPutId,
-                toPut.contentType || sourceRec.contentType,
-                sourceRec.content
-              )
+              if (sourceRec.isConfig) {
+                await controller.putSiteConfig(
+                  adminConfig.templateId,
+                  toPutId,
+                  toPut.contentType || sourceRec.contentType,
+                  sourceRec.content
+                )
+              } else {
+                await controller.putSiteContent(
+                  adminConfig.templateId,
+                  toPutId,
+                  toPut.contentType || sourceRec.contentType,
+                  sourceRec.content
+                )
+              }
               toPut.state = 'done'
             }
           }
