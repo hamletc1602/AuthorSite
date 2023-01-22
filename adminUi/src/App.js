@@ -122,8 +122,10 @@ function App() {
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
+  const isCurrTemplate = adminConfig.templateId === adminConfig.preparedTemplateId
 
   // Global Refs
+  const adminLogRaw = useRef({})
   const editors = useRef([])
   const configs = useRef({})
   const prevEditorIndex = useRef(null)
@@ -155,17 +157,13 @@ function App() {
     controller.sendCommand('config', { templateId: templateId })
     const newConfig = Object.assign({}, adminConfig)
     newConfig.templateId = templateId
+    setEditorsEnabled(false)
+    editors.current = []
     setAdminConfig(newConfig)
-    // On template change, destroy and re-buld the editor panels to the state of the new template
-    // Or - Keep duplicate (hidden) edit panels around?
-    // Switching templates back and forth is unlikely to be a common action for prod sites (Since
-    // you'd need to re-buld the site each time to see the results.)
   }
   const onPrepare = () => {
     controller.sendCommand('template', { id: adminConfig.templateId })
     startFastPolling()
-    // TODO: When prepare is run for a different template than the current one, need to clear all existing
-    // editor components and re-build them with the config layout (and data) of the new template.
   }
   const onGenerate = () => {
     controller.sendCommand('build', { id: adminConfig.templateId, debug: generateDebug })
@@ -257,7 +255,11 @@ function App() {
     if ( ! adminLive) {
       setAdminConfig(adminState.config)
       setAdminDisplay(adminState.display)
-      setAdminLog(adminState.latest)
+      if (adminState.logs && adminState.logs.length > 0) {
+        adminLogRaw.current = [...adminState.logs]
+        const logs = adminState.logs.sort((a, b) => b.time - a.time)
+        setAdminLog(logs)
+      }
       setAdminTemplates(adminState.templates)
       setAdminLive(true)
     } else {
@@ -267,8 +269,10 @@ function App() {
       if ( ! deepEqual(adminState.display, adminDisplay)) {
         setAdminDisplay(adminState.display)
       }
-      if ( ! deepEqual(adminState.latest, adminLog)) {
-        setAdminLog(adminState.latest)
+      if ( ! deepEqual(adminState.logs, adminLogRaw.current)) {
+        adminLogRaw.current = [...adminState.logs]
+        const logs = adminState.logs.sort((a, b) => b.time - a.time)
+        setAdminLog(logs)
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -383,7 +387,7 @@ function App() {
           <Flex>
             <Select
               variant='flushed' size='sm' w='10em' m='3px'
-              placeholder='Select a template...'
+              placeholder={ adminConfig.templateId ? null : 'Select a template...'}
               value={adminConfig.templateId}
               onChange={onTemplateIdChange}
               disabled={!uiEnabled}
@@ -392,7 +396,9 @@ function App() {
                 return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
               })}
             </Select>
-            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled}>{editorsEnabled ? 'Re-Init' : 'Init'}</Button>
+            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled} color={isCurrTemplate ? 'danger' : 'baseText'}>
+              {isCurrTemplate ? 'Re-Init' : 'Init'}
+            </Button>
           </Flex>
         </GridItem>
         <GridItem bg='base'>

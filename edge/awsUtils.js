@@ -331,27 +331,13 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
   try {
     // Read current state of the admin.json (unless cached in global var already)
     if ( ! state) {
-      console.log('Get state from bucket')
+      //console.log('Get state from bucket')
       const resp = await this.s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
       const stateStr = resp.Body.toString()
       state = JSON.parse(stateStr)
     }
 
-    console.log(`Clean up any old (>24 hours) log messages.`)
-    console.log(`State: ${JSON.stringify(state)}`)
-    if (state.logs) {
-      const currMs = Date.now()
-      const msgCount = state.logs.length
-      state.logs = state.logs.filter(msg => {
-        return (currMs - msg.time) < logMsgTimeoutMS
-      })
-      const cleaned = msgCount - state.logs.length
-      if (cleaned > 0) {
-        console.log(`Cleaned ${cleaned} messages from log.`)
-      }
-    }
-
-    console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
+    //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
     const sqsResp = await this.sqs.receiveMessage({
       QueueUrl: this.stateQueueUrl,
       AttributeNames: ['ApproximateNumberOfMessages'],
@@ -374,13 +360,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
         }
       })
 
-      // Move the current top 3 messages to the 'latest' logs section (Sort desc. by timestamp each time to ensure we get the latest 3)
-      let allLogs = [...state.latest, ...state.logs]
-      allLogs = allLogs.sort((a, b) => b.time - a.time)
-      state.latest =allLogs.slice(0, 3)
-      state.logs = allLogs.slice(3)
-
-      console.log(`Save the state (admin.json)`)
+      //console.log(`Save the state (admin.json)`)
       await this.s3.putObject({
         Bucket: adminUiBucket,
         Key: 'admin/admin.json',
@@ -389,7 +369,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
         ContentType: 'application/json',
       }).promise()
 
-      console.log(`Delete ${sqsResp.Messages.length} merged messages`)
+      //console.log(`Delete ${sqsResp.Messages.length} merged messages`)
       const msgsForDelete = sqsResp.Messages.map(msg => {
         return {
           Id: msg.MessageId,
@@ -437,9 +417,13 @@ const _mergeState = (state, message) => {
     })
   }
   // Config properties
-  Object.assign(state.config, message.config)
+  if (message.config) {
+    Object.assign(state.config, message.config)
+  }
   // Display properties
-  Object.assign(state.display, message.display)
+  if (message.display) {
+    Object.assign(state.display, message.display)
+  }
 }
 
 /** Check the contents of the lock file against the given lockId. Return locked or unlocked state, and

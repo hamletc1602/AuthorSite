@@ -45,6 +45,32 @@ exports.handler = async (event, _context) => {
   }
 }
 
+/** Clean old log messages */
+const cleanOldLogs = async () => {
+
+ // Schedule a call of to this func once a day to trim old messages from the state.
+
+ // Should be very unlikely to conflict with a state update in progress, but, will check
+ // to see if a client is polling (check PW black last poll??)  and skip the clean if theres
+ // an active client??
+
+    //console.log(`Clean up any old (>24 hours) log messages.`)
+    //console.log(`State: ${JSON.stringify(state)}`)
+    // if (state.logs) {
+    //   const currMs = Date.now()
+    //   const msgCount = state.logs.length
+    //   state.logs = state.logs.filter(msg => {
+    //     return (currMs - msg.time) < logMsgTimeoutMS
+    //   })
+    //   const cleaned = msgCount - state.logs.length
+    //   if (cleaned > 0) {
+    //     console.log(`Cleaned ${cleaned} messages from log.`)
+    //   }
+    // }
+
+}
+
+
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
   const counts = {
@@ -85,7 +111,7 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     //
     console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
     await aws.displayUpdate({
-        preparing: true, stepMsg: `Prepare site with ${templateName} template.`
+        preparing: true, stepMsg: `Prepare`
       }, 'prepare', `Starting prepare with ${templateName} template.`)
     // Copy all the site template files to the local bucket
     const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
@@ -141,6 +167,8 @@ async function applyTemplate(publicBucket, adminBucket, params) {
   } finally {
     if (success) {
       await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
+      // Update prepared template ID in config state (This should trigger the UI to refresh if the prepared template is different)
+      await aws.adminStateUpdate({ config: { preparedTemplateId: templateName, preparedTemplates: [templateName] } })
     } else {
       await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template.`)
     }
