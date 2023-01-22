@@ -94,7 +94,7 @@ it('Condense path', () => {
   expect(Util.condensePath(prop3_1_path)).toEqual([
     {name:'config1',origIndex:0},
     {name:'prop1',origIndex:1},
-    {indexName: 'name3_1', name:'prop3',origIndex:2}
+    {indexName: 'name3_1', name:'prop3',origIndex:3}
   ])
   expect(Util.condensePath(prop1_path)).toEqual([
     {name:'config1',origIndex:0},
@@ -107,7 +107,7 @@ it('Condense path', () => {
     {name:'prop3'}
   ])).toEqual([
     {name:'config1',origIndex:0},
-    {indexName:'name1_6',name:'prop1',origIndex:1},
+    {indexName:'name1_6',name:'prop1',origIndex:2},
     {name:'prop3',origIndex:3}
   ])
    // Not really a valid case, but does not crash

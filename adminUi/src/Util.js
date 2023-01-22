@@ -193,7 +193,7 @@ export default class Util {
           newPath.push({
             indexName: prevIndexElem.name,
             name: elem.name,
-            origIndex: index - 1
+            origIndex: index
           })
         } else {
           newPath.push({

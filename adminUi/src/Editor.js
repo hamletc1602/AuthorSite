@@ -145,8 +145,6 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         align='left'
         position='relative'
         minW={hierarchyStackHeight + 'em'}
-        //top={(4) + 'em'}
-        //left={((hierarchyPath.length * 1.3) + ((4 - hierarchyStackHeight))) + 'em'}
         top={4 + 'em'}
         left={-4 + 'em'}
         divider={<StackDivider borderColor='editorDivider' />}
