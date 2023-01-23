@@ -32,7 +32,7 @@ exports.handler = async (event, _context) => {
   // Handle action requests
   switch (event.command) {
     case 'template':
-      return applyTemplate(publicBucket, adminBucket, event.body)
+      return applyTemplate(publicBucket, adminBucket, adminUiBucket, event.body)
     case 'publish':
       return deploySite(testSiteBucket, siteBucket, event.body)
     case 'completeUpload':
@@ -44,32 +44,6 @@ exports.handler = async (event, _context) => {
       }
   }
 }
-
-/** Clean old log messages */
-const cleanOldLogs = async () => {
-
- // Schedule a call of to this func once a day to trim old messages from the state.
-
- // Should be very unlikely to conflict with a state update in progress, but, will check
- // to see if a client is polling (check PW black last poll??)  and skip the clean if theres
- // an active client??
-
-    //console.log(`Clean up any old (>24 hours) log messages.`)
-    //console.log(`State: ${JSON.stringify(state)}`)
-    // if (state.logs) {
-    //   const currMs = Date.now()
-    //   const msgCount = state.logs.length
-    //   state.logs = state.logs.filter(msg => {
-    //     return (currMs - msg.time) < logMsgTimeoutMS
-    //   })
-    //   const cleaned = msgCount - state.logs.length
-    //   if (cleaned > 0) {
-    //     console.log(`Cleaned ${cleaned} messages from log.`)
-    //   }
-    // }
-
-}
-
 
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
@@ -104,24 +78,64 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
-async function applyTemplate(publicBucket, adminBucket, params) {
+async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
   let success = true
   const templateName = params.id
   try {
     //
-    console.log(`Copy default site template '${templateName}' from ${publicBucket} to ${adminBucket}`)
     await aws.displayUpdate({
-        preparing: true, stepMsg: `Prepare`
+        preparing: true, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
-    // Copy all the site template files to the local bucket
-    const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite/site-config/${templateName}.zip` });
+
+    // Check if this template is a public or private template
+    let isPublicTemplate = false
+    const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
+    if (adminConfigBuff) {
+      const adminConfig = JSON.parse(adminConfigBuff.toString())
+      const templateProps = adminConfig.templates.find(p => p.name === templateName)
+      if (templateProps) {
+        isPublicTemplate = templateProps.access === 'public'
+      }
+    }
+    const sourceBucket = isPublicTemplate ? publicBucket : adminBucket
+
+    // Copy all the site template files to the local buckets
+    console.log(`Copy ${isPublicTemplate ? 'public' : 'private'} site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
+    const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: sourceBucket, Key: `AutoSite/site-config/${templateName}.zip` });
     await Promise.all(siteConfigDir.files.map(async file => {
       console.log(`Copying ${file.path}`)
-      await aws.getS3().putObject({
-        Bucket: adminBucket,
-        Key: `site-config/${templateName}/${file.path}`,
-        Body: await file.buffer()
-      }).promise()
+      const pathParts = file.path.split('/')
+      if (pathParts.length > 0) {
+        const pathRoot = pathParts.shift()
+        const filePath = pathParts.join('/')
+        switch (pathRoot) {
+          case 'config':
+            await aws.getS3().putObject({
+              Bucket: adminBucket,
+              Key: `site-config/${templateName}/${filePath}`,
+              Body: await file.buffer()
+            }).promise()
+            break
+          case 'content':
+            await aws.getS3().putObject({
+              Bucket: adminUiBucket,
+              Key: `content/${templateName}/${filePath}`,
+              Body: await file.buffer()
+            }).promise()
+            break
+          case 'cache':
+            await aws.getS3().putObject({
+              Bucket: adminBucket,
+              Key: `cache/${templateName}/${filePath}`,
+              Body: await file.buffer()
+            }).promise()
+            break
+          default:
+            console.log(`Unknown path root '${pathRoot}' in template ${templateName}`)
+        }
+      } else {
+        console.log(`skipping top level file in template: ${file.path}`)
+      }
     }))
     // Get the editors config file
     console.log('Convert YAML configuration files to JSON.')
@@ -163,7 +177,9 @@ async function applyTemplate(publicBucket, adminBucket, params) {
       await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
     }
   } catch (error) {
-    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${JSON.stringify(error)}.`)
+    console.log(`Failed prepare with ${templateName} template.`, error)
+    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${error.message}.`)
+    success = false
   } finally {
     if (success) {
       await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)

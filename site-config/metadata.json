@@ -1,9 +1,11 @@
 [{
     "id": "author",
     "name": "Author",
-    "description": "Site for writers to showcase books."
+    "description": "Site for writers to showcase books.",
+    "access": "public"
 },{
     "id": "artist",
     "name": "Artist",
-    "description": "Site for visual artists to showcase paintings and other art."
+    "description": "Site for visual artists to showcase paintings and other art.",
+    "access": "public"
 }]

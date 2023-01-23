@@ -53,6 +53,9 @@ Parameters:
     Type: String
     Default: 'braevitae-pub:AutoSite/lambdas/authorsite.zip'
     Description: The site generator app to use for this site, from the list of publshed generators.
+  PrivateTemplates:
+    Type: String
+    Description: (OPTIONAL) A comma-separated list of names of private templates that will be uploaded to the adminUi bucket after site creation.
 
 Resources:
   WebData:
@@ -821,6 +824,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
       SiteGenerator: !Ref SiteGenerator
+      PrivateTemplates: !Ref PrivateTemplates
       PublicBucket: 'braevitae-pub'
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData

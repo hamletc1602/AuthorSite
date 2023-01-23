@@ -327,7 +327,8 @@ AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
     This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
     calls this must also call for /admin/lock to check if there's any other active admin UI running.
 */
-AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBucket) {
+AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBucket, opts) {
+  opts = opts || {}
   try {
     // Read current state of the admin.json (unless cached in global var already)
     if ( ! state) {
@@ -359,6 +360,22 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
           console.log('Failed to merge message. Error: ' + JSON.stringify(error))
         }
       })
+
+      if (opts.deleteOldLogs) {
+        console.log(`Clean up any old (>24 hours) log messages.`)
+        console.log(`State: ${JSON.stringify(state)}`)
+        if (state.logs) {
+          const currMs = Date.now()
+          const msgCount = state.logs.length
+          state.logs = state.logs.filter(msg => {
+            return (currMs - msg.time) < logMsgTimeoutMS
+          })
+          const cleaned = msgCount - state.logs.length
+          if (cleaned > 0) {
+            console.log(`Cleaned ${cleaned} messages from log.`)
+          }
+        }
+      }
 
       //console.log(`Save the state (admin.json)`)
       await this.s3.putObject({

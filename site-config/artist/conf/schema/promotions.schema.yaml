@@ -1,0 +1,14 @@
+type: list
+elemType: object
+properties:
+  name:
+    type: string
+    key: true
+  promoUrl:
+    type: url
+  image:
+    type: image
+  imageHeight:
+    type: number
+  imageWidth:
+    type: number

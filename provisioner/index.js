@@ -27,13 +27,24 @@ const cfnCreateHandler = async (params) => {
     }).promise()
 
     // Get the site templates metadata:
-    let templates = [{ name: 'author', display: 'Author' }, { name: 'artist', display: 'Artist' }]
+    let templates = null
     const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
       if (templatesStr) {
         templates = JSON.parse(templatesStr)
       }
+    }
+    if (params.PrivateTemplates) {
+      const list = params.PrivateTemplates.split(',')
+      list.forEach(name => {
+        templates.push({
+          name: name,
+          display: name,
+          description: 'A private, user provided template.',
+          access: 'private'
+        })
+      })
     }
 
     // Generate default admin data in Admin UI bucket.
