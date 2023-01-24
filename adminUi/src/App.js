@@ -107,7 +107,7 @@ const authStates = {
 //
 function App() {
   // State
-  const [generateDebug, setGenerateDebug] = useState(false)
+  const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({})
   const [adminDisplay, setAdminDisplay] = useState({})
@@ -122,7 +122,6 @@ function App() {
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
-  const isCurrTemplate = adminConfig.templateId === adminConfig.preparedTemplateId
 
   // Global Refs
   const adminLogRaw = useRef({})
@@ -131,6 +130,7 @@ function App() {
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
   const fileContent = useRef({})
+  const currTemplate = useRef({})
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id) => {
@@ -151,22 +151,23 @@ function App() {
     }
     setShowPwd(!showPwd)
   }
-  const generateDebugClick = () => setGenerateDebug(!generateDebug)
+  const advancedModeClick = () => setAdvancedMode(!advancedMode)
   const onTemplateIdChange = (ev) => {
     const templateId = ev.target.value
-    controller.sendCommand('config', { templateId: templateId })
-    const newConfig = Object.assign({}, adminConfig)
-    newConfig.templateId = templateId
-    setEditorsEnabled(false)
-    editors.current = []
-    setAdminConfig(newConfig)
-  }
-  const onPrepare = () => {
-    controller.sendCommand('template', { id: adminConfig.templateId })
-    startFastPolling()
+    if (templateId) {
+      controller.sendCommand('config', { templateId: templateId })
+      const newConfig = Object.assign({}, adminConfig)
+      newConfig.templateId = templateId
+      setEditorsEnabled(false)
+      editors.current = []
+      setAdminConfig(newConfig)
+      controller.sendCommand('template', { id: templateId })
+      currTemplate.current = adminTemplates.find(t => t.id === templateId)
+      startFastPolling()
+    }
   }
   const onGenerate = () => {
-    controller.sendCommand('build', { id: adminConfig.templateId, debug: generateDebug })
+    controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     startFastPolling()
   }
   const onPublish = () => {
@@ -261,6 +262,9 @@ function App() {
         setAdminLog(logs)
       }
       setAdminTemplates(adminState.templates)
+      if (adminState.config.templateId) {
+        currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
+      }
       setAdminLive(true)
     } else {
       if ( ! deepEqual(adminState.config, adminConfig)) {
@@ -362,7 +366,7 @@ function App() {
           "footer footer footer"
         `}
         templateRows={'2em 2em 1.5em 1fr 1em'}
-        templateColumns={'17em 13em 1fr'}
+        templateColumns={'12em 17em 1fr'}
       >
         <GridItem colSpan={3} color='base' bg='accent'>
           <Flex>
@@ -386,26 +390,32 @@ function App() {
         <GridItem bg='base'>
           <Flex>
             <Select
-              variant='flushed' size='sm' w='10em' m='3px'
-              placeholder={ adminConfig.templateId ? null : 'Select a template...'}
+              variant='flushed' size='sm' w='100%' m='3px'
+              placeholder={ adminConfig.templateId !== undefined ? 'Switch template...' : 'Select a template...'}
               value={adminConfig.templateId}
               onChange={onTemplateIdChange}
               disabled={!uiEnabled}
             >
-              {adminTemplates.map(tpl => {
-                return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-              })}
+              {adminTemplates
+                .filter(tpl => {
+                  return tpl.id !== adminConfig.templateId
+                })
+                .map(tpl => {
+                  return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                })
+                .concat(advancedMode ? [
+                  <option key={-1} value={currTemplate.current.id}>{currTemplate.current.name}</option>
+                ] : null)
+                }
             </Select>
-            <Button size='sm' m='3px' onClick={onPrepare} disabled={!uiEnabled} color={isCurrTemplate ? 'danger' : 'baseText'}>
-              {isCurrTemplate ? 'Re-Init' : 'Init'}
-            </Button>
           </Flex>
         </GridItem>
         <GridItem bg='base'>
           <Flex>
-            <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>
-              {generateDebug ? 'Generate Debug' : 'Generate'}
-            </Button>
+            <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Generate</Button>
+            {advancedMode ?
+              <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Debug</Button>
+            : null}
             <Link href={`https://${testSiteHost}/`} size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
@@ -444,7 +454,7 @@ function App() {
         <GridItem h='1.55em' colSpan={3} bg='accent'>
           <Flex>
               <Text fontSize='xs' m='2px 5px' color='accentText'>Copyright BraeVitae 2022</Text>
-              <InfoOutlineIcon m='3px' color={generateDebug ? 'accentActiveText' : 'accentText'} onClick={generateDebugClick}/>
+              <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
           </Flex>
         </GridItem>
       </Grid>
