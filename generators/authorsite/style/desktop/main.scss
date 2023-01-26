@@ -1,9 +1,8 @@
 $offWhite: #EEE;
 
 /** Vibrant Color styles for all the skins */
-<%#style.skins%>
-    <%#if active %>
-    .<%className%> {
+<%#style%>
+    .skin {
 		<%#each palette.bkgnd %>
 			$<%@key%>: <%this%>;
 		<%/each%>
@@ -11,8 +10,7 @@ $offWhite: #EEE;
 			$<%@key%>: <%this%>;
 		<%/each%>
     } /* Theme */
-    <%/if%>
-<%/style.skins%>
+<%/style%>
 
 /* Import the common functions. */
 $host: "<%@config.imagePath%>";
@@ -836,10 +834,8 @@ a.themebtn {
 	a:active {
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
 			<%else%>
@@ -931,8 +927,7 @@ a.themebtn {
 			}
 
 		} /* Theme */
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 }
 
@@ -1155,10 +1150,8 @@ a.themebtn:hover {
 
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
 			<%else%>
@@ -1194,25 +1187,7 @@ a.themebtn:hover {
 			}
 
 		}
-	  <%/if%>
-	<%/style.skins%>
-
-	/** Mist Warden structural fixes ***************************************/
-	.mistwarden {
-		.content
-		{
-			margin-top: 90px;
-			min-height: 30em;
-		}
-
-		.contentNoPanel {
-			margin-top: 90px;
-		}
-
-		.header-menu {
-			min-height: 110px;
-		}
-	}
+	<%/style%>
 }
 
 /*** Large screen ***********************************************************/
@@ -1255,10 +1230,8 @@ a.themebtn:hover {
 		font-size: 4em;
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
 			<%else%>
@@ -1282,8 +1255,7 @@ a.themebtn:hover {
 				width: 300px;
 			}
 		}
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 	.authorsig {
 		img {
@@ -1313,18 +1285,15 @@ a.themebtn:hover {
 		}
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
 			<%else%>
 				@include background-gradients-XL(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
 			<%/if%>
 		}
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 	.authorsig {
 		img {

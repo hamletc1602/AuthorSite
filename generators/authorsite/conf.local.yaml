@@ -1,3 +1,4 @@
-configPath: ../../../site-config
-outputPath: /tmp/site
-tempPath: /tmp
+configPath: ../../site-config/${site}/config
+contentPath: ../../site-config/${site}/content
+cachePath: ../../site-config/${site}/cache
+tempPath: /tmp/${site}

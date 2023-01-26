@@ -1,53 +1,14 @@
 {
-    "defaultSkin": "author",
+    "theme": "dark",
+    "background": "backgrounds/author.jpg",
 
-    "bkgndConfig": {
-        "heightSm": 200,
-        "height": 400,
-        "widthXSm": 320,
-        "widthSm": 480,
-        "widthMd": 768,
-        "widthLg": 1024,
-        "widthXl": 1536,
-        "widthXXl": 2655,
-        "footerHeight": 200
-    },
+    "logoSticker": null,
+
+    "coverPromoBackground": "promotion/near-black.png",
 
     "defaultFont": "SansSerif",
     "featureFont": "SansSerif",
     "newsFont": "SansSerif",
 
-    "headerHeight": {
-        "sm": "30px",
-        "md": "90px",
-        "lg": "100px",
-        "noPanel": {
-            "sm": "30px",
-            "md": "90px",
-            "lg": "100px"
-        }
-    },
-
-    "coverIconHeight": 206,
-    "coverIconWidth": 140,
-    "featureImageHeight": 400,
-    "featureImageWidth": 270,
-    "promoThumbImageHeight": 100,
-    "publishedMarkerWidth": 65,
-    "unpublishedMarkerWidth": 100,
-
-    "fonts": [],
-
-    "webFonts": [],
-
-    "skins": [{
-        "theme": "dark",
-        "displayName": "Author",
-        "shortName": "A",
-        "active": true,
-        "className": "author",
-
-        "logoSticker": null,
-        "coverPromoBackground": "promotion/near-black.png"
-    }]
+    "webFonts": []
 }

@@ -11,48 +11,19 @@ exports.setSkip = (value) => {
     skip = value;
 }
 
-exports.prepare = async (confPath, bkgndConfig, skin) => {
+exports.prepare = async (contentPath, cachePath, bkgndConfig, skin) => {
     if (skip) { return }
-    const sourceImagePath = path.join(confPath, 'backgrounds', skin.imageFileNameRoot) + '.jpg'
+    const sourceImagePath = path.join(contentPath, skin.background)
     const siteImage = await ImageLib.load(sourceImagePath)
 
     // Generate output file name template
-    const outNameTpl = Handlebars.compile(path.join(confPath, 'image', 'headers', skin.imageFileNameRoot) + '{%type%}{%size%}.png')
+    const outNameTpl = Handlebars.compile(path.join(cachePath, 'headers', skin.imageFileNameRoot) + '{%type%}{%size%}.png')
 
     // Split the site image into header and footer parts and save them as separate files.
     await prepareSm(bkgndConfig, outNameTpl, siteImage)
     await prepareMd(bkgndConfig, outNameTpl, siteImage)
     await prepareLg(bkgndConfig, outNameTpl, siteImage)
     await prepareXl(bkgndConfig, outNameTpl, siteImage)
-}
-
-exports.combineHeaderFooter = async (confPath, bkgndConfig, skin) => {
-    if (skip) { return }
-    const sourceImageRoot = path.join(confPath, 'backgrounds', skin.imageFileNameRoot)
-    const headerImagePath = sourceImageRoot + 'header.jpg'
-    const footerImagePath = sourceImageRoot + 'footer.jpg'
-    const destImagePath = sourceImageRoot + '.jpg'
-
-    // If the separate header and footer images exist, but the combined image does not, merge the header and footer
-    // into a single image (as imput the the rest of the process)
-    if ( ! Fs.existsSync(destImagePath) && Fs.existsSync(headerImagePath) && Fs.existsSync(footerImagePath)) {
-        let headerImage, footerImage
-
-        try {
-            headerImage = await ImageLib.load(headerImagePath)
-            footerImage = await ImageLib.load(footerImagePath)
-
-            let img = await ImageLib.create(headerImage.width, headerImage.height + footerImage.height)
-
-            ImageLib.blit(img, headerImage, 0, 0, 0, 0, headerImage.width, headerImage.height)
-            ImageLib.blit(img, footerImage, 0, headerImage.height - 1, 0, 0, footerImage.width, footerImage.height)
-
-            await ImageLib.save(img, destImagePath)
-        } catch (err) {
-            console.error(JSON.stringify(err))
-            throw err
-        }
-    }
 }
 
 exports.resizeBookIcon = async (srcImagePath, newImagePath, newHeight) => {
@@ -114,8 +85,10 @@ exports.createPromo = async (srcImagePath, bkgrndImagePath, outImagePath) => {
 }
 
 /** Must be run synchronously since Vibrant lib is not thread-safe. */
-exports.generatePalette = async (confPath, tempDir, config, skin) => {
-    const siteImage = await ImageLib.load(path.join(confPath, 'backgrounds', skin.imageFileNameRoot) + '.jpg')
+exports.generatePalette = async (contentPath, tempDir, config, skin) => {
+    const sourceImagePath = path.join(contentPath, skin.background)
+
+    const siteImage = await ImageLib.load(sourceImagePath)
     const origHeight = siteImage.height
     const origWidth = siteImage.width
 
@@ -125,11 +98,11 @@ exports.generatePalette = async (confPath, tempDir, config, skin) => {
         ImageLib.blit(img, siteImage, 0, 0, 0, 0, origWidth, config.height)
         ImageLib.blit(img, siteImage, 0, config.height, 0, origHeight - config.footerHeight, origWidth, config.footerHeight)
 
-        // Save a temp file, reun Vibrant and delete the temp (since Noode-Vibrant only accepts a file path)
-        sourceImagePath = path.join(tempDir, skin.imageFileNameRoot + '_Palette_Source.png')
+        // Save a temp file, reun Vibrant and delete the temp (since Node-Vibrant only accepts a file path)
+        paletteImagePath = path.join(tempDir, skin.imageFileNameRoot + '_Palette_Source.png')
         await ImageLib.save(img, sourceImagePath)
-        let palette = await Vibrant.from(sourceImagePath).getPalette()
-        Fs.unlinkSync(sourceImagePath)
+        let palette = await Vibrant.from(paletteImagePath).getPalette()
+        Fs.unlinkSync(paletteImagePath)
 
         //
         return palette

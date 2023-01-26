@@ -48,6 +48,23 @@ AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
     await this.saveFiles(bucket, keyPrefix, batchedList, destDir)
 }
 
+/** Put all files from a disk dir to an S3 bucket */
+AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
+  console.log(`Start push of config from ${sourceDir} to ${bucket}:${keyPrefix}`)
+  const sourcePaths = []
+  this.files.readdirSync(sourceDir, {withFileTypes: true}).forEach(file => {
+    if ( ! file.isDirectory()) {
+      sourcePaths.push(file.path.substring(sourceDir.length))
+    }
+  });
+  const batchedList = this.batch(filtered, 32)
+  for (const list of batchedList) {
+    await Promise.all(list.map(file => {
+      return this.put(bucket, keyPrefix + file, null, this.files.readFileSync(sourceDir + file))
+    }))
+  }
+}
+
 /** List metadata for all objects from and S3 bucket */
 AwsUtils.prototype.list = async function(bucket, keyPrefix) {
     let isTruncated = true;

@@ -1,80 +1,80 @@
 [{
     "id": "tyche",
     "name": "Tyche Books",
-    "url": "{%protocol%}tychebooks.com/@BOOKID@",
-    "icon": "{%imagePath%}/dist-icons/tyche32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/tyche32.png",
+    "url": "//tychebooks.com/@BOOKID@",
+    "icon": "dist-icons/tyche32.png",
+    "featureIcon": "dist-icons/tyche32.png",
     "bookIdProp": "tycheId"
 },{
     "id": "amazonPrint",
     "name": "Amazon Print",
     "url": "{%rootPath%}/azn/p/@BOOKID@",
     "popupText": "Buy print book now from Amazon",
-    "icon": "{%imagePath%}/dist-icons/amazonPrint32white.png",
-    "featureIcon": "{%imagePath%}/dist-icons/amazonPrint32white.png",
+    "icon": "dist-icons/amazonPrint32white.png",
+    "featureIcon": "dist-icons/amazonPrint32white.png",
     "bookIdProp": "amazonPrintId"
 },{
     "id": "amazon",
     "name": "Amazon",
     "url": "{%rootPath%}/azn/e/@BOOKID@",
     "popupText": "Buy Ebook now from Amazon",
-    "icon": "{%imagePath%}/dist-icons/amazon32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/amazon32.png",
+    "icon": "dist-icons/amazon32.png",
+    "featureIcon": "dist-icons/amazon32.png",
     "bookIdProp": "amazonId"
 },{
     "id": "createSpace",
     "name": "CreateSpace",
-    "url": "{%protocol%}www.ceatespace.com/@BOOKID@",
+    "url": "//www.ceatespace.com/@BOOKID@",
     "popupText": "Buy now from CreateSpace",
-    "icon": "{%imagePath%}/dist-icons/createspace32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/createspace32.png",
+    "icon": "dist-icons/createspace32.png",
+    "featureIcon": "dist-icons/createspace32.png",
     "bookIdProp": "createspaceId"
 },{
     "id": "barnesNoble",
     "name": "Barnes & Noble",
-    "url": "{%protocol%}www.barnesandnoble.com/w/@BOOKID@",
+    "url": "//www.barnesandnoble.com/w/@BOOKID@",
     "popupText": "Buy now from Barnes & Noble",
-    "icon": "{%imagePath%}/dist-icons/bn32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/bn32.png",
+    "icon": "dist-icons/bn32.png",
+    "featureIcon": "dist-icons/bn32.png",
     "bookIdProp": "barnesNobleId"
 },{
     "id": "appleStore",
     "name": "Apple Store",
-    "url": "{%protocol%}itunes.apple.com/us/book/@BOOKID@",
+    "url": "//itunes.apple.com/us/book/@BOOKID@",
     "popupText": "Buy now from Apple Store",
-    "icon": "{%imagePath%}/dist-icons/itunes32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/itunes32.png",
+    "icon": "dist-icons/itunes32.png",
+    "featureIcon": "dist-icons/itunes32.png",
     "bookIdProp": "appleStoreId"
 },{
     "id": "kobo",
     "name": "Kobo",
-    "url": "{%protocol%}store.kobobooks.com/ebook/@BOOKID@",
+    "url": "//store.kobobooks.com/ebook/@BOOKID@",
     "popupText": "Buy now from Kobo",
-    "icon": "{%imagePath%}/dist-icons/kobo32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/kobo32.png",
+    "icon": "dist-icons/kobo32.png",
+    "featureIcon": "dist-icons/kobo32.png",
     "bookIdProp": "koboId"
 },{
     "id": "smashwords",
     "name": "Smashwords",
-    "url": "{%protocol%}www.smashwords.com/books/view/@BOOKID@",
+    "url": "//www.smashwords.com/books/view/@BOOKID@",
     "popupText": "Buy now from Smashwords",
-    "icon": "{%imagePath%}/dist-icons/smashwords32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/smashwords32.png",
+    "icon": "dist-icons/smashwords32.png",
+    "featureIcon": "dist-icons/smashwords32.png",
     "bookIdProp": "smashwordsId"
 },{
     "id": "goodreads",
     "name": "Goodreads",
-    "url": "{%protocol%}www.goodreads.com/book/show/@BOOKID@",
+    "url": "//www.goodreads.com/book/show/@BOOKID@",
     "popupText": "Buy now at Smashwords",
-    "icon": "{%imagePath%}/dist-icons/goodreads32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/goodreads32.png",
+    "icon": "dist-icons/goodreads32.png",
+    "featureIcon": "dist-icons/goodreads32.png",
     "bookIdProp": "goodreadsId"
 },{
     "id": "lulu",
     "name": "Lulu.com",
-    "url": "{%protocol%}www.lulu.com/ca/en/shop/@BOOKID@.html",
+    "url": "//www.lulu.com/ca/en/shop/@BOOKID@.html",
     "popupText": "Buy now from Lulu.com",
-    "icon": "{%imagePath%}/dist-icons/lulu32.png",
-    "featureIcon": "{%imagePath%}/dist-icons/lulu32.png",
+    "icon": "dist-icons/lulu32.png",
+    "featureIcon": "dist-icons/lulu32.png",
     "bookIdProp": "luluId"
 }]

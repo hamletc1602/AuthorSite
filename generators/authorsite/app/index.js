@@ -100,10 +100,14 @@ const handler = async (event, context) => {
 
     let year = new Date().getFullYear()
     let confDir = appConfig.configPath
+    let contentDir = appConfig.contentPath
+    let cacheDir = appConfig.cachePath
     let tempDir = appConfig.tempPath
     if (configName) {
-      confDir = Path.join(confDir, configName)
-      tempDir = Path.join(tempDir, configName)
+      confDir = confDir.replace('${site}', configName)
+      contentDir = contentDir.replace('${site}', configName)
+      cacheDir = cacheDir.replace('${site}', configName)
+      tempDir = tempDir.replace('${site}', configName)
     }
     Files.ensurePath(confDir)
     Files.ensurePath(tempDir)
@@ -118,17 +122,21 @@ const handler = async (event, context) => {
           sqs: new sdk.SQS(),
           stateQueueUrl: options.stateQueueUrl
         })
-        await displayUpdate(Aws, { building: true }, 'build', `Website build ${options.buildId} started`)
+        await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Build ${options.buildId} started`)
         await Aws.pull(options.adminBucket, `site-config/${configName}/`, confDir)
+        await Aws.pull(options.adminUiBucket, `content/${configName}/`, contentDir)
+        await Aws.pull(options.adminBucket, `cache/${configName}/`, cacheDir)
+        await displayUpdate(Aws, {}, `Merged all source files`)
       } catch (e) {
-        console.error(`Pull of config failed: ${JSON.stringify(e)}`)
+        console.error(`Pull of config failed: ${e.message}`, e)
+        throw new Error(`Pull of config failed: ${e.message}`, e)
       }
     }
 
     // Load conf index, convert to map
-    const confIndex = {}
+    let confIndex = {}
     {
-      const indexList = await Files.loadJson(confDir + '/editors.json')
+      const indexList = await Files.loadYaml(confDir + '/editors.yaml')
       confIndex = indexList.reduce((accum, item) => {
         if (! accum) { accum = {} }
         accum[item.id] = item
@@ -137,11 +145,12 @@ const handler = async (event, context) => {
     }
 
     // Load all core configuration files and merge their keys (Separate files make editing config easier)
-    const structure = await Files.loadJson(confDir + '/' + confIndex.structure)
-    const style = await Files.loadJson(confDir + '/' + confIndex.style)
-    const config = await Files.loadJson(confDir + '/' + confIndex.general, { build: options.buildId, yyyy: year })
+    const structure = await Files.loadConfig(confDir + '/' + confIndex.structure.data)
+    const style = await Files.loadConfig(confDir + '/' + confIndex.style.data)
+    const config = await Files.loadConfig(confDir + '/' + confIndex.general.data, { build: options.buildId, yyyy: year })
     Object.assign(config, structure, style)
     config.tempDir = tempDir;
+    Object.assign(config, config.paths) // Shift paths vars up to root of config where the code expects them.
 
     // Force debug to true in config if it's supplied at runtime
     if (options.debug || configDebug == 'true') {
@@ -150,7 +159,7 @@ const handler = async (event, context) => {
 
     // Resolve file refs for conf after local is applied, but before enccoding and loading
     // other properties files.
-    await resolveFileRefs(confDir, config, config);
+    await resolveFileRefs(contentDir, config, config);
 
     // clean any old files
     cleanDirs(tempDir)
@@ -161,7 +170,7 @@ const handler = async (event, context) => {
       type = type.trim()
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Render website for ${type}`)
-      const data = await preparePageData(confDir, config, tempDir, options);
+      const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating server content`)
       await renderPages(confDir, config, tempDir, data, type, tempDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating client side code`)
@@ -182,6 +191,9 @@ const handler = async (event, context) => {
         }
       }
     }
+
+    // Save current cache content back to S3 (if updated)
+    Aws.push(`${confDir}/cache`, options.adminBucket, `cache/${configName}/`)
 
     // Finish
     let dur = Date.now() - startTs
@@ -240,82 +252,62 @@ const mergeEventToString = (event) => {
 }
 
 /** Prepare data used when rendering page templates */
-const preparePageData = async (confDir, config, tempDir, options) => {
+const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, options) => {
     const data = {
-      styleConfig: await Files.loadJson(confDir + '/' + confIndex.style, config),
-      published: await Files.loadJson(confDir + '/' + confIndex.published, config),
-      authors: await Files.loadJson(confDir + '/' + confIndex.authors, config),
-      series: await Files.loadJson(confDir + '/' + confIndex.series, config),
-      news: await Files.loadJson(confDir + '/' + confIndex.news, config),
-      distributors: await Files.loadJson(confDir + '/' + confIndex.distributors, config)
+      styleConfig: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
+      published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
+      authors: await Files.loadConfig(confDir + '/' + confIndex.authors.data, config),
+      series: await Files.loadConfig(confDir + '/' + confIndex.series.data, config),
+      news: await Files.loadConfig(confDir + '/' + confIndex.news.data, config),
+      distributors: await Files.loadConfig(confDir + '/' + confIndex.distributors.data, config)
     }
     // Series config file is optional
     if ( ! data.series) {
       data.series = []
     }
+    // Added 'skin' config adjustments
+    const skin = data.styleConfig
+    skin.imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
 
     //
-    await resolveFileRefs(confDir, data.styleConfig, config);
-    await resolveFileRefs(confDir, data.published, config);
-    await resolveFileRefs(confDir, data.authors, config);
-    await resolveFileRefs(confDir, data.series, config);
-    await resolveFileRefs(confDir, data.news, config);
-    await resolveFileRefs(confDir, data.distributors, config);
+    await resolveFileRefs(contentDir, data.styleConfig, config);
+    await resolveFileRefs(contentDir, data.published, config);
+    await resolveFileRefs(contentDir, data.authors, config);
+    await resolveFileRefs(contentDir, data.series, config);
+    await resolveFileRefs(contentDir, data.news, config);
+    await resolveFileRefs(contentDir, data.distributors, config);
 
     //
     console.info("Prepare headers and footers from page backgound images")
-    await Promise.all(data.styleConfig.skins.map(async skin => {
-      if ( ! skin.active) {
-        // skip inactive skins
-        return
-      }
 
-      // Use class name for image name root, by defualt.
-      if ( ! skin.imageFileNameRoot) {
-        skin.imageFileNameRoot = skin.className
-      }
-
-      // If there are any missing background images, see if there are separate header/footer images
-      // that can be combined.
-      await Image.combineHeaderFooter(confDir, data.styleConfig.bkgndConfig, skin)
-
-      // Split page background images into sectons for small to XL screens
-      await Image.prepare(confDir, data.styleConfig.bkgndConfig, skin);
-    }))
+    // Split page background images into sectons for small to XL screens
+    await Image.prepare(contentDir, cacheDir, config.bkgndConfig, skin);
 
     //
     console.info("Generate default color palettes for each page background")
     //   Note: must be executed syncronously, since Vibrant library is not thread-safe.
-    let i = 0
-    for (i = 0; i < data.styleConfig.skins.length; i += 1) {
-      let skin = data.styleConfig.skins[i];
-      if ( ! skin.active) {
-        // skip inactive skins
-        continue
-      }
 
-      // Check for a saved palette file
-      let paletteFile = Path.join(confDir, `/${skin.className}-palette.json`)
-      let palette = null
-      try {
-        palette = await Files.loadJson(paletteFile, config)
-      } catch (err) {
-        // ignore
-      }
-
-      if ( ! palette) {
-        // Generate a palette from the header and footer parts of each backgound image.
-        let vibrantPalette = await Image.generatePalette(confDir, tempDir, data.styleConfig.bkgndConfig, skin);
-        palette = Image.extractVibrantPaletteColors(vibrantPalette);
-        await Files.saveFile(paletteFile, JSON.stringify(palette, null, 4))
-      }
-
-      // Store the loaded or generated palette in the skin object.
-      skin.palette = palette
-
-      // Fill in any missing syle colors in the skin from the palette.
-      Image.prepStyleFromPalette(skin, palette)
+    // Check for a saved palette file
+    let paletteFile = Path.join(cacheDir, `/${skin.imageFileNameRoot}-palette.json`)
+    let palette = null
+    try {
+      palette = await Files.loadJson(paletteFile, config)
+    } catch (err) {
+      // ignore
     }
+
+    if ( ! palette) {
+      // Generate a palette from the header and footer parts of each backgound image.
+      let vibrantPalette = await Image.generatePalette(contentDir, tempDir, config.bkgndConfig, skin);
+      palette = Image.extractVibrantPaletteColors(vibrantPalette);
+      await Files.saveFile(paletteFile, JSON.stringify(palette, null, 4))
+    }
+
+    // Store the loaded or generated palette in the skin object.
+    skin.palette = palette
+
+    // Fill in any missing syle colors in the skin from the palette.
+    Image.prepStyleFromPalette(skin, palette)
 
     //
     console.info("Preparing input configuration data for templates.")
@@ -387,7 +379,7 @@ const preparePageData = async (confDir, config, tempDir, options) => {
           }
         }
       })
-      if (list.length == 1) {  // A special case, when there's only one distributor (This avoids adding primaryDistributor to every painting in mum's site.)
+      if (list.length == 1) {  // A special case, when there's only one distributor (This avoids adding primaryDistributor to every artwork in Artist template.)
         pub.primaryDistributor = list[0]
       }
       // Assign all non-hidden distributors to the item
@@ -402,27 +394,27 @@ const preparePageData = async (confDir, config, tempDir, options) => {
         pub.featureCoverImage = Files.createNewPath(pub.coverImage, 'feature')
         const newPath = Path.join(tempDir, 'image', pub.featureCoverImage)
         Files.ensurePath(newPath)
-        pub.featureCoverImageSize = await Image.resizeBookIcon(Path.join(confDir, pub.coverImage), newPath, config.featureImageHeight)
+        pub.featureCoverImageSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.featureImageHeight)
         if (config.unpublishedFeatureStickerImage && ! pub.published) {
-          await Image.applySticker(newPath, Path.join(confDir, config.unpublishedFeatureStickerImage), 'bottom', 'right')
+          await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedFeatureStickerImage), 'bottom', 'right')
         }
       }
       if ( ! pub.coverIcon) {
         pub.coverIcon = Files.createNewPath(pub.coverImage, 'icon')
         const newPath = Path.join(tempDir, 'image', pub.coverIcon)
         Files.ensurePath(newPath)
-        pub.coverIconSize = await Image.resizeBookIcon(Path.join(confDir, pub.coverImage), newPath, config.coverIconHeight)
+        pub.coverIconSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.coverIconHeight)
         if (config.unpublishedStickerImage && ! pub.published) {
-          await Image.applySticker(newPath, Path.join(confDir, config.unpublishedStickerImage), 'bottom', 'right')
+          await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedStickerImage), 'bottom', 'right')
         }
       }
       if ( ! pub.coverPromo) {
         pub.coverPromo = Files.createNewPath(pub.coverImage, 'promo')
         const newPath = Path.join(tempDir, 'image', pub.coverPromo)
         Files.ensurePath(newPath)
-        pub.coverPromoSize = await Image.createPromo(Path.join(tempDir, 'image', pub.featureCoverImage), Path.join(confDir, 'image', config.coverPromoBackground), newPath)
+        pub.coverPromoSize = await Image.createPromo(Path.join(tempDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
         if (config.logoSticker && pub.publisher == 'BraeVitae') {
-          await Image.applySticker(newPath, Path.join(confDir, config.logoSticker), 'top', 'left')
+          await Image.applySticker(newPath, Path.join(contentDir, config.logoSticker), 'top', 'left')
         }
       }
 
@@ -437,6 +429,7 @@ const preparePageData = async (confDir, config, tempDir, options) => {
 
     Object.keys(seriesMap).forEach(seriesName => {
       const s = seriesMap[seriesName]
+      if ( ! s.books) { return }
       s.books.forEach((book, index) => {
         if (index > 0) {
           const prev = s.books[index - 1]
@@ -485,8 +478,8 @@ const preparePageData = async (confDir, config, tempDir, options) => {
     let clientAuthorMap = filterAuthorMap(config, authorMap);
     Files.ensurePath(Path.join(tempDir, 'script-src'))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'authorMap.json'), JSON.stringify(clientAuthorMap, null, 4))
-    await Files.saveFile(Path.join(tempDir, 'script-src', 'skins.json'), JSON.stringify(data.styleConfig.skins, null, 4))
-    await Files.saveFile(Path.join(tempDir, 'script-src', 'breakpoints.json'), JSON.stringify(data.styleConfig.bkgndConfig, null, 4))
+    await Files.saveFile(Path.join(tempDir, 'script-src', 'skin.json'), JSON.stringify(data.styleConfig, null, 4))
+    await Files.saveFile(Path.join(tempDir, 'script-src', 'breakpoints.json'), JSON.stringify(config.bkgndConfig, null, 4))
 
     return data;
 }
@@ -611,7 +604,7 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
           promo.thumbImage = Files.createNewPath(promo.imageUrl.replace('promotion/', 'promo/'), 'thumb')
           const newPath = Path.join(tempDir, 'image', promo.thumbImage)
           Files.ensurePath(newPath)
-          promo.thumbSize = await Image.resizeBookIcon(Path.join(confDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
+          promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
         }
       }));
     }
@@ -664,7 +657,7 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
   content = await Style.render(templateType, 'style/images.scss', {  style: data.styleConfig, books: data.published, groups: [...data.authors, ...data.series] }, tplData)
   Files.savePage(outputDir + `/style/images.css`, content.css)
   let tpl = await Files.loadTemplate(outputDir + `/style`, null, 'grid-min.css')
-  Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: data.styleConfig.bkgndConfig }, tplData))
+  Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: config.bkgndConfig }, tplData))
 }
 
 /** Compile React components and style for this config into an app package */
@@ -824,6 +817,8 @@ const splitTextForSlider = (source, maxVisibleLines) => {
 }
 
 const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
+
+  // TODO: Externalize these lists into config.
   var typePluralMap = {
     book: "books",
     short: "shorts",

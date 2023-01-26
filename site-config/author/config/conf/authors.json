@@ -1,17 +1,17 @@
 [{
     "name": "My Name",
     "socialMediaLinks": [{
-        "name": "Facebook", "url": "{%protocol%}www.facebook.com/pages/..."
-    },{
-        "name": "Twitter", "url": "{%protocol%}twitter.com/..."
-    },{
-        "name": "Amazon", "url": "{%protocol%}amazon.com/author/..."
-    }],
-    "bioPic": "{%imagePath%}/bios/myPhoto.png",
+            "name": "Facebook", "url": "//www.facebook.com/pages/..."
+        },{
+            "name": "Twitter", "url": "//twitter.com/..."
+        },{
+            "name": "Amazon", "url": "//amazon.com/author/..."
+        }],
+    "bioPic": "bios/myPhoto.png",
     "bioPicLink": "",
     "bio": { "file": "bios/myBio.md" }
 },{
     "name": "Other Author Name",
     "external": true,
-    "url": "{%protocol%}..."
+    "url": ""
 }]

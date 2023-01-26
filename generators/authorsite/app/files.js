@@ -17,6 +17,19 @@ exports.copy = (src, dest) => {
   return Fs.copyFile(src, dest)
 }
 
+/** Load and parse a config file, whether JSON or YAML. */
+exports.loadConfig = (filepath, config) => {
+  const ext = Path.extname(filepath).toLowerCase()
+  switch (ext) {
+    case '.json':
+      return this.loadJson(filepath, config)
+    case '.yaml':
+      return this.loadYaml(filepath, config)
+    default:
+      throw new Error(`Configuration files must be JSON or YAML '${ext}' files are not supported.`)
+  }
+}
+
 /** Load and parse a JSON file. Returns null if the file does not exist. */
 exports.loadJson = (filepath, config) => {
   return new Promise((resolve, reject) => {
