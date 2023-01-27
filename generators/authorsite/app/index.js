@@ -55,6 +55,9 @@ const handler = async (event, context) => {
     // Mock function in case we're not running in AWS Lambda
     displayUpdate: function(params, msg) {
       console.log(JSON.stringify(params) + ' ' + msg)
+    },
+    push: function(sourceDir, bucket, keyPrefix) {
+      console.log(`Push ${sourceDir} to S3 ${bucket}/${keyPrefix}*`)
     }
   }
 
@@ -168,18 +171,27 @@ const handler = async (event, context) => {
     //
     for (let type of options.types.split(",")) {
       type = type.trim()
+      const outputDir = Path.join(tempDir, 'site', type)
+      //
+      cleanDirs(tempDir)
+      Files.createOutputDirs([tempDir]);
+      //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Render website for ${type}`)
-      const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, options);
+      const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating server content`)
-      await renderPages(confDir, config, tempDir, data, type, tempDir, options);
+      await renderPages(confDir, config, tempDir, data, type, outputDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating client side code`)
-      await renderReactComponents(config, tempDir, tempDir, options);
+      await renderReactComponents(config, outputDir, tempDir, options);
+      // Copy template and cached content to output dir
+      await mergeToOutput(contentDir, outputDir)
+      await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'headers'))
+      //
       if (context) {
         // Push completed build back to S3 (Test site)
         await displayUpdate(Aws, { building: true }, `Push site content to ${options.testSiteBucket}`)
         try {
-          await Aws.mergeToS3(tempDir, options.testSiteBucket, type, {
+          await Aws.mergeToS3(outputDir, options.testSiteBucket, type, {
             push: event => {
               console.log(mergeEventToString(event))
             }
@@ -193,7 +205,7 @@ const handler = async (event, context) => {
     }
 
     // Save current cache content back to S3 (if updated)
-    Aws.push(`${confDir}/cache`, options.adminBucket, `cache/${configName}/`)
+    Aws.push(cacheDir, options.adminBucket, `cache/${configName}/`)
 
     // Finish
     let dur = Date.now() - startTs
@@ -252,7 +264,7 @@ const mergeEventToString = (event) => {
 }
 
 /** Prepare data used when rendering page templates */
-const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, options) => {
+const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options) => {
     const data = {
       styleConfig: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
       published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
@@ -392,7 +404,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       //console.debug(`Ensure all icon and feature images exist for ${pub.title}, and are the proper size`)
       if ( ! pub.featureCoverImage) {
         pub.featureCoverImage = Files.createNewPath(pub.coverImage, 'feature')
-        const newPath = Path.join(tempDir, 'image', pub.featureCoverImage)
+        const newPath = Path.join(outputDir, 'image', pub.featureCoverImage)
         Files.ensurePath(newPath)
         pub.featureCoverImageSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.featureImageHeight)
         if (config.unpublishedFeatureStickerImage && ! pub.published) {
@@ -401,7 +413,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       }
       if ( ! pub.coverIcon) {
         pub.coverIcon = Files.createNewPath(pub.coverImage, 'icon')
-        const newPath = Path.join(tempDir, 'image', pub.coverIcon)
+        const newPath = Path.join(outputDir, 'image', pub.coverIcon)
         Files.ensurePath(newPath)
         pub.coverIconSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.coverIconHeight)
         if (config.unpublishedStickerImage && ! pub.published) {
@@ -410,9 +422,9 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       }
       if ( ! pub.coverPromo) {
         pub.coverPromo = Files.createNewPath(pub.coverImage, 'promo')
-        const newPath = Path.join(tempDir, 'image', pub.coverPromo)
+        const newPath = Path.join(outputDir, 'image', pub.coverPromo)
         Files.ensurePath(newPath)
-        pub.coverPromoSize = await Image.createPromo(Path.join(tempDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
+        pub.coverPromoSize = await Image.createPromo(Path.join(outputDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
         if (config.logoSticker && pub.publisher == 'BraeVitae') {
           await Image.applySticker(newPath, Path.join(contentDir, config.logoSticker), 'top', 'left')
         }
@@ -597,12 +609,12 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
         if (promo.imageUrl.indexOf('covers/') !== -1) {
           // This is the auto-generated cover promo image
           promo.thumbImage = Files.createNewPath(promo.imageUrl, 'thumb')
-          const newPath = Path.join(tempDir, 'image', promo.thumbImage)
+          const newPath = Path.join(outputDir, 'image', promo.thumbImage)
           Files.ensurePath(newPath)
-          promo.thumbSize = await Image.resizeBookIcon(Path.join(tempDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
+          promo.thumbSize = await Image.resizeBookIcon(Path.join(outputDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
         } else {
           promo.thumbImage = Files.createNewPath(promo.imageUrl.replace('promotion/', 'promo/'), 'thumb')
-          const newPath = Path.join(tempDir, 'image', promo.thumbImage)
+          const newPath = Path.join(outputDir, 'image', promo.thumbImage)
           Files.ensurePath(newPath)
           promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
         }

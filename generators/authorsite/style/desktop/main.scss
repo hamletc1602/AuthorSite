@@ -9,7 +9,7 @@ $offWhite: #EEE;
 		<%#each palette.fgnd %>
 			$<%@key%>: <%this%>;
 		<%/each%>
-    } /* Theme */
+    }
 <%/style%>
 
 /* Import the common functions. */
@@ -173,14 +173,14 @@ html {
 .page-content {
 	.content {
 		min-height: 40em;
-		margin-top: <%style.headerHeight.sm%>;
+		margin-top: <%@config.headerHeight.sm%>;
 
 		padding: 1px 12px;
 		border-radius: 2em;
 	}
 
 	.contentNoPanel {
-		margin-top: <%style.headerHeight.noPanel.sm%>;
+		margin-top: <%@config.headerHeight.noPanel.sm%>;
 	}
 
 	.title-centre h1 {
@@ -205,14 +205,9 @@ html {
 
 	.table {
 		table {
-			tr {
-
-			}
-
 			th {
 				padding: 3px;
 			}
-
 			td {
 				padding: 3px;
 			}
@@ -716,7 +711,6 @@ html {
 	position: relative;
 	top: -15px;
 	width: <%@config.publishedMarkerWidth%>px;
-	//width: $publishedMarkerWidth;
 	margin: 0px auto;
 	border-radius: 8px;
 	padding: 5px;
@@ -981,13 +975,13 @@ a.themebtn:hover {
 
 /*** Small screen ***********************************************************/
 /*
-@media screen and (min-width: <%style.bkgndConfig.widthXSm%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthXSm%>px) {
 
 }
 */
 
 /*** Medium screen ***********************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthSm%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthSm%>px) {
 	/** Common */
 	.pure-md-hide {
 		display: none !important;
@@ -1012,12 +1006,12 @@ a.themebtn:hover {
 
 		.content
 		{
-			margin-top: <%style.headerHeight.md%>;
+			margin-top: <%@config.headerHeight.md%>;
 			min-height: 30em;
 		}
 
 		.contentNoPanel {
-			margin-top: <%style.headerHeight.noPanel.md%>;
+			margin-top: <%@config.headerHeight.noPanel.md%>;
 
 			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
 				max-width: 800px;
@@ -1191,7 +1185,7 @@ a.themebtn:hover {
 }
 
 /*** Large screen ***********************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthMd%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthMd%>px) {
 
 	.pure-lg-hide {
 		display: none !important;
@@ -1213,12 +1207,12 @@ a.themebtn:hover {
 
 	.page-content {
 		.content {
-			margin-top: <%style.headerHeight.lg%>;
+			margin-top: <%@config.headerHeight.lg%>;
 			min-height: 40em;
 		}
 
 		.contentNoPanel {
-			margin-top: <%style.headerHeight.noPanel.lg%>;
+			margin-top: <%@config.headerHeight.noPanel.lg%>;
 
 			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
 				max-width: 1000px;
@@ -1265,7 +1259,7 @@ a.themebtn:hover {
 }
 
 /** Extra Large Screen **************************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthLg%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthLg%>px) {
 	.pure-xl-hide {
 		display: none !important;
 	}
