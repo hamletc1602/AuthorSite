@@ -3,8 +3,8 @@
     "copyrightShort": "&copy; {%yyyy%} My Author Site",
     "copyright": "Copyright &copy; {%yyyy%} My Author Site",
     "license": {
-        "url": "creativecommons.org/licenses/by-nd/2.5/ca/",
-        "imageUrl": "creativecommons.org/images/public/somerights20.png",
+        "url": "//creativecommons.org/licenses/by-nd/2.5/ca/",
+        "imageUrl": "//creativecommons.org/images/public/somerights20.png",
         "description": "Creative Commons License"
     },
     "publishedStickerText": "Buy Now",

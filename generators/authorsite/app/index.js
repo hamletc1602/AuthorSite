@@ -183,9 +183,10 @@ const handler = async (event, context) => {
       await renderPages(confDir, config, tempDir, data, type, outputDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating client side code`)
       await renderReactComponents(config, outputDir, tempDir, options);
-      // Copy template and cached content to output dir
-      await mergeToOutput(contentDir, outputDir)
-      await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'headers'))
+      // Copy template content to output dir (TODO: make this a structure config option? )
+      await mergeToOutput(Path.join(contentDir, 'dist-icons'), Path.join(outputDir, 'dist-icons'))
+      // Copy selected cached content to output dir (TODO: make this a structure config option? )
+      await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'image', 'headers'))
       //
       if (context) {
         // Push completed build back to S3 (Test site)

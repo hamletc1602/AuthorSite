@@ -30,7 +30,7 @@
 
     "customPages": {
         "attrib": {
-            "conent": { "file": "custom-pages/attribution.md" },
+            "content": { "file": "custom-pages/attribution.md" },
             "outputPath": "attribution.html",
             "menuRef": "index"
         }

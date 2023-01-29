@@ -7,7 +7,8 @@ exports.render = (templateType, scss_filename, data, config) => {
         let parts = Path.parse(scss_filename)
         const Tpl = await Files.loadTemplate(parts.dir, templateType, parts.base)
         const scssCode = Tpl(data, config)
-        await Files.saveFile(`/tmp/${parts.base}-intermediate.scss`, scssCode)
+        // Debug
+        //await Files.saveFile(`/tmp/${parts.base}-intermediate.scss`, scssCode)
         Sass.render({
             file: Path.join(parts.dir, templateType, parts.base),  // Used only to determine default import path.
             data: scssCode,

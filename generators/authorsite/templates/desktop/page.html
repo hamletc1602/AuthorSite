@@ -60,7 +60,7 @@
 <link href='{%@config.stylePath%}/main.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
 
 </head>
-<body class="{%@config.defaultSkin%}">
+<body class="skin">
 
   <div class="pure-g">
 
@@ -77,8 +77,6 @@
           <li class="pure-menu-item"><a class='{%#if newsPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.news.name%}' alt='{%@config.menu.news.desc%}'>{%@config.menu.news.title%}</a></li>
           <li class="pure-menu-item"><a class='{%#if contactPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.contact.name%}' alt='Contact {%siteName%}!'>{%@config.menu.contact.title%}</a></li>
         </ul>
-      </div>
-      <div id="themeSelect" class="pure-u-md-2-24 pure-u-lg-1-24 pure-md-show page-header-extra">
       </div>
     </div>
   </div>
