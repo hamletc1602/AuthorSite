@@ -1,5 +1,7 @@
 type: list
 elemType: object
+nameProp: name
+addTitle: distributor
 properties:
   id:
     type: string

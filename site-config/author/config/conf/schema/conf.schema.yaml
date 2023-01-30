@@ -53,6 +53,13 @@ properties:
         type: list
         elemType: string
 
+  coverPromoBackground:
+    type: image
+  publishedStickerText:
+    type: string
+  unpublishedStickerText:
+    type: string
+
   fbAdminCode:
     type: string
   pintrestCode:

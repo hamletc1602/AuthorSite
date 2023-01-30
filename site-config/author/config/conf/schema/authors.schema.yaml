@@ -1,5 +1,7 @@
 type: list
 elemType: object
+nameProp: name
+addTitle: author
 properties:
   name:
     type: string

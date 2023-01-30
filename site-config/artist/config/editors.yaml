@@ -1,7 +1,12 @@
+-
 - id: general
   title: General
   data: conf/conf.json
   schema: conf/schema/conf.schema.yaml
+- id: style
+  title: Styling
+  data: conf/style.json
+  schema: conf/schema/style.schema.yaml
 - id: authors
   title: Authors
   data: conf/authors.json
@@ -24,5 +29,3 @@
   schema: conf/schema/news.schema.yaml
 - id: structure
   data: conf/structure.json
-- id: style
-  data: conf/style.json

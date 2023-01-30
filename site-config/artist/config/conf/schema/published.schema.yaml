@@ -1,5 +1,7 @@
 type: list
 elemType: object
+nameProp: title
+addTitle: book
 properties:
   isbn:
     type: string

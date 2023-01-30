@@ -1,5 +1,7 @@
 type: list
 elemType: object
+nameProp: title
+addTitle: post
 properties:
   id:
     type: string
