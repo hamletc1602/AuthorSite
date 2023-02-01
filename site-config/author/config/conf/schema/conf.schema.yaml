@@ -17,11 +17,6 @@ properties:
       description:
         type: string
 
-  publishedStickerText:
-    type: string
-  unpublishedStickerText:
-    type: string
-
   metadata:
     type: object
     properties:

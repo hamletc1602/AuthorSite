@@ -831,9 +831,9 @@ a.themebtn {
 	<%#style%>
 		.skin {
 			<%#if solid %>
-				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
-				@include background-gradients-SM(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-SM(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 
 				.content {
 					@include content-gradients(<%contentBkColor%>, <%contentBoxShadowColor%>);
@@ -1147,9 +1147,9 @@ a.themebtn:hover {
 	<%#style%>
 		.skin {
 			<%#if solid %>
-				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
-				@include background-gradients-MD(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-MD(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%/if%>
 
 			.page-header-logo {
@@ -1227,9 +1227,9 @@ a.themebtn:hover {
 	<%#style%>
 		.skin {
 			<%#if solid %>
-				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
-				@include background-gradients-LG(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-LG(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%/if%>
 
 			.page-header-logo {
@@ -1282,9 +1282,9 @@ a.themebtn:hover {
 	<%#style%>
 		.skin {
 			<%#if solid %>
-				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
-				@include background-gradients-XL(<%headerColor%>, <%footerColor%>, <%imageFileNameRoot%>);
+				@include background-gradients-XL(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%/if%>
 		}
 	<%/style%>

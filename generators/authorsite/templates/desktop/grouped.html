@@ -46,12 +46,28 @@
 <h1 class="" id="authors">Authors</h1>
 
 {%#groups%}
-  {%#if external%}
-  {%else%}
+  {%#unless external%}
     <h2><a href="{%@config.authorPath%}/{%id%}">{%name%}</a></h2>
-    <div id="{%id%}_pubs" class="booklist" data-overlayText="Buy Now/Coming Soon!"></div>
+    {%#if useCarousel%}
+      <div id="{%id%}_pubs" class="booklist" data-overlayText="Buy Now/Coming Soon!"></div>
+    {%else%}
+      {%#each pubs%}
+        {%#list%}
+          <div class="booklist-item booklist-item{%@index%}">
+            <div class="bookCoverImage {%id%}CoverIcon">
+              <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+              {%#if published%}
+                <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
+              {%else%}
+                <div class="comingSoon">Coming Soon!</div>
+              {%/if%}
+            </div>
+          </div>
+        {%/list%}
+      {%/each%}
+    {%/if%}
     </p>
-  {%/if%}
+  {%/unless%}
 {%/groups%}
 
 </div>

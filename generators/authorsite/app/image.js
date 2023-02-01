@@ -17,7 +17,7 @@ exports.prepare = async (contentPath, cachePath, bkgndConfig, skin) => {
     const siteImage = await ImageLib.load(sourceImagePath)
 
     // Generate output file name template
-    const outNameTpl = Handlebars.compile(path.join(cachePath, 'headers', skin.imageFileNameRoot) + '{%type%}{%size%}.png')
+    const outNameTpl = Handlebars.compile(path.join(cachePath, 'headers', skin._imageFileNameRoot) + '{%type%}{%size%}.png')
 
     // Split the site image into header and footer parts and save them as separate files.
     await prepareSm(bkgndConfig, outNameTpl, siteImage)
@@ -99,7 +99,7 @@ exports.generatePalette = async (contentPath, tempDir, config, skin) => {
         ImageLib.blit(img, siteImage, 0, config.height, 0, origHeight - config.footerHeight, origWidth, config.footerHeight)
 
         // Save a temp file, reun Vibrant and delete the temp (since Node-Vibrant only accepts a file path)
-        paletteImagePath = path.join(tempDir, skin.imageFileNameRoot + '_Palette_Source.png')
+        paletteImagePath = path.join(tempDir, skin._imageFileNameRoot + '_Palette_Source.png')
         await ImageLib.save(img, sourceImagePath)
         let palette = await Vibrant.from(paletteImagePath).getPalette()
         Fs.unlinkSync(paletteImagePath)

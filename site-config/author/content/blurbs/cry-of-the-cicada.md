@@ -1,0 +1,1 @@
+Entomologist Kate Wolfe and her precocious daughter, Sasha, join a team of scientists in Florida to investigate a Cicada infestation. What begins as a working holiday turns to horror when they encounter the abnormally large and aggressive insects.

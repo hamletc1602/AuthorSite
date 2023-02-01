@@ -14,6 +14,7 @@ const defaultOptions = {
   skipImages: false
 }
 const memCache = {}
+const MIN_PUBS_FOR_CAROUSEL = 3
 
 // Template processing helpers
 
@@ -148,9 +149,12 @@ const handler = async (event, context) => {
     }
 
     // Load all core configuration files and merge their keys (Separate files make editing config easier)
-    const structure = await Files.loadConfig(confDir + '/' + confIndex.structure.data)
-    const style = await Files.loadConfig(confDir + '/' + confIndex.style.data)
-    const config = await Files.loadConfig(confDir + '/' + confIndex.general.data, { build: options.buildId, yyyy: year })
+    //    Note: skip resolveFileRefs for structure since it has no schema (and is unlikely to ever have any 'text' properties)
+    const structure = await Files.loadConfig(Path.join(confDir, confIndex.structure.data))
+    const style = await Files.loadConfig(Path.join(confDir, confIndex.style.data))
+    const config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), { build: options.buildId, yyyy: year })
+    await resolveFileRefs(contentDir, style, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)));
+    await resolveFileRefs(contentDir, config, await Files.loadConfig(Path.join(confDir, confIndex.general.schema)));
     Object.assign(config, structure, style)
     config.tempDir = tempDir;
     Object.assign(config, config.paths) // Shift paths vars up to root of config where the code expects them.
@@ -162,7 +166,6 @@ const handler = async (event, context) => {
 
     // Resolve file refs for conf after local is applied, but before enccoding and loading
     // other properties files.
-    await resolveFileRefs(contentDir, config, config);
 
     // clean any old files
     cleanDirs(tempDir)
@@ -180,7 +183,7 @@ const handler = async (event, context) => {
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Render website for ${type}`)
       const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating server content`)
-      await renderPages(confDir, config, tempDir, data, type, outputDir, options);
+      await renderPages(confDir, config, contentDir, data, type, outputDir, options);
       await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating client side code`)
       await renderReactComponents(config, outputDir, tempDir, options);
       // Copy template content to output dir (TODO: make this a structure config option? )
@@ -280,15 +283,15 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     }
     // Added 'skin' config adjustments
     const skin = data.styleConfig
-    skin.imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
+    skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
 
     //
-    await resolveFileRefs(contentDir, data.styleConfig, config);
-    await resolveFileRefs(contentDir, data.published, config);
-    await resolveFileRefs(contentDir, data.authors, config);
-    await resolveFileRefs(contentDir, data.series, config);
-    await resolveFileRefs(contentDir, data.news, config);
-    await resolveFileRefs(contentDir, data.distributors, config);
+    await resolveFileRefs(contentDir, data.styleConfig, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)), config);
+    await resolveFileRefs(contentDir, data.published, await Files.loadConfig(Path.join(confDir, confIndex.books.schema)), config);
+    await resolveFileRefs(contentDir, data.authors, await Files.loadConfig(Path.join(confDir, confIndex.authors.schema)), config);
+    await resolveFileRefs(contentDir, data.series, await Files.loadConfig(Path.join(confDir, confIndex.series.schema)), config);
+    await resolveFileRefs(contentDir, data.news, await Files.loadConfig(Path.join(confDir, confIndex.news.schema)), config);
+    await resolveFileRefs(contentDir, data.distributors, await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema)), config);
 
     //
     console.info("Prepare headers and footers from page backgound images")
@@ -301,7 +304,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     //   Note: must be executed syncronously, since Vibrant library is not thread-safe.
 
     // Check for a saved palette file
-    let paletteFile = Path.join(cacheDir, `/${skin.imageFileNameRoot}-palette.json`)
+    let paletteFile = Path.join(cacheDir, `/${skin._imageFileNameRoot}-palette.json`)
     let palette = null
     try {
       palette = await Files.loadJson(paletteFile, config)
@@ -399,7 +402,9 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       pub.distributors = list.filter(dist => ! dist.hidden)
 
       // Add booleans for pub type conditionals in templates. Eg: 'anthology' becomes 'isAnthology = true'
-      pub['is' + pub.type[0].toUpperCase() + pub.type.substr(1)] = true
+      pub.type.forEach(type => {
+        pub['is' + type[0].toUpperCase() + type.substr(1)] = true
+      })
 
       // Ensure all icon and feature images exist, and are the proper size.
       //console.debug(`Ensure all icon and feature images exist for ${pub.title}, and are the proper size`)
@@ -498,7 +503,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
 }
 
 /** Render all Pages */
-const renderPages = async (confDir, config, tempDir, data, templateType, outputDir, options) => {
+const renderPages = async (confDir, config, contentDir, data, templateType, outputDir, options) => {
   // For adding global config data to template resolution.
   const tplData = { data: { config: Object.assign({}, config, options) }}
 
@@ -554,18 +559,18 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
     share: config,
     style: data.styleConfig
   }
-  Files.savePage(`${outputDir}/${config.menu.main.name}.html`, mainTpl(renderData, tplData))
-  Files.savePage(`${outputDir}/${config.menu.alt.name}.html`, altTpl(renderData, tplData))
-  Files.savePage(`${outputDir}/${config.menu.news.name}.html`, newsTpl(renderData, tplData))
-  Object.keys(data.postsByCat).map(catId => {
+  await Files.savePage(`${outputDir}/${config.menu.main.name}.html`, mainTpl(renderData, tplData))
+  await Files.savePage(`${outputDir}/${config.menu.alt.name}.html`, altTpl(renderData, tplData))
+  await Files.savePage(`${outputDir}/${config.menu.news.name}.html`, newsTpl(renderData, tplData))
+  await Promise.all(Object.keys(data.postsByCat).map(async catId => {
     let category = data.postsByCat[catId];
-    Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { news: category.posts, category: category }), tplData))
-  })
-  Files.savePage(`${outputDir}/${config.menu.contact.name}.html`, contactUsTpl(renderData, tplData))
+    await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { news: category.posts, category: category }), tplData))
+  }))
+  await Files.savePage(`${outputDir}/${config.menu.contact.name}.html`, contactUsTpl(renderData, tplData))
 
   // Write custom content pages defined in Config:
   if (config.customPages) {
-    Object.keys(config.customPages).forEach(pageId => {
+    Promise.all(Object.keys(config.customPages).map(async pageId => {
       const pageConfig = config.customPages[pageId]
       const pageContentConfig = {
         name: 'page-' + pageId,
@@ -574,9 +579,8 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
       if (pageConfig.menuRef) {
         pageContentConfig[pageConfig.menuRef] = true;
       }
-
-      Files.savePage(outputDir + '/' + pageConfig.outputPath, contentPage(pageContentConfig, tplData))
-    })
+      await Files.savePage(outputDir + '/' + pageConfig.outputPath, contentPage(pageContentConfig, tplData))
+    }))
   }
 
   // For each book in the published list, render a new book page based on the book template.
@@ -626,51 +630,55 @@ const renderPages = async (confDir, config, tempDir, data, templateType, outputD
     const bookShare = bookToShare(Object.assign(autoPromo, elem));
     bookShare.url = `/p/fb/${elem.id}-${autoPromo.name}`
     let content = itemTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
-    Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
+    await Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
     if (elem.catchup && elem.series) {
       content = catchupTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
-      Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
+      await Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
     }
 
     // Write promos pages
     if (elem.promos) {
-      elem.promos.map(promoElem => {
+      await Promise.all(elem.promos.map(async promoElem => {
         const share = bookToShare(Object.assign(promoElem, elem))
         if (promoElem.category.facebook) {
           share.url = `/p/fb/${elem.id}-${promoElem.name}`
           content = bookPromoFacebookTpl({ book: elem, promo: promoElem, share: share }, tplData)
-          Files.savePage(outputDir + share.url + '.html', content)
+          await Files.savePage(outputDir + share.url + '.html', content)
         }
         if (promoElem.category.twitter) {
           share.url = `/p/tw/${elem.id}-${promoElem.name}`
           content = bookPromoTwitterTpl({ book: elem, promo: promoElem, share: share }, tplData)
-          Files.savePage(outputDir + share.url + '.html', content)
+          await Files.savePage(outputDir + share.url + '.html', content)
         }
-      })
+      }))
     }
   }))
 
-  // For each author, render a new author page based on the author template.
-  data.authors.map(function(elem) {
+  // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
+  await Promise.all(data.authors.map(async function(elem) {
     let content = groupTpl({ group: elem, share: groupToShare(elem, 'author', 'books.author'), style: data.styleConfig }, tplData)
-    Files.savePage(outputDir + '/author/' + elem.id + '.html', content)
-  })
+    await Files.savePage(outputDir + '/author/' + elem.id + '.html', content)
+    if (elem.image) {
+      Files.ensurePath(Path.join(outputDir, elem.image))
+      await Files.copy(Path.join(contentDir, elem.image), Path.join(outputDir, elem.image))
+    }
+  }))
 
   // For each series, render a new series page based on the series template
-  data.series.map(function(elem) {
+  await Promise.all(data.series.map(async function(elem) {
     let content = groupTpl({ group: elem, share: groupToShare(elem, 'series', 'books'), style: data.styleConfig }, tplData)
-    Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
-  })
+    await Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
+  }))
 
   // Render stylesheets
   console.log("Rendering stylsheets.")
   let content = await Style.render(templateType, 'style/main.scss', { style: data.styleConfig }, tplData)
-  Files.savePage(outputDir + `/style/main.css`, content.css)
+  await Files.savePage(outputDir + `/style/main.css`, content.css)
   content = await Style.render(templateType, 'style/images.scss', {  style: data.styleConfig, books: data.published, groups: [...data.authors, ...data.series] }, tplData)
-  Files.savePage(outputDir + `/style/images.css`, content.css)
+  await Files.savePage(outputDir + `/style/images.css`, content.css)
   let tpl = await Files.loadTemplate(outputDir + `/style`, null, 'grid-min.css')
-  Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: config.bkgndConfig }, tplData))
+  await Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: config.bkgndConfig }, tplData))
 }
 
 /** Compile React components and style for this config into an app package */
@@ -764,22 +772,41 @@ const mergeToOutput = async (sourceDir, destDir) => {
   }))
 }
 
-/** Resolve all { file: } references in the given props object and all child objects */
-const resolveFileRefs = async (rootDir, props, config) => {
-    return Promise.all(Object.keys(props).map(async key => {
-      let value = props[key];
-      if (value) {
-        if (value.constructor === Object) {
-          if (Object.keys(value).length === 1 && value.file) {
-            // If there's one key, and it's 'file'
-            props[key] = await Files.loadLargeData(Path.join(rootDir, value.file), { props: props, config: config });
-          } else {
-            // Other object, recursively check all properties
-            await resolveFileRefs(rootDir, value, config)
+/** Resolve external text elements in the given props object and all child objects */
+const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
+  switch (schema.type) {
+    case 'text':
+      // Replace key value with external text content (possibly also rendered from a template)
+      parent[key] = await Files.loadLargeData(Path.join(rootDir, value), { props: parent, config: config });
+    break
+    case 'list':
+      // Check all items in the list
+      if (value.map) {
+        Promise.all(value.map(async (item, index) => {
+          // Each list item uses the same schema info from the parent
+          await resolveFileRefs(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, value, index)
+        }))
+      } else {
+        console.log(`List type property ${key} does not have an array type value`)
+      }
+    break
+    case 'object':
+      // Check all properties
+      await Promise.all(Object.keys(value).map(async itemKey => {
+        let defn = schema.properties[itemKey];
+        if (defn) {
+          let item = value[itemKey];
+          if (item) {
+            await resolveFileRefs(rootDir, item, defn, config, value, itemKey)
+          }
+        } else {
+          if (itemKey[0] !== '_') {
+            console.log(`Missing schema for ${itemKey}`)
           }
         }
-      }
-    }))
+      }))
+    break
+  }
 }
 
 const bookToShare = (book) => {
@@ -815,20 +842,6 @@ const groupToShare = (group, subpath, ogType) => {
   return ret
 }
 
-const splitTextForSlider = (source, maxVisibleLines) => {
-  let ret = {}
-
-  let lines = source.split(/[\r\n]+/)
-
-  ret.startText = lines.slice(0, maxVisibleLines).join("\n\n")
-  if (lines.length > maxVisibleLines) {
-    ret.lastLine = lines[maxVisibleLines].substr(0,30)
-    ret.moreText = lines.slice(maxVisibleLines).join("\n\n")
-  }
-
-  return ret
-}
-
 const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
   // TODO: Externalize these lists into config.
@@ -845,16 +858,8 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
   };
 
   published.map(pub => {
-    //
-    const type = typePluralMap[pub.type] || pub.type
-    const authorList = pub.author.split(",")
     const authorObjList = []
-
-    // cache plural type in Pub object for template use.
-    pub.typePlural = type
-
-    //
-    authorList.map(authorName => {
+    pub.author.map(authorName => {
       authorName = authorName.trim()
       const author = authorMap[authorName]
       const pubs = author.pubs || {}
@@ -862,16 +867,19 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
       authorObjList.push(author)
 
       // Add books to author
-      if ( ! pubs[type]) {
-        pubs[type] = {
-          displayName: displayNameMap[type] || type,
-          list: []
+      pub.type.forEach(type => {
+        const pluralType = typePluralMap[pub.type] || pub.type
+        if ( ! pubs[pluralType]) {
+          pubs[pluralType] = {
+            displayName: displayNameMap[pluralType] || pluralType,
+            list: []
+          }
         }
-      }
-      pubs[type].list.push(pub)
-      if ( ! author.pubs) {
-        author.pubs = pubs
-      }
+        pubs[pluralType].list.push(pub)
+        if ( ! author.pubs) {
+          author.pubs = pubs
+        }
+      })
     })
 
     // Replace list of author names with objects.
@@ -894,6 +902,19 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
       }
     }
 
+  })
+  // Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
+  Object.keys(authorMap).forEach(authorKey => {
+    const author = authorMap[authorKey]
+    let pubCount = 0
+    if (author.pubs) {
+      Object.keys(author.pubs).forEach(pubKey => {
+        const pub = author.pubs[pubKey]
+        pub.useCarousel = pub.list.length > MIN_PUBS_FOR_CAROUSEL
+        pubCount += pub.list.length
+      })
+    }
+    author.useCarousel = pubCount > MIN_PUBS_FOR_CAROUSEL
   })
 }
 
@@ -976,15 +997,6 @@ function endecode(source) {
     return source.replace(/[a-zA-Z]/g,function(c){return String.fromCharCode((c<="Z"?90:122)>=(c=c.charCodeAt(0)+13)?c:c-26);});
 }
 
-/** Encode a list of properties on the given object, appending props names with "Encoded" */
-function encodeProps(propNames, config) {
-  propNames.map(function(propName) {
-    if (config[propName]) {
-      config[propName + "Encoded"] = endecode(config[propName]);
-    }
-  });
-}
-
 function webpack(config) {
   return new Promise((resolve, reject) => {
     Webpack(config, function(err, stats) {
@@ -996,7 +1008,6 @@ function webpack(config) {
     })
   })
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 exports.handler = handler

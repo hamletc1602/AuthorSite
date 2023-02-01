@@ -1,5 +1,5 @@
 [{
-    "name": "My Name",
+    "name": "Adriaan Brae",
     "socialMediaLinks": [{
             "name": "Facebook", "url": "//www.facebook.com/pages/..."
         },{
@@ -7,11 +7,25 @@
         },{
             "name": "Amazon", "url": "//amazon.com/author/..."
         }],
-    "bioPic": "bios/myPhoto.png",
-    "bioPicLink": "",
-    "bio": { "file": "bios/myBio.md" }
-},{
-    "name": "Other Author Name",
+    "image": "bios/adriaan.png",
+    "imageLink": "",
+    "content": "bios/rebecca.md"
+},
+{
+    "name": "Rebecca Brae",
+    "socialMediaLinks": [{
+            "name": "Facebook", "url": "//www.facebook.com/pages/..."
+        },{
+            "name": "Twitter", "url": "//twitter.com/..."
+        },{
+            "name": "Amazon", "url": "//amazon.com/author/..."
+        }],
+    "image": "bios/rebecca.png",
+    "imageLink": "",
+    "content": "bios/rebecca.md"
+},
+{
+    "name": "Linked Author Name",
     "external": true,
     "url": ""
 }]

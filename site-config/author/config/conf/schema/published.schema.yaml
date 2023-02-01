@@ -60,3 +60,7 @@ properties:
     type: string
   createspaceId:
     type: string
+  releaseDateShort:
+    type: string
+  releaseDateLong:
+    type: string

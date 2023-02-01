@@ -7,17 +7,18 @@ properties:
     type: string
     key: true
   socialMediaLinks:
-    type: object
+    type: list
+    elemType: object
     properties:
       name:
         type: string
       url:
         type: url
-  bioPic:
+  image:
       type: image
-  bioPicLink:
+  imageLink:
       type: string
-  bio:
+  content:
       type: text
   external:
       type: boolean

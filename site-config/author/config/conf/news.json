@@ -1,34 +1,34 @@
 [{
     "id": 3,
     "title": "Book clubs are awesome",
-    "type": "post",
-    "format": "standard",
-    "status": "publish",
+    "type": ["post"],
+    "format": ["standard"],
+    "status": ["publish"],
     "publishedDateIso": "2018-02-09T21:45:44+00:00",
     "publishedDateDisplay": "09 Feb 2018",
     "category": ["Site News"],
     "author": "My Name",
-    "content": { "file": "news/3.txt" }
+    "content": "news/3.txt"
 },{
     "id": 2,
     "title": "A New Addition",
-    "type": "post",
-    "format": "standard",
-    "status": "publish",
+    "type": ["post"],
+    "format": ["standard"],
+    "status": ["publish"],
     "publishedDateIso": "2018-06-12T21:45:44+00:00",
     "publishedDateDisplay": "12 Jun 2018",
     "category": ["Writing"],
     "author": "Other Author Name",
-    "content": { "file": "news/2.txt" }
+    "content": "news/2.txt"
 },{
     "id": 1,
     "title": "Writing Update",
-    "type": "post",
-    "format": "standard",
-    "status": "publish",
+    "type": ["post"],
+    "format": ["standard"],
+    "status": ["publish"],
     "publishedDateIso": "2018-28-12T21:45:44+00:00",
     "publishedDateDisplay": "28 Aug 2018",
     "category": ["Writing", "Site News"],
     "author": "My Name",
-    "content": { "file": "news/1.txt" }
+    "content": "news/1.txt"
 }]

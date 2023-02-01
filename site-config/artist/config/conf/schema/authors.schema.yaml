@@ -13,11 +13,11 @@ properties:
         type: string
       url:
         type: url
-  bioPic:
+  image:
       type: image
-  bioPicLink:
+  imageLink:
       type: string
-  bio:
+  content:
       type: text
   external:
       type: boolean

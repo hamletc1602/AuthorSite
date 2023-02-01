@@ -65,6 +65,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
     }
   }
 
+
   // Select a different item
   const itemSelected = (ev, index, name) => {
     setPath([...rootPath, { index: index, name: name }])

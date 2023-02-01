@@ -1,0 +1,1 @@
+Imagine a future world where 99.99999% of the human population dies in a single week, and all of the survivors are immortal. Here we get a glimpse of two survivors and the kind of society that has emerged from the devastation.

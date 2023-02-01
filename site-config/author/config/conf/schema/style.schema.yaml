@@ -1,38 +1,44 @@
-theme:
-  type: string
-background:
-  type: image
-headerColor:
-  type: color
-footerColor:
-  type: color
-headerMenuHoverBkgnd:
-  type: color
-headerMenuSelectedBkgnd:
-  type: color
-headerMenuHoverColor:
-  type: color
-contentBkColor:
-  type: color
-contentBoxShadowColor:
-  type: color
-featureBkColor:
-  type: color
-featureLoglineColor:
-  type: color
-defaultFont:
-  type: string
-featureFont:
-  type: string
-newsFont:
-  type: string
-webFonts:
-  type: list
-  elemType: object
-  nameProp: family
-  addTitle: font
-  properties:
-    family:
-      type: string
-    url:
-      type: url
+type: object
+properties:
+  theme:
+    type: string
+  background:
+    type: image
+  logoSticker:
+    type: image
+  coverPromoBackground:
+    type: image
+  headerColor:
+    type: color
+  footerColor:
+    type: color
+  headerMenuHoverBkgnd:
+    type: color
+  headerMenuSelectedBkgnd:
+    type: color
+  headerMenuHoverColor:
+    type: color
+  contentBkColor:
+    type: color
+  contentBoxShadowColor:
+    type: color
+  featureBkColor:
+    type: color
+  featureLoglineColor:
+    type: color
+  defaultFont:
+    type: string
+  featureFont:
+    type: string
+  newsFont:
+    type: string
+  webFonts:
+    type: list
+    elemType: object
+    nameProp: family
+    addTitle: font
+    properties:
+      family:
+        type: string
+      url:
+        type: url
