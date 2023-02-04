@@ -6,6 +6,8 @@ properties:
   name:
     type: string
     key: true
+  enabled:
+    type: boolean
   promoUrl:
     type: url
   image:
@@ -14,3 +16,6 @@ properties:
     type: number
   imageWidth:
     type: number
+  categories:
+    type: list
+    elemType: string

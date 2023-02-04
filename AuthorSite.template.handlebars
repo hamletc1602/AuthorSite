@@ -686,6 +686,7 @@ Resources:
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue
+          domainName: !Ref DomainName
       Code:
         S3Bucket: !Select [0, !Split [':', !Ref SiteGenerator]]
         S3Key: !Select [1, !Split [':', !Ref SiteGenerator]]

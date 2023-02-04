@@ -1,0 +1,12 @@
+- name: just-well-loved-1
+  image: social/just_well_loved_promo.png
+  type: image/png
+  imageHeight: 512
+  imageWidth: 1024
+  category: ['facebook', 'twitter']
+- name: manual-override-1
+  image: social/manual_override_promo.png
+  type: image/png
+  imageHeight: 450
+  imageWidth: 810
+  category: ['facebook', 'twitter']

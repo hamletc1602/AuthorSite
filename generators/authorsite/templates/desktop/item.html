@@ -52,45 +52,5 @@
 </div>
 </p>
 
-{%#if book.promos%}
-<div class="promotionsBlock">
-  <div class="title">Promotions ( Copy links and paste to share )</div>
-  <div class="promotions pure-g">
-    <div class="promoCol pure-u-1-2">
-      <div class="title">Twitter</div>
-      <div class="promoContainer">
-      {%#book.promos%}
-        {%#if category.twitter%}
-          <div class="promoItem">
-            <a class="" href="https://twitter.com/intent/tweet/?text={%../../book.logline%}&amp;url=http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%../../book.id%}-{%name%}" target="_blank" rel="noopener" aria-label="">
-              <img src="{%@config.imagePath%}/{%thumbImage%}" title="{%name%}">
-            </a>
-            <br>
-            <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%../../book.id%}-{%name%}">Copy Link</span>
-          </div>
-        {%/if%}
-      {%/book.promos%}
-      </div>
-    </div>
-    <div class="promoCol pure-u-1-2">
-      <div class="title">Facebook</div>
-      <div class="promoContainer">
-      {%#book.promos%}
-        {%#if category.facebook%}
-        <div class="promoItem">
-            <a class="" href="https://facebook.com/sharer/sharer.php?u=http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%../../book.id%}-{%name%}" target="_blank" rel="noopener">
-              <img src="{%@config.imagePath%}/{%thumbImage%}" title="{%name%}">
-            </a>
-            <br>
-            <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%../../book.id%}-{%name%}">Copy Link</span>
-        </div>
-        {%/if%}
-      {%/book.promos%}
-      </div>
-    </div>
-  </div>
-</div>
-{%/if%}
-
 </div>
 {%/page%}

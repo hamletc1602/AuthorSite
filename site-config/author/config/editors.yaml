@@ -15,10 +15,10 @@
   title: Books
   data: conf/published.json
   schema: conf/schema/published.schema.yaml
-- id: promotions
-  title: Promotions
-  data: conf/promotions.yaml
-  schema: conf/schema/promotions.schema.yaml
+- id: social
+  title: Social
+  data: conf/social.yaml
+  schema: conf/schema/social.schema.yaml
 - id: series
   title: Series
   data: conf/series.yaml

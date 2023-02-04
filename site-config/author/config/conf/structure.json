@@ -8,10 +8,10 @@
             "template": "grouped.html"
         },
         "alt": {
-            "name": "list",
-            "title": "BOOKS",
-            "desc": "All Books!",
-            "template": "list.html"
+            "name": "social",
+            "title": "SOCIAL",
+            "desc": "Social media hub!",
+            "template": "social.html"
         },
         "news": {
             "name": "news",

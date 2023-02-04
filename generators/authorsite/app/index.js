@@ -78,6 +78,7 @@ const handler = async (event, context) => {
     addEnv(options, 'adminBucket')
     addEnv(options, 'stateQueueUrl')
     addEnv(options, 'testSiteBucket')
+    addEnv(options, 'domainName')
     options = Object.assign(defaultOptions, options)
 
     // Apply global options to libraries
@@ -153,10 +154,11 @@ const handler = async (event, context) => {
     const structure = await Files.loadConfig(Path.join(confDir, confIndex.structure.data))
     const style = await Files.loadConfig(Path.join(confDir, confIndex.style.data))
     const config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), { build: options.buildId, yyyy: year })
-    await resolveFileRefs(contentDir, style, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)));
-    await resolveFileRefs(contentDir, config, await Files.loadConfig(Path.join(confDir, confIndex.general.schema)));
+    await resolveFileRefs(contentDir, style, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)))
+    await resolveFileRefs(contentDir, config, await Files.loadConfig(Path.join(confDir, confIndex.general.schema)))
     Object.assign(config, structure, style)
-    config.tempDir = tempDir;
+    config.hostName = options.domainName
+    config.tempDir = tempDir
     Object.assign(config, config.paths) // Shift paths vars up to root of config where the code expects them.
 
     // Force debug to true in config if it's supplied at runtime
@@ -272,6 +274,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     const data = {
       styleConfig: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
       published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
+      social: await Files.loadConfig(confDir + '/' + confIndex.social.data, config),
       authors: await Files.loadConfig(confDir + '/' + confIndex.authors.data, config),
       series: await Files.loadConfig(confDir + '/' + confIndex.series.data, config),
       news: await Files.loadConfig(confDir + '/' + confIndex.news.data, config),
@@ -288,6 +291,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     //
     await resolveFileRefs(contentDir, data.styleConfig, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)), config);
     await resolveFileRefs(contentDir, data.published, await Files.loadConfig(Path.join(confDir, confIndex.books.schema)), config);
+    await resolveFileRefs(contentDir, data.social, await Files.loadConfig(Path.join(confDir, confIndex.social.schema)), config);
     await resolveFileRefs(contentDir, data.authors, await Files.loadConfig(Path.join(confDir, confIndex.authors.schema)), config);
     await resolveFileRefs(contentDir, data.series, await Files.loadConfig(Path.join(confDir, confIndex.series.schema)), config);
     await resolveFileRefs(contentDir, data.news, await Files.loadConfig(Path.join(confDir, confIndex.news.schema)), config);
@@ -427,11 +431,13 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
         }
       }
       if ( ! pub.coverPromo) {
-        pub.coverPromo = Files.createNewPath(pub.coverImage, 'promo')
-        const newPath = Path.join(outputDir, 'image', pub.coverPromo)
+        // Create cover promo image in content dir to allow following code to deal with generated and static
+        //   promo conent in the same way.
+        pub.coverPromo = Files.createNewPath(Path.join('social', pub.coverImage), 'promo')
+        const newPath = Path.join(contentDir, pub.coverPromo)
         Files.ensurePath(newPath)
         pub.coverPromoSize = await Image.createPromo(Path.join(outputDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
-        if (config.logoSticker && pub.publisher == 'BraeVitae') {
+        if (config.logoSticker && config.addLogoToSocialImages) {
           await Image.applySticker(newPath, Path.join(contentDir, config.logoSticker), 'top', 'left')
         }
       }
@@ -553,20 +559,13 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   const renderData = {
     items: data.published,
     groups: data.authors,
+    social: data.social,
     series: data.series,
     feature: data.published[0],
     news: data.news,
     share: config,
     style: data.styleConfig
   }
-  await Files.savePage(`${outputDir}/${config.menu.main.name}.html`, mainTpl(renderData, tplData))
-  await Files.savePage(`${outputDir}/${config.menu.alt.name}.html`, altTpl(renderData, tplData))
-  await Files.savePage(`${outputDir}/${config.menu.news.name}.html`, newsTpl(renderData, tplData))
-  await Promise.all(Object.keys(data.postsByCat).map(async catId => {
-    let category = data.postsByCat[catId];
-    await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { news: category.posts, category: category }), tplData))
-  }))
-  await Files.savePage(`${outputDir}/${config.menu.contact.name}.html`, contactUsTpl(renderData, tplData))
 
   // Write custom content pages defined in Config:
   if (config.customPages) {
@@ -585,46 +584,15 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each book in the published list, render a new book page based on the book template.
   await Promise.all(data.published.map(async elem => {
-    // Add a category field to all promos that don't have one already
-    if (elem.promos) {
-      const promosWithCategory = elem.promos.map(promo => {
-        if (promo.category) {
-          return promo
-        }
-        let category = { twitter: true, facebook: true }
-        if (promo.imageUrl.indexOf('-tw') !== -1) { category = { twitter: true } }
-        else if (promo.imageUrl.indexOf('-fb') !== -1) { category = { facebook: true } }
-        return {
-          ...promo,
-          category: category
-        }
-      })
-      elem.promos = promosWithCategory
-    } else {
-      elem.promos = []
+    // Construct at least one promo, with the book's cover only, to support the social media share buttons
+    const autoPromo = {
+      name: elem.id + '-cover',
+      image: elem.coverPromo,
+      imageHeight: elem.coverPromoSize.height,
+      imageWidth: elem.coverPromoSize.width,
+      category: { twitter: true, facebook: true }
     }
-
-    // Construct at least one promo, with the book's over only, so support the social media share buttons
-    const autoPromo = { name: 'cover', imageUrl: elem.coverPromo, category: { twitter: true, facebook: true } }
-    elem.promos.unshift(Object.assign(autoPromo, elem));
-
-    // Write Promo thumbnail images
-    if (elem.promos) {
-      await Promise.all(elem.promos.map(async promo => {
-        if (promo.imageUrl.indexOf('covers/') !== -1) {
-          // This is the auto-generated cover promo image
-          promo.thumbImage = Files.createNewPath(promo.imageUrl, 'thumb')
-          const newPath = Path.join(outputDir, 'image', promo.thumbImage)
-          Files.ensurePath(newPath)
-          promo.thumbSize = await Image.resizeBookIcon(Path.join(outputDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
-        } else {
-          promo.thumbImage = Files.createNewPath(promo.imageUrl.replace('promotion/', 'promo/'), 'thumb')
-          const newPath = Path.join(outputDir, 'image', promo.thumbImage)
-          Files.ensurePath(newPath)
-          promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, 'image', promo.imageUrl), newPath, config.promoThumbImageHeight)
-        }
-      }));
-    }
+    data.social.push(Object.assign(autoPromo, elem));
 
     // Write book pages
     const bookShare = bookToShare(Object.assign(autoPromo, elem));
@@ -636,24 +604,43 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
       content = catchupTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
       await Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
     }
-
-    // Write promos pages
-    if (elem.promos) {
-      await Promise.all(elem.promos.map(async promoElem => {
-        const share = bookToShare(Object.assign(promoElem, elem))
-        if (promoElem.category.facebook) {
-          share.url = `/p/fb/${elem.id}-${promoElem.name}`
-          content = bookPromoFacebookTpl({ book: elem, promo: promoElem, share: share }, tplData)
-          await Files.savePage(outputDir + share.url + '.html', content)
-        }
-        if (promoElem.category.twitter) {
-          share.url = `/p/tw/${elem.id}-${promoElem.name}`
-          content = bookPromoTwitterTpl({ book: elem, promo: promoElem, share: share }, tplData)
-          await Files.savePage(outputDir + share.url + '.html', content)
-        }
-      }))
-    }
   }))
+
+  // Social images
+  await Promise.all(data.social.map(async promo => {
+    // Write shareable page
+    const share = bookToShare(promo)
+    if (promo.category.facebook) {
+      share.url = `/p/fb/${promo.name}`
+      const content = bookPromoFacebookTpl({ promo: promo, share: share }, tplData)
+      await Files.savePage(outputDir + share.url + '.html', content)
+    }
+    if (promo.category.twitter) {
+      share.url = `/p/tw/${promo.name}`
+      const content = bookPromoTwitterTpl({ promo: promo, share: share }, tplData)
+      await Files.savePage(outputDir + share.url + '.html', content)
+    }
+    // TODO: Copy full images from content to site.
+    Files.ensurePath(Path.join(outputDir, promo.image))
+    await Files.copy(Path.join(contentDir, promo.image), Path.join(outputDir, promo.image))
+    // Create a thumbnail images
+    promo.thumbImage = Files.createNewPath(promo.image, 'thumb')
+    Files.ensurePath(Path.join(outputDir, promo.thumbImage))
+    promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, promo.image), Path.join(outputDir, promo.thumbImage), config.promoThumbImageHeight)
+    // Convert categories from editor format (array of strings) to object format for handlebars template
+    if (promo.category && Array.isArray(promo.category)) {
+      const newCats = {}
+      promo.category.forEach(cat => {
+        newCats[cat] = true
+      })
+      promo.category = newCats
+    } else {
+      promo.category = {
+        facebook: true,
+        twitter: true
+      }
+    }
+  }));
 
   // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
   await Promise.all(data.authors.map(async function(elem) {
@@ -670,6 +657,16 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     let content = groupTpl({ group: elem, share: groupToShare(elem, 'series', 'books'), style: data.styleConfig }, tplData)
     await Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
   }))
+
+  // Render main pages
+  await Files.savePage(`${outputDir}/${config.menu.main.name}.html`, mainTpl(renderData, tplData))
+  await Files.savePage(`${outputDir}/${config.menu.alt.name}.html`, altTpl(renderData, tplData))
+  await Files.savePage(`${outputDir}/${config.menu.news.name}.html`, newsTpl(renderData, tplData))
+  await Promise.all(Object.keys(data.postsByCat).map(async catId => {
+    let category = data.postsByCat[catId];
+    await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { news: category.posts, category: category }), tplData))
+  }))
+  await Files.savePage(`${outputDir}/${config.menu.contact.name}.html`, contactUsTpl(renderData, tplData))
 
   // Render stylesheets
   console.log("Rendering stylsheets.")
