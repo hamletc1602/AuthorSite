@@ -54,6 +54,8 @@ properties:
     type: string
   unpublishedStickerText:
     type: string
+  socialMediaPageHeader:
+    type: text
 
   fbAdminCode:
     type: string

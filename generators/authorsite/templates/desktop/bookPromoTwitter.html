@@ -14,22 +14,22 @@
   {%#if @config.twitterPromoCreatorAccount%}<meta name="twitter:creator" content="{%@config.twitterPromoCreatorAccount%}">{%/if%}
   <meta name="twitter:title" content="{%share.title%}">
   <meta name="twitter:description" content="{%share.description%}">
-  <meta name="twitter:image" content="http://{%@config.hostName%}{%@config.imagePath%}/{%share.image%}">
-  <meta name="twitter:image:alt" content="{%share.imageAlt%}">
+  <meta name="twitter:image" content="http://{%@config.hostName%}/{%share.image%}">
+  <meta name="twitter:image:alt" content="{%share.altText%}">
 
   <meta property="og:url" content="http://{%@config.hostName%}{%share.url%}" />
   <meta property="og:site_name" content="{%@config.siteName%}" />
   <meta property="og:description" content="{%share.description%}" />
   <meta property="og:title" content="{%share.title%}" />
-  <meta property="og:image" content="http://{%@config.hostName%}{%@config.imagePath%}/{%share.image%}" />
-  <meta property="og:image:alt" content="{%share.imageAlt%}" />
-  <meta property="og:image:secure_url" content="https://{%@config.hostName%}{%@config.imagePath%}/{%share.image%}" />
+  <meta property="og:image" content="http://{%@config.hostName%}/{%share.image%}" />
+  <meta property="og:image:alt" content="{%share.altText%}" />
+  <meta property="og:image:secure_url" content="https://{%@config.hostName%}/{%share.image%}" />
   <meta property="og:image:type" content="{%share.imageType%}" />
   <meta property="og:image:width" content="{%share.imageWidth%}" />
   <meta property="og:image:height" content="{%share.imageHeight%}" />
   <meta property="og:type" content="{%share.ogType%}" />
   <meta property="og:book:isbn" content="{%share.isbn%}" />
-  {%#each share.keywordsArray%}
+  {%#each share.keywords%}
   <meta property="og:book:tag" content="{%this%}" />
   {%/each%}
 
@@ -49,7 +49,7 @@
 
 <body>
   <div id="message" class="hidden" >
-    Redirecting to <b>{%book.title%}</b>: <a href = "{%share.url%}">{%share.url%}</a>.
+    Redirecting to <b>{%book.title%}</b>: <a href = "{%share.redirectUrl%}">{%share.redirectUrl%}</a>.
   </div>
 </body>
 </html>

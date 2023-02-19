@@ -383,19 +383,19 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       // Add a copy of each distributor record to each book that has
       // a corresponding external book ID for that distributor.
       var list = [];
-      Object.keys(data.distributors).map(function(key) {
-        var distributor = Object.assign({}, data.distributors[key]),
-            externalId = pub[distributor.bookIdProp]
+      data.distributors.map((distributor) => {
+        const d = Object.assign({}, distributor)
+        const externalId = pub[d.bookIdProp]
         if (externalId) {
           let externalIdEnc = externalId
-          if (key == 'infoRequest') {
+          if (d.id == 'infoRequest') {
             // URL-Encode these types of external links
             externalIdEnc = encodeURIComponent(externalId)
           }
-          distributor.url = distributor.url.replace(/@BOOKID@/g, externalIdEnc)
-          list.push(distributor);
-          if ( pub.primaryDistributor == key) {
-            pub.primaryDistributor = distributor
+          d.url = d.url.replace(/@BOOKID@/g, externalIdEnc)
+          list.push(d);
+          if ( pub.primaryDistributor == d.id) {
+            pub.primaryDistributor = d
           }
         }
       })
@@ -432,7 +432,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       }
       if ( ! pub.coverPromo) {
         // Create cover promo image in content dir to allow following code to deal with generated and static
-        //   promo conent in the same way.
+        // promo conent in the same way.
         pub.coverPromo = Files.createNewPath(Path.join('social', pub.coverImage), 'promo')
         const newPath = Path.join(contentDir, pub.coverPromo)
         Files.ensurePath(newPath)
@@ -608,6 +608,19 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // Social images
   await Promise.all(data.social.map(async promo => {
+    // Convert categories from editor format (array of strings) to object format for handlebars template
+    if (promo.category && Array.isArray(promo.category)) {
+      const newCats = {}
+      promo.category.forEach(cat => {
+        newCats[cat] = true
+      })
+      promo.category = newCats
+    } else {
+      promo.category = {
+        facebook: true,
+        twitter: true
+      }
+    }
     // Write shareable page
     const share = bookToShare(promo)
     if (promo.category.facebook) {
@@ -627,19 +640,6 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     promo.thumbImage = Files.createNewPath(promo.image, 'thumb')
     Files.ensurePath(Path.join(outputDir, promo.thumbImage))
     promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, promo.image), Path.join(outputDir, promo.thumbImage), config.promoThumbImageHeight)
-    // Convert categories from editor format (array of strings) to object format for handlebars template
-    if (promo.category && Array.isArray(promo.category)) {
-      const newCats = {}
-      promo.category.forEach(cat => {
-        newCats[cat] = true
-      })
-      promo.category = newCats
-    } else {
-      promo.category = {
-        facebook: true,
-        twitter: true
-      }
-    }
   }));
 
   // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
@@ -807,17 +807,16 @@ const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
 }
 
 const bookToShare = (book) => {
-  const redirectUrl = book.primaryDistributor ? book.primaryDistributor.url : `/w/${book.id}`
+  const redirectUrl = book.targetUrl || (book.primaryDistributor ? book.primaryDistributor.url : `/w/${book.id}`)
   return {
     ogType: 'book',
     redirectUrl: redirectUrl,
     isbn: book.isbn,
     title: book.promoTitle || book.title,
     description: book.text || book.logline,
-    keywords: book.tags,
-    keywordsArray: (book.tags ? book.tags.split(',').map(tag => tag.trim()) : null),
-    image: book.imageUrl || book.coverPromo,
-    imageAlt: book.imageAlt || book.promoTitle || book.title + ' book cover',
+    keywords: book.keywords || (book.tags ? book.tags.split(',').map(tag => tag.trim()) : null),
+    image: book.image,
+    altText: book.altText || book.promoTitle || book.title + ' book cover',
     imageType: book.imageType || book.coverImageType || 'image/jpeg',
     imageHeight: book.imageHeight || book.coverPromoSize.height || '400',
     imageWidth: book.imageWidth || book.coverPromoSize.width || '800'

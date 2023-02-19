@@ -9,6 +9,7 @@
     },
     "publishedStickerText": "Buy Now",
     "unpublishedStickerText": "Coming Soon!",
+    "socialMediaPageHeader": "promotion/socialMediaHeader.md",
 
     "metadata": {
         "ogType": "books.author",

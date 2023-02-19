@@ -11,7 +11,7 @@ export default function EditorImage({id, content, fileContent, setData}) {
   const imageUrl = useRef(null)
 
   const setImage = useCallback(() => {
-    const rec = fileContent.current[content.file]
+    const rec = fileContent.current[content]
     if (rec && rec.state === 'complete') {
       const blob = new Blob([rec.content], { type: rec.contentType })
       imageUrl.current = URL.createObjectURL(blob)
@@ -28,13 +28,13 @@ export default function EditorImage({id, content, fileContent, setData}) {
       }
       console.log(`Found file: ${files[0].name}. Size: ${files[0].size}`)
       files[0].arrayBuffer().then(fileBuffer => {
-        fileContent.current[content.file] = {
+        fileContent.current[content] = {
           state: 'complete',
           content: fileBuffer,
           contentType: files[0].type
         }
         // Triggers content push, even if file path is unchanged
-        setData('file', content.file)
+        setData('file', content)
         setCooldown(true)
         setTimeout(() => {
           // TODO: Tie this in to the actual file upload process rather than a static timeout

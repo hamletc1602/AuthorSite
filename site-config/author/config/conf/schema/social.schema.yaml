@@ -6,12 +6,19 @@ properties:
   name:
     type: string
     key: true
+  text:
+    type: string
+  altText:
+    type: string
   enabled:
     type: boolean
-  promoUrl:
+  targetUrl:
     type: url
   image:
     type: image
+  keywords:
+    type: list
+    elemType: string
   imageHeight:
     type: number
   imageWidth:

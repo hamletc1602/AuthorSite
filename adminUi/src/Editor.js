@@ -42,29 +42,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   const pathIndex = hasList ? Util.getCurrIndex(path) : 0
   const SubEditor = editorForType(hasList ? schema.elemType : schema.type)
 
-  //const [index, setIndex] = useState(initIndex)
-
   // For types with associated file content, if the file content is not already in the
   // content cach, start a get from the server.
-  // TODO: If there's multiple renders while the content is downloading, multiple gets could be started.
-  //   Perhaps add a 'pending' placeholder record here in the content cache that will be replaced when the
-  //   content download completes?
   if (schema.type === 'image' || schema.type === 'text') {
-    if (content.file) {
-      if ( ! fileContent.current[content.file]) {
-        getContent(content.file)
-      }
-    } else {
-      // file type, but without a path in the config. Set a default file path based on the current
-      // item path and update the server config.
-      Util.setContentForPath(configs, path, { file: Util.createFilePath(path, schema) })
-      pushContent(editor.data, configs.current, editor.id)
-      if ( ! fileContent.current[content.file]) {
-        fileContent.current[content.file] = { state: 'complete' }
-      }
+    if ( ! fileContent.current[content]) {
+      getContent(content)
     }
+    // TODO: If there's multiple renders while the content is downloading, multiple gets could be started.
+    //   Perhaps add a 'pending' placeholder record here in the content cache that will be replaced when the
+    //   content download completes?
   }
-
 
   // Select a different item
   const itemSelected = (ev, index, name) => {

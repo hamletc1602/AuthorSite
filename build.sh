@@ -61,5 +61,4 @@ npm run build ../AutoSite.template.handlebars
 mv AuthorSite.template $wdir/target/AutoSite
 mv AuthorSite-domain.template $wdir/target/AutoSite
 mv AuthorSite-subdomain.template $wdir/target/AutoSite
-mv AuthorSite-debug.template $wdir/target/AutoSite
 cd $wdir

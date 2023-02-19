@@ -5,7 +5,7 @@ import {
 
 /**  */
 export default function EditorText({id, content, fileContent, setData}) {
-  const contentRec = fileContent.current[content.file]
+  const contentRec = fileContent.current[content]
   return <Skeleton w='100%' isLoaded={contentRec && contentRec.state !== 'pending'}>
     <Textarea
       key={'TextEdit_' + id}
@@ -17,13 +17,13 @@ export default function EditorText({id, content, fileContent, setData}) {
       disabled={ ! contentRec}
       placeholder={contentRec ? null : 'Loading...'}
       onChangeCapture={ev => {
-        fileContent.current[content.file] = {
+        fileContent.current[content] = {
           state: 'complete',
           content: ev.target.value,
           contentType: 'text/plain'
         }
         // Triggers content push, even if file path is unchanged
-        setData('file', content.file)
+        setData('file', content)
       }}
     />
   </Skeleton>

@@ -39,6 +39,11 @@ AwsUtils.prototype.getSqs = function() {
   return this.sqs
 }
 
+/** Delay util */
+AwsUtils.prototype.delay = async function(timeMs) {
+  return new Promise(resolve => setTimeout(resolve, timeMs));
+}
+
 /** Get all files from an S3 bucket and save them to disk */
 AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
     console.log(`Start pull of config from ${bucket}:${keyPrefix} to ${destDir}`)
@@ -57,7 +62,7 @@ AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
       sourcePaths.push(file.path.substring(sourceDir.length))
     }
   });
-  const batchedList = this.batch(filtered, 32)
+  const batchedList = this.batch(sourcePaths, 32)
   for (const list of batchedList) {
     await Promise.all(list.map(file => {
       return this.put(bucket, keyPrefix + file, null, this.files.readFileSync(sourceDir + file))

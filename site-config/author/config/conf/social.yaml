@@ -1,12 +1,22 @@
 - name: just-well-loved-1
+  title: Just Well Loved (Short Story)
+  text: Just Well Loved (Short Story)
+  altText: "Quote: Constance and her daughter are enjoying a peaceful walk when they hear someone crying. Who they find, and how they transform the agony of that troubled soul will touch your heart."
   image: social/just_well_loved_promo.png
+  keywords: ['Notre Dame']
   type: image/png
   imageHeight: 512
   imageWidth: 1024
+  targetUrl: https://www.goodreads.com/book/show/23881216-just-well-loved
   category: ['facebook', 'twitter']
 - name: manual-override-1
+  title: Manual Override (Short Story)
+  text: Manual Override (Short Story)
+  altText: "Quote: Old pilots don't get that way by trusting machinery. Sometimes you've got to get your hands dirty."
   image: social/manual_override_promo.png
+  keywords: ['Mars']
   type: image/png
   imageHeight: 450
   imageWidth: 810
+  targetUrl: https://www.goodreads.com/book/show/23880577-manual-override
   category: ['facebook', 'twitter']
