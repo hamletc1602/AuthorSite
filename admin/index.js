@@ -23,6 +23,13 @@ const aws = new AwsUtils({
   stateQueueUrl: stateQueueUrl
 })
 
+const aws2 = new AwsUtils({
+  files: null,  // Not needed (though perhaps this suggests we need two different modules)
+  s3: new sdk.S3(),
+  sqs: new sdk.SQS(),
+  stateQueueUrl: stateQueueUrl
+})
+
 /** Worker for admin tasks forwarded from admin@Edge lambda.
  - Publish: Sync all site files from the test site to the public site.
 */
@@ -77,6 +84,61 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   }
 }
 
+/** Copy this list of files (unzipper util file records) to the appropriate S3
+    destination, based on the root path element name.
+*/
+async function copyFiles(s3, templateName, files, opts) {
+  opts = opts || {}
+  for await (const file of files) {
+    try {
+      const pathParts = file.path.split('/')
+      if (pathParts.length > 0) {
+        const pathRoot = pathParts.shift()
+        const filePath = pathParts.join('/')
+        const body = await file.buffer()
+        if (opts.verbose) {
+          console.log(`Copying file ${file.path}`, { entry: file, body: body })
+        } else {
+          console.log(`Copying file ${file.path}`)
+        }
+        switch (pathRoot) {
+          case 'config':
+            await s3.putObject({
+              Bucket: adminBucket,
+              Key: `site-config/${templateName}/${filePath}`,
+              Body: body
+            }).promise()
+            break
+          case 'content':
+            await s3.putObject({
+              Bucket: adminUiBucket,
+              Key: `content/${templateName}/${filePath}`,
+              Body: body
+            }).promise()
+            break
+          case 'cache':
+            await s3.putObject({
+              Bucket: adminBucket,
+              Key: `cache/${templateName}/${filePath}`,
+              Body: body
+            }).promise()
+            break
+          default:
+            console.log(`Unknown path root '${pathRoot}' in template ${templateName}`)
+        }
+        if (opts.delay) {
+          // Delay between each file push
+          await opts.delay(opts.delayMs || 250)
+        }
+      } else {
+        console.log(`skipping top level file in template: ${file.path}`)
+      }
+    } catch (e) {
+      console.log(`Failed to copy file: ${file.path}. ${e.message}`, e)
+    }
+  }
+}
+
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
 async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
   let success = true
@@ -92,100 +154,88 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
     const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
     if (adminConfigBuff) {
       const adminConfig = JSON.parse(adminConfigBuff.toString())
-      const templateProps = adminConfig.templates.find(p => p.name === templateName)
+      const templateProps = adminConfig.templates.find(p => p.id === templateName)
       if (templateProps) {
         isPublicTemplate = templateProps.access === 'public'
       }
     }
     const sourceBucket = isPublicTemplate ? publicBucket : adminBucket
+    const markdownTest = /.md$/
 
     // Copy all the site template files to the local buckets
     console.log(`Copy ${isPublicTemplate ? 'public' : 'private'} site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     const siteConfigDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: sourceBucket, Key: `AutoSite/site-config/${templateName}.zip` });
-    await Promise.all(siteConfigDir.files.map(async file => {
-      console.log(`Copying ${file.path}`)
-      const pathParts = file.path.split('/')
-      if (pathParts.length > 0) {
-        const pathRoot = pathParts.shift()
-        const filePath = pathParts.join('/')
-        switch (pathRoot) {
-          case 'config':
-            await aws.getS3().putObject({
-              Bucket: adminBucket,
-              Key: `site-config/${templateName}/${filePath}`,
-              Body: await file.buffer()
-            }).promise()
-            break
-          case 'content':
-            await aws.getS3().putObject({
-              Bucket: adminUiBucket,
-              Key: `content/${templateName}/${filePath}`,
-              Body: await file.buffer()
-            }).promise()
-            break
-          case 'cache':
-            await aws.getS3().putObject({
-              Bucket: adminBucket,
-              Key: `cache/${templateName}/${filePath}`,
-              Body: await file.buffer()
-            }).promise()
-            break
-          default:
-            console.log(`Unknown path root '${pathRoot}' in template ${templateName}`)
-        }
-      } else {
-        console.log(`skipping top level file in template: ${file.path}`)
-      }
-    }))
-    // Get the editors config file
-    console.log('Convert YAML configuration files to JSON.')
-    try {
-      const rootPath = `site-config/${templateName}/`
-      let editors = null
-      {
-        const yaml = (await aws.get(adminBucket, rootPath + 'editors.yaml')).Body.toString()
-        editors = Yaml.parse(yaml, {});
-      }
-      console.log('Editors: ', editors)
-      await Promise.all(editors.map(async editor => {
-        try {
-          console.log('Editor: ' + editor.id)
-          console.log('Schema: ' + editor.schema)
-          if (/.*yaml$/.test(editor.schema)) {
-            const yaml = (await aws.get(adminBucket, rootPath + editor.schema)).Body.toString()
-            editor.schema += '.json'
-            console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
-            await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
-          }
-          console.log('Schema: ' + editor.data)
-          if (/.*yaml$/.test(editor.data)) {
-            const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
-            editor.data += '.json'
-            console.log('rewrite as: ' + editor.data, JSON.stringify(Yaml.parse(yaml)))
-            await aws.put(adminBucket, rootPath + editor.data, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
-          }
-        } catch (error) {
-          success = false
-          console.log(`Failed converting editor: ${JSON.stringify(editor)}`, error)
-        }
-      }))
-      console.log('rewrite editors as: ', JSON.stringify(editors))
-      await aws.put(adminBucket, rootPath + 'editors.json', JsonContentType, JSON.stringify(editors))
-    } catch (error) {
-      success = false
-      console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
-      await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
-    }
+    const filesOnly = siteConfigDir.files.filter(f => f.type === 'File')
+    const markdownFiles = filesOnly.filter(f => markdownTest.test(f.path))
+    const otherFiles = filesOnly.filter(f => ! markdownTest.test(f.path))
+    const s3 =
+
+    // Copy the markdown files
+    // (This is so weird!  Why does copying the .md files break the lambda execution? There's not even an exception thrown!!!
+    // The lambda is not timing out, it just...stops.)
+    await copyFiles(aws2.getS3(), templateName, markdownFiles, {
+      //verbose: true,
+      //delay: aws2.delay,
+      //delayMs: 5000
+    })
+
+    // Copy all other files
+    await copyFiles(aws.getS3(), templateName, otherFiles, {
+      //delay: aws.delay
+    })
+
+    // // Get the editors config file
+    // console.log('Convert YAML configuration files to JSON.')
+    // try {
+    //   const rootPath = `site-config/${templateName}/`
+    //   let editors = null
+    //   {
+    //     const yaml = (await aws.get(adminBucket, rootPath + 'editors.yaml')).Body.toString()
+    //     editors = Yaml.parse(yaml, {});
+    //   }
+    //   console.log('Editors: ', editors)
+    //   await Promise.all(editors.map(async editor => {
+    //     try {
+    //       console.log('Editor: ' + editor.id)
+    //       console.log('Schema: ' + editor.schema)
+    //       if (/.*yaml$/.test(editor.schema)) {
+    //         const yaml = (await aws.get(adminBucket, rootPath + editor.schema)).Body.toString()
+    //         editor.schema += '.json'
+    //         console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
+    //         await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+    //       }
+    //       console.log('Schema: ' + editor.data)
+    //       if (/.*yaml$/.test(editor.data)) {
+    //         const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
+    //         editor.data += '.json'
+    //         console.log('rewrite as: ' + editor.data, JSON.stringify(Yaml.parse(yaml)))
+    //         await aws.put(adminBucket, rootPath + editor.data, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
+    //       }
+    //     } catch (error) {
+    //       success = false
+    //       console.log(`Failed converting editor: ${JSON.stringify(editor)}`, error)
+    //     }
+    //   }))
+    //   console.log('rewrite editors as: ', JSON.stringify(editors))
+    //   await aws.put(adminBucket, rootPath + 'editors.json', JsonContentType, JSON.stringify(editors))
+    // } catch (error) {
+    //   success = false
+    //   console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
+    //   await aws.displayUpdate({}, 'prepare', 'Broken template. Missing editors.yaml')
+    // }
+
   } catch (error) {
     console.log(`Failed prepare with ${templateName} template.`, error)
     await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${error.message}.`)
     success = false
   } finally {
     if (success) {
+      console.log(`Successfull prepare with ${templateName} template.`)
       await aws.displayUpdate({ preparing: false }, 'prepare', `Prepared with ${templateName} template.`)
       // Update prepared template ID in config state (This should trigger the UI to refresh if the prepared template is different)
       await aws.adminStateUpdate({ config: { preparedTemplateId: templateName, preparedTemplates: [templateName] } })
     } else {
+      console.log(`Failed prepare with ${templateName} template.`)
       await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template.`)
     }
   }
