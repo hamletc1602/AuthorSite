@@ -45,6 +45,11 @@ export default function EditorProperties({id, content, schema, setData, editItem
               return <option key={itemKey + '_opt' + index} value={index}>{value}</option>
             })}
           </Select>
+        } else if (schema.elemType !== 'string') {
+          // Lists of any type but 'string' need an edit button
+          return <Button key={itemKey} size='sm'
+              onClick={() => editItem(name)}
+            >Edit</Button>
         } else {
           // TODO: Component not quite done. Maybe Use a comma-sep list for now?
           // return <EditableTags key={itemKey} tags={value} setTags={tags => {
@@ -56,13 +61,13 @@ export default function EditorProperties({id, content, schema, setData, editItem
           />
         }
       case 'object': return <Button key={itemKey} size='sm'
-        onClick={() => editItem(name)}
+          onClick={() => editItem(name)}
         >Edit</Button>
       case 'text': return <Button key={itemKey} size='sm'
-        onClick={() => editItem(name)}
+          onClick={() => editItem(name)}
         >Edit</Button>
       case 'image': return <Button key={itemKey} size='sm'
-        onClick={() => editItem(name)}
+          onClick={() => editItem(name)}
         >Edit</Button>
       default:
         console.warn(`Unnexpected config value type: ${schema.type}`)

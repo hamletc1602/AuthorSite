@@ -3,6 +3,7 @@ const AwsUtils = require('./awsUtils')
 const Unzipper = require('unzipper')
 const Yaml = require('yaml')
 const Fs = require('fs')
+const Path = require('path')
 
 const JsonContentType = 'application/json'
 
@@ -112,7 +113,7 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
       if (entry.type === 'File') {
-        pushTemplateFile(aws.getS3(), templateName, entry)
+        pushTemplateFile(aws, templateName, entry)
       } else {
         entry.autodrain();
       }
@@ -175,16 +176,36 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
   }
 }
 
+/** Return an appropriate content type for the file path. */
+function getContentType(filePath) {
+  // for now, just use the extension of the file to indicate the content type. This is only relevant for
+  // pre-prepared template files, so we have some control over the file extensions used.
+  // Doing this manually because I'd like the content type values to exactly match what the editor
+  // is expecting.
+  const ext = Path.extname(filePath)
+  console.log(`Add content ${filePath} with content-type ${ext}`)
+  switch (ext) {
+    case '.jpg': return 'image/jpeg'
+    case '.jpeg': return 'image/jpeg'
+    case '.png': return 'image/png'
+    case '.md': return 'text/plain'
+    case '.txt': return 'text/plain'
+    default: return 'application/octet-stream'
+  }
+
+}
+
 /** Copy this file (unzipper util file record) to the appropriate S3
     destination, based on the root path element name.
 */
-async function pushTemplateFile(s3, templateName, file, opts) {
+async function pushTemplateFile(aws, templateName, file, opts) {
   opts = opts || {}
   try {
     const pathParts = file.path.split('/')
     if (pathParts.length > 0) {
       const pathRoot = pathParts.shift()
       const filePath = pathParts.join('/')
+      const type = getContentType(file.path)
       const body = await file.buffer()
       if (opts.verbose) {
         console.log(`Copying file ${file.path}`, { entry: file, body: body })
@@ -193,25 +214,18 @@ async function pushTemplateFile(s3, templateName, file, opts) {
       }
       switch (pathRoot) {
         case 'config':
-          await s3.putObject({
-            Bucket: adminBucket,
-            Key: `site-config/${templateName}/${filePath}`,
-            Body: body
-          }).promise()
+          // Config is not delivered via CloudFront origin (only viewer func) but content type is copied from the S3 record.
+          // Maybe relevant? But does not appear to be an issue so far.
+          await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
           break
         case 'content':
-          await s3.putObject({
-            Bucket: adminUiBucket,
-            Key: `content/${templateName}/${filePath}`,
-            Body: body
-          }).promise()
+          // Content is delivered via CloudFront origin, so cache settings are vital, and content-type is vital to how the
+          // editor interprets the data.
+          await aws.put(adminUiBucket, `content/${templateName}/${filePath}`, type, body, 0, 0)
           break
         case 'cache':
-          await s3.putObject({
-            Bucket: adminBucket,
-            Key: `cache/${templateName}/${filePath}`,
-            Body: body
-          }).promise()
+          // Cache is used only internally by the site generator, never delivered via CloudFront.
+          await aws.put(adminBucket, `cache/${templateName}/${filePath}`, null, body)
           break
         default:
           console.log(`Unknown path root '${pathRoot}' in template ${templateName}`)

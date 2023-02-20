@@ -27,7 +27,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       return
     }
     if (hasList && rootPath.length === path.length) {
-      setPath([...rootPath, { index: 0, name: content[0][editor.listNameProp] }])
+      setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
       return
     }
   }, [hasList, rootPath, path, setPath, content, editor])
@@ -64,7 +64,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
     const newIndex = rootContent.length
     const newObj = Util.createNewFromSchema({ type: schema.elemType, properties: schema.properties })
-    newObj[editor.listNameProp] = 'item' + newIndex
+    newObj[schema.nameProp] = 'item' + newIndex
     rootContent.push(newObj)
     pushContent(editor.data, configs.current, editor.id)
     itemSelected(null, newIndex)
@@ -90,14 +90,15 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // Update this data value in the config. Push the config data to the server if the value has
   // changed. Push the referenced file to the server if this is a text or image type value.
   const setData = (name, value) => {
-    const oldValue = content[name]
-    if (value !== oldValue) {
-      content[name] = value
-      pushContent(editor.data, configs.current, editor.id)
-    }
     if (name === 'file' && (schema.type === 'image' || schema.type === 'text')) {
       // The subEditor will have already updated the fileContent cache in this case.
       pushContent(value, fileContent.current, value)
+    } else {
+      const oldValue = content[name]
+      if (value !== oldValue) {
+        content[name] = value
+        pushContent(editor.data, configs.current, editor.id)
+      }
     }
   }
 
@@ -166,10 +167,10 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
             bg='listNew'
             cursor='pointer'
             onClick={ev => newItem(ev)}
-          >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + (editor.addTitle || editor.title)]}</Box>
+          >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
           ,
           {rootContent.map((item, index) => {
-            const name = item[editor.listNameProp] || 'item' + index
+            const name = item[schema.nameProp] || 'item' + index
             return <Box
               key={'list' + index + '_' + editor.id}
               size='sm'

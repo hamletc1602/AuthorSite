@@ -56,16 +56,18 @@ AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
 /** Put all files from a disk dir to an S3 bucket */
 AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
   console.log(`Start push of config from ${sourceDir} to ${bucket}:${keyPrefix}`)
-  const sourcePaths = []
-  this.files.readdirSync(sourceDir, {withFileTypes: true}).forEach(file => {
-    if ( ! file.isDirectory()) {
-      sourcePaths.push(file.path.substring(sourceDir.length))
-    }
-  });
+  // This is likely more efficient, but use existing Files util call for now
+  // this.files.readdirSync(sourceDir, {withFileTypes: true}).forEach(file => {
+  //   if ( ! file.isDirectory()) {
+  //     sourcePaths.push(file.path.substring(sourceDir.length))
+  //   }
+  // });
+  const dirList = await this.files.listDir(sourceDir, [])
+  const sourcePaths = dirList.map(e => e.relPath)
   const batchedList = this.batch(sourcePaths, 32)
-  for (const list of batchedList) {
-    await Promise.all(list.map(file => {
-      return this.put(bucket, keyPrefix + file, null, this.files.readFileSync(sourceDir + file))
+  for await (const list of batchedList) {
+    await Promise.all(list.map(async file => {
+      return this.put(bucket, keyPrefix + file, null, await this.files.loadFileBinary(sourceDir + file))
     }))
   }
 }

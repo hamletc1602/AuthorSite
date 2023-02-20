@@ -9,6 +9,8 @@ properties:
   socialMediaLinks:
     type: list
     elemType: object
+    nameProp: name
+    addTitle: link
     properties:
       name:
         type: string

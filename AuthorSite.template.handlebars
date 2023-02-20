@@ -683,6 +683,7 @@ Resources:
           # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
           #adminBucket: !Ref AdminData
           adminBucket: !Join ['-',[!Ref AWS::StackName,'admin']]
+          adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue

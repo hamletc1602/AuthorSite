@@ -76,6 +76,7 @@ const handler = async (event, context) => {
     addEnv(options, 'skipImages')
     addEnv(options, 'types')
     addEnv(options, 'adminBucket')
+    addEnv(options, 'adminUiBucket')
     addEnv(options, 'stateQueueUrl')
     addEnv(options, 'testSiteBucket')
     addEnv(options, 'domainName')
@@ -94,7 +95,7 @@ const handler = async (event, context) => {
     let configName = null
     let configDebug = null
     if (context) {
-      configName = event.templateId
+      configName = event.id
       configDebug = event.debug
     } else {
       configName = process.env.npm_config_authorsite_site
@@ -143,10 +144,9 @@ const handler = async (event, context) => {
     {
       const indexList = await Files.loadYaml(confDir + '/editors.yaml')
       confIndex = indexList.reduce((accum, item) => {
-        if (! accum) { accum = {} }
         accum[item.id] = item
         return accum
-      })
+      }, {})
     }
 
     // Load all core configuration files and merge their keys (Separate files make editing config easier)

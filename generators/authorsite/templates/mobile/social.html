@@ -1,0 +1,47 @@
+{%#> page altPage=true %}
+
+<div class="page-social content">
+  <div class="promotionsBlock">
+    <div class="title">Social Media</div>
+    <p>{%noescape @config.socialMediaPageHeader%}</p>
+    <p>
+      <span class="title">Shareables</span> <span>(Click on the images to share, or copy the link to paste)</span>
+    </p>
+    <div class="promotions pure-g">
+      <div class="promoCol pure-u-1-2">
+        <div class="title">Twitter</div>
+        <div class="promoContainer">
+        {%#social%}
+          {%#if category.twitter%}
+            <div class="promoItem">
+              <a class="" href="https://twitter.com/intent/tweet/?text={%description%}&amp;url=http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%name%}" target="_blank" rel="noopener" aria-label="">
+                <img src="/{%thumbImage%}" title="{%name%}">
+              </a>
+              <br>
+              <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%name%}">Copy Link</span>
+            </div>
+          {%/if%}
+        {%/social%}
+        </div>
+      </div>
+      <div class="promoCol pure-u-1-2">
+        <div class="title">Facebook</div>
+        <div class="promoContainer">
+        {%#social%}
+          {%#if category.facebook%}
+          <div class="promoItem">
+              <a class="" href="https://facebook.com/sharer/sharer.php?u=http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%name%}" target="_blank" rel="noopener">
+                <img src="/{%thumbImage%}" title="{%name%}">
+              </a>
+              <br>
+              <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%name%}">Copy Link</span>
+          </div>
+          {%/if%}
+        {%/social%}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{%/page%}
