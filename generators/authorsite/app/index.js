@@ -808,13 +808,24 @@ const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
 
 const bookToShare = (book) => {
   const redirectUrl = book.targetUrl || (book.primaryDistributor ? book.primaryDistributor.url : `/w/${book.id}`)
+  // Handle book.tags as a comma-separated list, or array (TODO: refactor this to one standard once config settles)
+  let tags = null
+  if (book.tags) {
+    if (book.tags.split) {
+      tags = book.tags.split(',')
+      tags = tags.map(tag => tag.trim())
+    } else if (book.tags.length) {
+      tags = book.tags
+    }
+  }
+  //
   return {
     ogType: 'book',
     redirectUrl: redirectUrl,
     isbn: book.isbn,
     title: book.promoTitle || book.title,
     description: book.text || book.logline,
-    keywords: book.keywords || (book.tags ? book.tags.split(',').map(tag => tag.trim()) : null),
+    keywords: book.keywords || book.tags,
     image: book.image,
     altText: book.altText || book.promoTitle || book.title + ' book cover',
     imageType: book.imageType || book.coverImageType || 'image/jpeg',

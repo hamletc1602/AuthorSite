@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   VStack, Flex, StackDivider, Box, IconButton
 } from '@chakra-ui/react'
 import { DeleteIcon, CloseIcon, AddIcon } from '@chakra-ui/icons'
 import Util from './Util'
-import EditorProperties from './EditorProperties';
-import EditorText from './EditorText';
-import EditorImage from './EditorImage';
+import EditorProperties from './EditorProperties'
+import EditorText from './EditorText'
+import EditorImage from './EditorImage'
 
 /**  */
 export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent}) {
@@ -63,7 +63,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
     // Transform list schema into an item schema
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
     const newIndex = rootContent.length
-    const newObj = Util.createNewFromSchema({ type: schema.elemType, properties: schema.properties })
+    const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties })
     newObj[schema.nameProp] = 'item' + newIndex
     rootContent.push(newObj)
     pushContent(editor.data, configs.current, editor.id)
@@ -90,15 +90,18 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // Update this data value in the config. Push the config data to the server if the value has
   // changed. Push the referenced file to the server if this is a text or image type value.
   const setData = (name, value) => {
-    if (name === 'file' && (schema.type === 'image' || schema.type === 'text')) {
+    let currContent = content
+    if (schema.type === 'image' || schema.type === 'text') {
       // The subEditor will have already updated the fileContent cache in this case.
       pushContent(value, fileContent.current, value)
-    } else {
-      const oldValue = content[name]
-      if (value !== oldValue) {
-        content[name] = value
-        pushContent(editor.data, configs.current, editor.id)
-      }
+      // Ensure the content file path is updated in config if the editor changed it
+      currContent = Util.getContentForPath(configs, path.slice(0, -1))
+      name = path[path.length - 1].name
+    }
+    const oldValue = currContent[name]
+    if (value !== oldValue) {
+      currContent[name] = value
+      pushContent(editor.data, configs.current, editor.id)
     }
   }
 

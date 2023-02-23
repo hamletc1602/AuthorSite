@@ -1,3 +1,5 @@
+import { v1 } from 'uuid'
+
 /**  */
 export default class Util {
 
@@ -30,7 +32,7 @@ export default class Util {
   }
 
   // Generate a file path string from the given routing path and schema
-  static createFilePath(path, schema, ext) {
+  static createFilePath(path, ext) {
     // The file name will be generated from the last path entry name, or the last index entry, if there is one or more.
     const reversePath = [...path].reverse()
     const filePath = []
@@ -50,20 +52,9 @@ export default class Util {
         }
       }
     })
-    // Ext. type should be set during initial editing, but need a default guess for some existing config files
-    if ( ! ext) {
-      switch (schema.type) {
-        case 'image':
-          ext = 'jpg'
-          break
-        case 'text':
-          ext = 'md'
-          break
-        default:
-          ext = 'txt'
-      }
+    if (ext) {
+      fileName += ('.' + ext)
     }
-    fileName += ('.' + ext)
     // Add the file name to the end of the path
     filePath.push(fileName)
     // Format the file path
@@ -152,24 +143,30 @@ export default class Util {
   }
 
   // Create a new object of the type of the provided schema
-  static createNewFromSchema(schema) {
+  static createNew(rootPath, schema) {
     if (schema.type === 'object') {
       const obj = {}
       Object.keys(schema.properties).forEach(key => {
         const prop = schema.properties[key]
-        obj[key] = Util.createNewFromSchema(prop)
+        const path = [...rootPath]
+        path.push({ name: key })
+        obj[key] = Util.createNew(path, prop)
       })
       return obj
+    } else if (schema.type === 'text') {
+      // HACK: The 'ensurePath' algorithm will try to create a directory for the last path element unless it contains a '.', which then breaks when it tries to write the file, so we make sure to add a spurious extension here.
+      return Util.createFilePath(rootPath) + '/' + v1() + '.text'
+    } else if (schema.type === 'image') {
+      // HACK: The 'ensurePath' algorithm will try to create a directory for the last path element unless it contains a '.', which then breaks when it tries to write the file, so we make sure to add a spurious extension here.
+      return Util.createFilePath(rootPath) + '/' + v1() + '.image'
     } else {
-      return Util.getDefaultValue(schema.type, schema.properties)
+      return Util.getDefaultValue(schema.type)
     }
   }
 
   // Return a default (single) value for the given type.
   static getDefaultValue(type) {
     switch(type) {
-      case 'text': return {}
-      case 'image': return {}
       case 'string': return ''
       case 'number': return 0
       case 'url': return ''

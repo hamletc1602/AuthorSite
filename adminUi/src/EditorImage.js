@@ -26,15 +26,41 @@ export default function EditorImage({id, content, fileContent, setData}) {
         console.log(`In cooldown, skip upload for file: ${files[0].name}. Size: ${files[0].size}`)
         return
       }
-      console.log(`Found file: ${files[0].name}. Size: ${files[0].size}`)
+      const mimeType = files[0].type
+      console.log(`Found file: ${files[0].name}. Size: ${files[0].size}. Type: ${mimeType}`)
+
+      // HACK: Update the content path with the mime type of the uploaded file, to ensure the builder works (which
+      // relies on specific .png and .jpg extensions to load files)
+      let ext = null
+      switch (mimeType) {
+        case 'image/jpeg':
+          ext = '.jpg'
+          break
+        case 'image/png':
+          ext = '.png'
+          break
+      }
+      if (ext === null) {
+        // TODO: Need friendly UI to reject non-PNG or JPG image types.
+        console.error(`Image type ${mimeType} uploaded in not an accepted image type. Rquires PNG or JPEG`)
+        return
+      }
+      let newContent = content
+      const parts = content.split('.')
+      const currExt = '.' + parts[parts.length - 1]
+      if (currExt !== ext) {
+        newContent = content.replace(currExt, ext)
+      }
+
+      //
       files[0].arrayBuffer().then(fileBuffer => {
-        fileContent.current[content] = {
+        fileContent.current[newContent] = {
           state: 'complete',
           content: fileBuffer,
-          contentType: files[0].type
+          contentType: mimeType
         }
         // Triggers content push, even if file path is unchanged
-        setData('file', content)
+        setData('file', newContent)
         setCooldown(true)
         setTimeout(() => {
           // TODO: Tie this in to the actual file upload process rather than a static timeout

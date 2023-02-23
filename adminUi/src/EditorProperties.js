@@ -51,13 +51,21 @@ export default function EditorProperties({id, content, schema, setData, editItem
               onClick={() => editItem(name)}
             >Edit</Button>
         } else {
-          // TODO: Component not quite done. Maybe Use a comma-sep list for now?
+          // TODO: Component not quite done. Maybe Use a comma-sep list for now, but continue to store as
+          //    an array.
           // return <EditableTags key={itemKey} tags={value} setTags={tags => {
           //   setConfig(item.path, name, tags)
           // }}/>
           return <Input key={itemKey} size='sm'
-            defaultValue={value}
-            onChange={ev => { setData(name, ev.target.value) }}
+            defaultValue={(value && value.join) ? value.join(", ") : value}
+            onChange={ev => {
+              let v = ev.target.value
+              if (ev.target.value) {
+                v = ev.target.value.split(',')
+                v = v.map(i => i.trim())
+              }
+              setData(name, v)
+            }}
           />
         }
       case 'object': return <Button key={itemKey} size='sm'

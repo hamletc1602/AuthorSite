@@ -38,6 +38,7 @@ const cfnCreateHandler = async (params) => {
     if (params.PrivateTemplates) {
       const list = params.PrivateTemplates.split(',')
       list.forEach(name => {
+        name = name.trim()
         templates.push({
           id: name,
           name: name,

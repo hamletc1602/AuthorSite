@@ -24,7 +24,7 @@ const config1 = {
         }
       },
       prop2: {
-        type: 'string'
+        type: 'text'
       }
     }
   }
@@ -77,14 +77,14 @@ it('Get schema by path', () => {
 });
 
 it('Create file path', () => {
-  expect(Util.createFilePath(prop3_1_path, { type: 'image' })).toEqual('config1/prop1/prop3/name3_1.jpg')
-  expect(Util.createFilePath(prop1_path, { type: 'text' })).toEqual('config1/prop1.md')
-  expect(Util.createFilePath(conf2_elem0_path, { type: 'image'}, 'png')).toEqual('config2/name1_0.png')
+  expect(Util.createFilePath(prop3_1_path)).toEqual('config1/prop1/prop3/name3_1')
+  expect(Util.createFilePath(prop1_path)).toEqual('config1/prop1')
+  expect(Util.createFilePath(conf2_elem0_path, 'png')).toEqual('config2/name1_0.png')
 });
 
-it('Create new from schema', () => {
-  expect(Util.createNewFromSchema(config1.schema)).toEqual({ prop1: [], prop2: ''})
-  expect(Util.createNewFromSchema(config2.schema)).toEqual([])
+it('Create new from path and schema', () => {
+  expect(Util.createNew(prop1_path, config1.schema)).toEqual({ prop1: [], prop2: 'config1/prop1/prop2'})
+  expect(Util.createNew(prop1_path, config2.schema)).toEqual([])
 });
 
 it('Set content for path', () => {
