@@ -30,7 +30,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
       return
     }
-  }, [hasList, rootPath, path, setPath, content, editor])
+  }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
 
   // Ignore changes if we're not the current editor in the path
   if (path[0].name !== editor.id) {

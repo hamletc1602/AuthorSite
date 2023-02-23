@@ -1,12 +1,13 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme,
-  Text, Input, Button, Link, Select,
+  Text, Input, Button, Link,
   InputGroup, InputRightElement,
-  Flex, Spacer,
+  Flex, Spacer, Stack,
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
-  Spinner, Skeleton
+  Spinner, Skeleton,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody
 } from '@chakra-ui/react'
 import {
   InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
@@ -15,6 +16,7 @@ import {
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller';
 import Editor from './Editor'
+import TemplateCard from './TemplateCard'
 import deepEqual from 'deep-equal'
 
 // Theme
@@ -91,7 +93,8 @@ function endFastPolling() {
 
 const authStates = {
   unknown: {
-    icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
+    //icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
+    icon: null
   },
   pending: {
     icon: <Spinner size="xs" m='6px 2px 2px 2px'/>
@@ -107,6 +110,8 @@ const authStates = {
 //
 function App() {
   // State
+  const [showLogin, setShowLogin] = useState(true)
+  const [showSelectTemplate, setShowSelectTemplate] = useState(true)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({})
@@ -217,15 +222,6 @@ function App() {
     prevEditorIndex.current = index
   }
 
-  // Dynamic Content
-  const latestLogUpdate = () => {
-    if (adminLog.length > 0) {
-      return <Text size='xs' whiteSpace='nowrap' noOfLines={1}>{adminDisplay.stepMsg}: {adminLog[0].msg}</Text>
-    } else {
-      return <Text size='xs' whiteSpace='nowrap' noOfLines={1} color='disabledBaseText'>No log messages yet...</Text>
-    }
-  }
-
   // EditorTab Component
   function EditorTab({editor}) {
     const config = configs.current[editor.id]
@@ -290,7 +286,7 @@ function App() {
   usePutContentWorker(controller, adminConfig, contentToPut)
 
   // Get config data from the server
-  React.useEffect(() => {
+  useEffect(() => {
     try {
       if (uiEnabled && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
@@ -327,7 +323,7 @@ function App() {
   }, [adminConfig, uiEnabled])
 
   // Get content data from the server on start editing
-  React.useEffect(() => {
+  useEffect(() => {
     if (contentToGet) {
       let toGet = fileContent.current[contentToGet.path]
       if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
@@ -353,85 +349,47 @@ function App() {
     }
   },[adminConfig, contentToGet])
 
+  useEffect(() => {
+    if (adminConfig.templateId !== undefined) {
+      setTimeout(() => setShowSelectTemplate(false), 2000)
+    }
+  }, [adminConfig.templateId, setShowSelectTemplate])
+
+  useEffect(() => {
+    if (authState === 'success') {
+      setTimeout(() => setShowLogin(false), 2000)
+    }
+  }, [authState, setShowLogin])
+
   // UI
   return (
     <ChakraProvider theme={customTheme}>
       <Grid
         h='calc(100vh - 1em)'
         templateAreas={`
-          "header header, header"
-          "prepare generate publish"
-          "status status status"
-          "edit edit edit"
-          "footer footer footer"
+          "header"
+          "build"
+          "edit"
+          "footer"
         `}
-        templateRows={'2em 2em 1.5em 1fr 1em'}
-        templateColumns={'12em 17em 1fr'}
+        templateRows={'2.5em 1fr 1em'}
+        templateColumns={'1fr'}
       >
-        <GridItem colSpan={3} color='base' bg='accent'>
-          <Flex>
+        <GridItem color='base' bg='accent'>
+          <Flex p='0 1em 0 0'>
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>Site Admin</Text>
             <Spacer/>
-            {authStates[authState].icon}
-            <InputGroup w='10em' size='xs' m='2px'>
-              <Input
-                type={showPwd ? 'text' : 'password'}
-                color='accentText'
-                placeholder='Password...'
-                onChangeCapture={passwordChanging}
-              />
-              <InputRightElement color='accentText' onClick={viewPwdClick}>
-                {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
-              </InputRightElement>
-            </InputGroup>
-          </Flex>
-        </GridItem>
-        <GridItem bg='base'>
-          <Flex>
-            <Select
-              variant='flushed' size='sm' w='100%' m='3px'
-              placeholder={ adminConfig.templateId !== undefined ? 'Switch template...' : 'Select a template...'}
-              value={adminConfig.templateId}
-              onChange={onTemplateIdChange}
-              disabled={!uiEnabled}
-            >
-              {adminTemplates
-                .filter(tpl => {
-                  return tpl.id !== adminConfig.templateId
-                })
-                .map(tpl => {
-                  return <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-                })
-                .concat(advancedMode ? [
-                  <option key={-1} value={currTemplate.current.id}>{currTemplate.current.name}</option>
-                ] : null)
-                }
-            </Select>
-          </Flex>
-        </GridItem>
-        <GridItem bg='base'>
-          <Flex>
             <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Generate</Button>
             {advancedMode ?
               <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Debug</Button>
             : null}
             <Link href={`https://${testSiteHost}/`} size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-          </Flex>
-        </GridItem>
-        <GridItem bg='base'>
-          <Flex>
             <Button size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled}>Publish</Button>
             <Link href={`https://${siteHost}/`} size='sm' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
-        <GridItem colSpan={3}>
-          {latestLogUpdate()}
-        </GridItem>
-        <GridItem
-          colSpan={3}
-          bg='accent'
-        >
+        <GridItem bg='accent' >
           <Skeleton isLoaded={editorsEnabled}>
             <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList>
@@ -451,13 +409,49 @@ function App() {
             </Tabs>
           </Skeleton>
         </GridItem>
-        <GridItem h='1.55em' colSpan={3} bg='accent'>
+        <GridItem h='1.55em' bg='accent'>
           <Flex>
               <Text fontSize='xs' m='2px 5px' color='accentText'>Copyright BraeVitae 2022</Text>
               <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
           </Flex>
         </GridItem>
       </Grid>
+
+      {/* Select template popup */}
+      {/* <Modal isOpen={showSelectTemplate}> */}
+      <Modal isOpen={true}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Select a template</ModalHeader>
+          <ModalBody>
+            {/* <Stack>{adminTemplates.map(t => {
+              return <TemplateCard title={t.name} text={t.description || 'A cool template'} button='Select Template' />
+            })}
+            </Stack> */}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Login Popup */}
+      <Modal isOpen={showLogin}>
+        <ModalOverlay/>
+        <ModalContent>
+          <ModalHeader>Login {authStates[authState].icon}</ModalHeader>
+          <ModalBody>
+            <InputGroup w='10em' size='xs' m='2px' whiteSpace='nowrap'>
+              <Input
+                type={showPwd ? 'text' : 'password'}
+                color='text'
+                placeholder='Password...'
+                onChangeCapture={passwordChanging}
+              />
+              <InputRightElement color='text' onClick={viewPwdClick}>
+                {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
+              </InputRightElement>
+            </InputGroup>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </ChakraProvider>
   )
 }
@@ -471,7 +465,7 @@ function useAdminStatePolling(adminLive, setAdminState) {
       setAdminState(controller.getConfig())
     })
   }
-  React.useEffect(() => {
+  useEffect(() => {
     if ( ! adminStatePoller) {
       adminStatePoller = setInterval(async () => {
         if (pollLoopCount >= maxPollingLoopCount) {
@@ -506,7 +500,7 @@ function useLockStatePolling(setLocked) {
   if ( ! lockStatePoller) {
     controller.getLockState().then(locked => { setLocked(locked) })
   }
-  React.useEffect(() => {
+  useEffect(() => {
     if ( ! lockStatePoller) {
       lockStatePoller = setInterval(async () => {
         setLocked(await controller.getLockState())
@@ -521,7 +515,7 @@ function useLockStatePolling(setLocked) {
 
 // Periodically push updated content to the server
 function usePutContentWorker(controller, adminConfig, contentToPut) {
-  React.useEffect(() => {
+  useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
         await Promise.all(Object.keys(contentToPut.current).map(async toPutId => {

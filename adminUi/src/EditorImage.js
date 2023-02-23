@@ -39,6 +39,7 @@ export default function EditorImage({id, content, fileContent, setData}) {
         case 'image/png':
           ext = '.png'
           break
+        default: // empty
       }
       if (ext === null) {
         // TODO: Need friendly UI to reject non-PNG or JPG image types.
