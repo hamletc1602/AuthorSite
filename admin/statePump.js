@@ -1,6 +1,7 @@
 const sdk = require('aws-sdk');
 const AwsUtils = require('./awsUtils')
 
+const adminBucket = process.env.adminBucket
 const adminUiBucket = process.env.adminUiBucket
 const stateQueueUrl = process.env.stateQueueUrl
 
@@ -21,5 +22,5 @@ exports.handler = async (_event, _context) => {
   if (lock) {
     console.log(`State locked by ${lock.id}, skipping this update.`)
   }
-  await aws.updateAdminStateFromQueue(null, adminUiBucket, { deleteOldLogs: true })
+  await aws.updateAdminStateFromQueue({}, adminBucket, adminUiBucket, { deleteOldLogs: true })
 }

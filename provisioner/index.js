@@ -61,9 +61,7 @@ const cfnCreateHandler = async (params) => {
         generator: params.SiteGenerator,
         templates: templates,
         config: {},
-        display: {},
-        logs: [],
-        latest: []
+        display: {}
       }))
     }).promise()
 

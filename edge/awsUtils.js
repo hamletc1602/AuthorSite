@@ -351,15 +351,17 @@ AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
     This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
     calls this must also call for /admin/lock to check if there's any other active admin UI running.
 */
-AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBucket, opts) {
+AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminBucket, adminUiBucket, opts) {
   opts = opts || {}
   try {
-    // Read current state of the admin.json (unless cached in global var already)
-    if ( ! state) {
-      //console.log('Get state from bucket')
-      const resp = await this.s3.getObject({ Bucket: adminUiBucket, Key: 'admin/admin.json' }).promise()
-      const stateStr = resp.Body.toString()
-      state = JSON.parse(stateStr)
+    // Read current state of the admin and logs json (unless cached in global var already)
+    if ( ! stateCache.state) {
+      const stateStr = await this.get(adminUiBucket, 'admin/admin.json').Body.toString()
+      stateCache.state = JSON.parse(stateStr)
+    }
+    if ( ! stateCache.logs) {
+      const logStr = await this.get(adminBucket, 'log.json').Body.toString()
+      stateCache.logs = JSON.parse(logStr)
     }
 
     //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
@@ -379,7 +381,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
           console.log('Failed to parse message: ' + msg.Body + ' Error: ' + JSON.stringify(error))
         }
         try {
-          _mergeState(state, msgObj)
+          _mergeState(stateCache.state, stateCache.logs, msgObj)
         } catch(error) {
           console.log('Failed to merge message. Error: ' + JSON.stringify(error))
         }
@@ -387,14 +389,14 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
 
       if (opts.deleteOldLogs) {
         console.log(`Clean up any old (>24 hours) log messages.`)
-        console.log(`State: ${JSON.stringify(state)}`)
-        if (state.logs) {
+        console.log(`State: ${JSON.stringify(stateCache.state)}`)
+        if (stateCache.logs) {
           const currMs = Date.now()
-          const msgCount = state.logs.length
-          state.logs = state.logs.filter(msg => {
+          const msgCount = stateCache.logs.length
+          stateCache.logs = stateCache.logs.filter(msg => {
             return (currMs - msg.time) < logMsgTimeoutMS
           })
-          const cleaned = msgCount - state.logs.length
+          const cleaned = msgCount - stateCache.logs.length
           if (cleaned > 0) {
             console.log(`Cleaned ${cleaned} messages from log.`)
           }
@@ -402,13 +404,8 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
       }
 
       //console.log(`Save the state (admin.json)`)
-      await this.s3.putObject({
-        Bucket: adminUiBucket,
-        Key: 'admin/admin.json',
-        Body: Buffer.from(JSON.stringify(state)),
-        CacheControl: 'no-cache,s-maxage=0',
-        ContentType: 'application/json',
-      }).promise()
+      await this.put(adminBucket, 'log.json', 'application/json', Buffer.from(JSON.stringify(stateCache.logs)))
+      await this.put(adminUiBucket, 'admin/admin.json', 'application/json', Buffer.from(JSON.stringify(stateCache.state)), 0, 0)
 
       //console.log(`Delete ${sqsResp.Messages.length} merged messages`)
       const msgsForDelete = sqsResp.Messages.map(msg => {
@@ -426,7 +423,6 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
       } else {
         console.log(`Deleted all processed messages.`)
       }
-
     }
     // keep @Edge default handling
     return false
@@ -441,7 +437,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(state, adminUiBuck
 }
 
 // Merge this new message into the current state.
-const _mergeState = (state, message) => {
+const _mergeState = (state, logs, message) => {
   // Add any new log messages to the state
   //    Log messages will have a current time in MS set when they are generated at the source (time)
   //    And a receipt time (rcptTime) is added here, in case of any major clock differences or processing
@@ -449,12 +445,12 @@ const _mergeState = (state, message) => {
   console.log(`Merge into state: ${JSON.stringify(message)}`)
   if (message.logs) {
     const rcptTime = Date.now()
-    if ( ! state.logs) {
-      state.logs = []
+    if ( ! logs) {
+      logs = []
     }
     message.logs.forEach(logMsg => {
       logMsg.rcptTime = rcptTime
-      state.logs.unshift(logMsg)
+      logs.unshift(logMsg)
     })
   }
   // Config properties

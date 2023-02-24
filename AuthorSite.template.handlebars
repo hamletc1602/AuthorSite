@@ -765,6 +765,7 @@ Resources:
       Handler: statePump.handler
       Environment:
         Variables:
+          adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
           stateQueueUrl: !Ref StateQueue
       Code:

@@ -64,16 +64,17 @@ const controller = new Controller()
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
+const STATE_POLL_INTERVAL_MS = 500
+let maxPollingLoopCount = 30  // Skip this many poll intervals before checking server state.
 let adminStatePoller = null
 let lockStatePoller = null
 let putContentWorker = null
 const FastPollingTimeoutMs = 5 * 60 * 1000
 let fastPollingTimeoutId = null
-let maxPollingLoopCount = 30 // Default 30s updates
 let pollLoopCount = 0
 let passwordChangingDebounce = null
 
-// Start refresh each second. Only if unlocked.
+// Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
 function startFastPolling() {
   maxPollingLoopCount = 1
   fastPollingTimeoutId = setTimeout(function() {
@@ -82,7 +83,7 @@ function startFastPolling() {
   }, FastPollingTimeoutMs)
 }
 
-/** Return to refresh each 30 seconds */
+/** Return to slow refresh */
 function endFastPolling() {
   maxPollingLoopCount = 30
   if (fastPollingTimeoutId) {
@@ -485,7 +486,7 @@ function useAdminStatePolling(adminLive, setAdminState) {
           }
         }
         ++pollLoopCount
-      }, 1000)
+      }, STATE_POLL_INTERVAL_MS)
     }
     return () => {
       clearInterval(adminStatePoller)

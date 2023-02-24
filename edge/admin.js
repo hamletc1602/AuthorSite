@@ -10,7 +10,7 @@ const MaxAuthFailedAttempts = 10
 
 // When run in rapid succession, AWS may retain some state between executions so we defined some
 // globals where it would be useful to retain state.
-let stateCache = null
+let stateCache = {}
 let editorsList = null
 
 /**
@@ -83,7 +83,7 @@ exports.handler = async (event, context) => {
       // pages will just get the current state returned.
       const queryObj = new URLSearchParams(req.querystring)
       if (queryObj.get('active') === 'true') {
-        const resp = await aws.updateAdminStateFromQueue(stateCache, adminUiBucket)
+        const resp = await aws.updateAdminStateFromQueue(stateCache, adminBucket, adminUiBucket)
         if (resp) { return resp }
       }
     }
