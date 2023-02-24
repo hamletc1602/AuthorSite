@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme,
-  Text, Input, Button, Link,
+  Box, Text, Input, Button, Link,
   InputGroup, InputRightElement,
-  Flex, Spacer, Stack,
+  Flex, Spacer, Stack, HStack,
   Grid,GridItem,
   Tabs, TabList, TabPanels, Tab, TabPanel,
   Spinner, Skeleton,
@@ -14,7 +14,7 @@ import {
   ExternalLinkIcon, InfoOutlineIcon
 } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
-import Controller from './Controller';
+import Controller from './Controller'
 import Editor from './Editor'
 import TemplateCard from './TemplateCard'
 import deepEqual from 'deep-equal'
@@ -93,8 +93,8 @@ function endFastPolling() {
 
 const authStates = {
   unknown: {
-    //icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
-    icon: null
+    icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
+    //icon: null
   },
   pending: {
     icon: <Spinner size="xs" m='6px 2px 2px 2px'/>
@@ -116,7 +116,6 @@ function App() {
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({})
   const [adminDisplay, setAdminDisplay] = useState({})
-  const [adminLog, setAdminLog] = useState([])
   const [adminTemplates, setAdminTemplates] = useState([])
   const [showPwd, setShowPwd] = useState(false)
   const [authState, setAuthState] = useState('unknown')
@@ -129,7 +128,6 @@ function App() {
   const uiEnabled = !locked && authState === 'success'
 
   // Global Refs
-  const adminLogRaw = useRef({})
   const editors = useRef([])
   const configs = useRef({})
   const prevEditorIndex = useRef(null)
@@ -156,9 +154,10 @@ function App() {
     }
     setShowPwd(!showPwd)
   }
+
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
-  const onTemplateIdChange = (ev) => {
-    const templateId = ev.target.value
+
+  const setTemplateId = (templateId) => {
     if (templateId) {
       controller.sendCommand('config', { templateId: templateId })
       const newConfig = Object.assign({}, adminConfig)
@@ -171,14 +170,17 @@ function App() {
       startFastPolling()
     }
   }
+
   const onGenerate = () => {
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     startFastPolling()
   }
+
   const onPublish = () => {
     controller.sendCommand('publish')
     startFastPolling()
   }
+
   // On a .5 second debounce, check if the current entered password is valid, and set the auth state occordingly.
   const passwordChanging = (ev) => {
     clearTimeout(passwordChangingDebounce)
@@ -243,20 +245,11 @@ function App() {
     return null
   }
 
-  // Server State Polling
-  // TODO: investigate this package: https://www.npmjs.com/package/use-remote-data
-  //  for handling server data access. Builds in refresh logic and integration with React state.
-
   // Invoke when admin state polling determines something in the state has changed (new state from server)
   const setAdminState = (adminState) => {
     if ( ! adminLive) {
       setAdminConfig(adminState.config)
       setAdminDisplay(adminState.display)
-      if (adminState.logs && adminState.logs.length > 0) {
-        adminLogRaw.current = [...adminState.logs]
-        const logs = adminState.logs.sort((a, b) => b.time - a.time)
-        setAdminLog(logs)
-      }
       setAdminTemplates(adminState.templates)
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
@@ -268,11 +261,6 @@ function App() {
       }
       if ( ! deepEqual(adminState.display, adminDisplay)) {
         setAdminDisplay(adminState.display)
-      }
-      if ( ! deepEqual(adminState.logs, adminLogRaw.current)) {
-        adminLogRaw.current = [...adminState.logs]
-        const logs = adminState.logs.sort((a, b) => b.time - a.time)
-        setAdminLog(logs)
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -418,16 +406,22 @@ function App() {
       </Grid>
 
       {/* Select template popup */}
-      {/* <Modal isOpen={showSelectTemplate}> */}
-      <Modal isOpen={true}>
+      <Modal isOpen={showSelectTemplate && ! showLogin}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Select a template</ModalHeader>
           <ModalBody>
-            {/* <Stack>{adminTemplates.map(t => {
-              return <TemplateCard title={t.name} text={t.description || 'A cool template'} button='Select Template' />
-            })}
-            </Stack> */}
+            <Stack>
+              {adminTemplates.map(tpl => {
+                return <TemplateCard
+                  id={tpl.id}
+                  title={tpl.name}
+                  text={tpl.description ? tpl.description : 'A cool template'}
+                  button='Select Template'
+                  onClick={() => setTemplateId(tpl.id)}
+                />
+              })}
+            </Stack>
           </ModalBody>
         </ModalContent>
       </Modal>
@@ -436,9 +430,14 @@ function App() {
       <Modal isOpen={showLogin}>
         <ModalOverlay/>
         <ModalContent>
-          <ModalHeader>Login {authStates[authState].icon}</ModalHeader>
+          <ModalHeader>
+            <HStack spacing='5px' align='center'>
+              <Box>Login</Box>
+              <Box>{authStates[authState].icon}</Box>
+            </HStack>
+          </ModalHeader>
           <ModalBody>
-            <InputGroup w='10em' size='xs' m='2px' whiteSpace='nowrap'>
+            <InputGroup w='100%' size='sm' whiteSpace='nowrap' marginBottom='1em'>
               <Input
                 type={showPwd ? 'text' : 'password'}
                 color='text'
