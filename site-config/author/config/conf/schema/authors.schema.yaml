@@ -5,6 +5,7 @@ addTitle: author
 properties:
   name:
     type: string
+    desc: Author name to be displayed on the site. Use this name exactly in book descriptions to ensure books are matched to the author.
     key: true
   socialMediaLinks:
     type: list
@@ -14,15 +15,22 @@ properties:
     properties:
       name:
         type: string
+        desc: Name of the social media site as it will be listed on the author's page.
       url:
         type: url
+        desc: Complete URL to the author's main page on this social media site.
   image:
       type: image
+      desc: Image placed prominently on the author's bio page.
   imageLink:
       type: string
+      desc: A link to use for the main author bio image (optional)
   content:
       type: text
+      desc: Author bio text, displayed on the author page.
   external:
       type: boolean
+      desc: Indicates that a bio page should not be generated on this site for this author, that the author name is only added because they are refrenced as a contributor to a book.
   url:
     type: url
+    desc: External URL where more information about the external author can be found, like this author's bio page on their own site.

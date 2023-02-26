@@ -5,17 +5,24 @@ addTitle: distributor
 properties:
   id:
     type: string
+    desc: An internal name to be used for this distributor. (Is this used on the site anywhere?)
     hidden: true
   name:
     type: string
+    desc: Display name to be used for this distributor.
   url:
     type: url
+    desc: Base URL to be used when crafting 'buy' links for this distributor.
   icon:
     type: image
+    desc: Icon to be used for this distributor on site pages. Should be fairly small (lke 100x100 pixels, for example.)
     tag: dist-icons
   featureIcon:
     type: image
+    desc: A larger icon image for this distributor, if needed, for use on larger-format book pages, though really the same small icon image can be used.
   bookIdProp:
     type: string
+    desc: Links to the book property of this same name that holds the distributor specfic ID.
   popupText:
     type: string
+    desc: Popup (tooltip) text that will be shown when the user hovers over the distributor icon.
