@@ -3,23 +3,59 @@ elemType: object
 nameProp: title
 addTitle: book
 properties:
-  isbn:
-    type: string
-  printIsbn:
-    type: string
   title:
     type: string
-  seriesName:
-    type: string
-  seriesIndex:
-    type: number
-  catchup:
-    type: object
-    properties:
-      content: text
+    desc: Title of the book
   author:
     type: list
     elemType: string
+    desc: A comma-separated list of author names. These names need to match exaclty to the names on the Authors tab.
+  coverImage:
+    type: image
+    desc: The book's cover image. A PNG or JPG file only.
+  tags:
+    type: list
+    elemType: string
+    desc: A comma-separated list of tags to use when promoting this book ( Not currently used for much, but may be in future )
+    hidden: true
+  logline:
+    type: string
+    desc: A short, one sentence description of the book that shows up in social media shares.
+  blurb:
+    type: text
+    desc: The 'back of the book' blurb that shows up mainly on the book page on this site.
+  published:
+    type: boolean
+    desc: Whether this book is published or not. Determines whether a 'buy now!' type sticker is applied to the book.
+  featured:
+    type: boolean
+    desc: Whether this book is shown in the featured book panel on the landing page. If more than one book is checked, only the first book in the list will be used.
+  publisher:
+    type: string
+  primaryDistributor:
+    type: string
+    desc: ID of the primary distributor for the 'buy now' links.
+  isbn:
+    type: string
+    desc: ISBN for ebook versions.
+  printIsbn:
+    type: string
+    desc: ISBN for print book versions.
+  seriesName:
+    type: string
+    desc: Display name of the series this book belongs to, or blank if it's a standalone.
+  seriesIndex:
+    type: number
+    desc: Number of this book in the series.
+  catchup:
+    type: object
+    desc: Configuration for the catch-up page that will be linked to books 2 an up of each series.
+    properties:
+      content: text
+      desc: Text that will appear on the catchup page for this book.
+  loglineColor:
+    type: color
+    desc: An HTML color value to be used for the logline for this book if it's displayed on the site feature page.
   type:
     type: list
     elemType: string
@@ -27,40 +63,8 @@ properties:
     values:
       - book
     hidden: true
-  tags:
-    type: list
-    elemType: string
-  logline:
+dynamicProperties:
+  distributorId:
     type: string
-  blurb:
-    type: text
-  loglineColor:
-    type: color
-  published:
-    type: boolean
-  publisher:
-    type: string
-  coverImage:
-    type: image
-  primaryDistributor:
-    type: string
-  smashwordsId:
-    type: string
-  goodreadsId:
-    type: string
-  amazonId:
-    type: string
-  barnesNobleId:
-    type: string
-  appleStoreId:
-    type: string
-  koboId:
-    type: string
-  amazonPrintId:
-    type: string
-  createspaceId:
-    type: string
-  releaseDateShort:
-    type: string
-  releaseDateLong:
-    type: string
+    desc: Replaces the '@BOOKID@' varaible in the distributor URL to create the URL for this book at the distributor site.
+    source: distributors/bookIdProp

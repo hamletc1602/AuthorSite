@@ -4,25 +4,36 @@ nameProp: name
 addTitle: promotion
 properties:
   name:
+    desc: Title name to be used when this promo is shared.
     type: string
     key: true
   text:
+    desc: Test to be used when this promo is shared.
     type: string
   altText:
+    desc: Alt text added to the image when this promo is shared.
     type: string
   enabled:
+    desc: Whether this promo is visbile on the 'Social' page.
     type: boolean
   targetUrl:
+    desc: URl to be associated with the promo when it's shared.
     type: url
-  image:
-    type: image
   keywords:
+    desc: Keywords to add to the promo when it's shared.
     type: list
     elemType: string
+  image:
+    desc: Image to be used when the promo when it's shared.
+    type: image
   imageHeight:
+    desc: Height of the promo image in pixels.
     type: number
   imageWidth:
+    desc: With of the promo image in pixels.
     type: number
   categories:
+    desc: Tags that may be used for filtering promos in future.
     type: list
     elemType: string
+    hidden: true

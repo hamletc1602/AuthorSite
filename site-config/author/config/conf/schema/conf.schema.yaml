@@ -2,17 +2,36 @@ type: object
 properties:
   siteName:
     type: string
-    desc: Page title. Appears in the browser window/tab title bar.
+    desc: A short title for your site. Appears in many places. The browser window/tab title, Copyright message, and when sharing site URLs on social media.
+  publishedStickerText:
+    type: string
+    desc: Text to use on the sticker for items on the site available for sale.
+  unpublishedStickerText:
+    type: string
+    desc: Text to use on the sicket for items on the site not currently available for sale.
+  socialMediaPageText:
+    type: text
+    desc: Description at the top of the social media sharing/promotions page of the site.
+  feedbackPageText:
+    type: string
+    desc: Description displayed on the site feedback form page.
+    path: feedback/description
+
   copyrightShort:
     type: string
     desc: Site copyright notice. Appears at the bottom of the page. Narrow format for phone/tablet.
+    hidden: true
   copyright:
     type: string
     desc: Site copyright notice. Appears at the bottom of the page.
+    hidden: true
 
   license:
     type: object
     properties:
+      display:
+        type: boolean
+        desc: Control whether a licence image/link is displayed in the site footer.
       url:
         type: url
         desc: URL for further information about how works on this page are licensed.
@@ -23,8 +42,24 @@ properties:
         type: string
         desc: Page content license type description
 
+  feedback:
+    type: object
+    hidden: true
+    properties:
+      description:
+        type: string
+        desc: Description displayed on the site feedback form page.
+      subject:
+        type: string
+        desc: Subject line for emails you'll receive when people use the site feedback form (Maybe? I think this got replaced in the switch to AWS SNS email sending.)
+      messages:
+        type: list
+        elemType: string
+        desc: An advanced feature for displaying cusomized contact form content when users click on site items. Only supported in the 'Artist' template for now.
+
   metadata:
     type: object
+    hidden: true
     properties:
       ogType:
         type: string
@@ -48,36 +83,11 @@ properties:
         type: number
         desc: Height in pixels for the default site image.
 
-  feedback:
-    type: object
-    properties:
-      description:
-        type: string
-        desc: Descripton displayed on the site feedback form page.
-      subject:
-        type: string
-        desc: Subject line for emails you'll receive when people use the site feedback form (Maybe? I think this got replaced in the switch to AWS SNS email sending.)
-      messages:
-        type: list
-        elemType: string
-        desc: An advanced feature for displaying cusomized contact form content when users click on site items. Only supported in the 'Artist' template for now.
-
-  coverPromoBackground:
-    type: image
-    desc: Background image used when auto-generating social media promo images for book covers.
-  publishedStickerText:
-    type: string
-    desc: Text to use on the sticker for items on the site available for sale.
-  unpublishedStickerText:
-    type: string
-    desc: Text to use on the sicket for items on the site not currently available for sale.
-  socialMediaPageHeader:
-    type: text
-    desc: Description at the top of the social media sharing/promotions page of the site.
-
   fbAdminCode:
     type: string
     desc: If you also maintain a facebook page related to this site, you can use it to link shares from this site back to your FB page. Maybe? Depends how Facebook is interpreting this code.
+    hidden: true
   pintrestCode:
     type: string
     desc: A code used when users share this site URL on Pintrest. It used to make sharing to Pintrest easier. Honestly not sure if this is still useful?
+    hidden: true

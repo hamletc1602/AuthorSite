@@ -12,7 +12,7 @@ properties:
     desc: Display name to be used for this distributor.
   url:
     type: url
-    desc: Base URL to be used when crafting 'buy' links for this distributor.
+    desc: Base URL to be used when crafting 'buy' links for this distributor. The '@BOOKID@' varaible in this URL will be replaced by the distributor specific ID configured for each book.
   icon:
     type: image
     desc: Icon to be used for this distributor on site pages. Should be fairly small (lke 100x100 pixels, for example.)

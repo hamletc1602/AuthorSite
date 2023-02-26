@@ -1,19 +1,21 @@
 {
     "siteName": "My Author Site",
-    "copyrightShort": "&copy; {%yyyy%} My Author Site",
-    "copyright": "Copyright &copy; {%yyyy%} My Author Site",
+    "publishedStickerText": "Buy Now",
+    "unpublishedStickerText": "Coming Soon!",
+    "socialMediaPageHeader": "promotion/socialMediaHeader.md",
+
+    "copyrightShort": "&copy; {%yyyy%} %siteName%",
+    "copyright": "Copyright &copy; {%yyyy%} %siteName%",
+
     "license": {
         "url": "//creativecommons.org/licenses/by-nd/2.5/ca/",
         "imageUrl": "//creativecommons.org/images/public/somerights20.png",
         "description": "Creative Commons License"
     },
-    "publishedStickerText": "Buy Now",
-    "unpublishedStickerText": "Coming Soon!",
-    "socialMediaPageHeader": "promotion/socialMediaHeader.md",
 
     "metadata": {
         "ogType": "books.author",
-        "title": "My Author Site",
+        "title": "%siteName%",
         "description": "A handy list of all my books with links to distributors.",
         "image": "",
         "imageType": "image/jpeg",

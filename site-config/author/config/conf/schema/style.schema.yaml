@@ -1,38 +1,68 @@
 type: object
 properties:
   theme:
-    type: string
+    desc: Affecs how the domniant colors extrapolted from the provided header image are used on the generated site.
+    type: list
+    elemType: string
+    closed: true
+    values:
+      - dark
+      - light
+      - darkmuted
+      - lightmuted
+      - muted
   background:
+    desc: A background image that is used for both the header and footer of the site. It is also used as a source for background and highlight colours applied to the site, modified by the them value above.
     type: image
   logoSticker:
+    desc: A log to be placed at the top right of the site page, and added to generated social mendia promo images.
     type: image
   coverPromoBackground:
+    desc: Background image used when generating social medai promo images from book covers.
     type: image
-  headerColor:
-    type: color
-  footerColor:
-    type: color
-  headerMenuHoverBkgnd:
-    type: color
   headerMenuSelectedBkgnd:
+    desc: Color of the background around menu items when viewing a page associated with that menu item.
     type: color
   headerMenuHoverColor:
+    desc: Color of menu items when the user hovers over the menu name.
     type: color
+  headerMenuHoverBkgnd:
+    desc: Color of the backgorund around menu items when the user hovers over the menu name.
+    type: color
+  headerColor:
+    desc: Override the site header colour.
+    type: color
+    hidden: true
+  footerColor:
+    desc: Override the site footer colour.
+    type: color
+    hidden: true
   contentBkColor:
+    desc: Background color for the content box on every site page. If set, Overrides the colour generated from the background image.
     type: color
+    hidden: true
   contentBoxShadowColor:
+    desc: Color to use for the shadow around the edges of the site content box that appears on every site page. If set, Overrides the colour generated from the background image.
     type: color
+    hidden: true
   featureBkColor:
+    desc: A background color for the book log line in the featured book block in the landing page. If set, Overrides the colour generated from the background image.
     type: color
+    hidden: true
   featureLoglineColor:
+    desc: A default color for the book log line in the featured book block in the landing page.
     type: color
   defaultFont:
+    desc: A font family name to use for all text on the site that does not have a more specific font setting.
     type: string
   featureFont:
+    desc: A font family name to use for text in the book feature panel on the site landing page.
     type: string
   newsFont:
+    desc: A font family name to use for text on the 'News' page of the site.
     type: string
   webFonts:
+    desc: Extra fonts to load for this website from external sources (ie. google fonts). The family name can then be used in any font setting above.
     type: list
     elemType: object
     nameProp: family
