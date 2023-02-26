@@ -9,7 +9,7 @@ import {
 export default function TemplateCard({id, title, text, button, onClick}) {
 
   // Workaround, since 'Card' import can't be located?? Just return a link to click.
-  return <Link id={id} onClick={onClick}>{title}</Link>
+  return <Link key={id} onClick={onClick}>{title}</Link>
 
   // return <Card
   //   key={id}

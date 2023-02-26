@@ -168,7 +168,7 @@ AwsUtils.prototype.delete = async function(bucket, key) {
 }
 
 /** Merge all temp files to the output dir, only replacing output files if the hashes differ. */
-AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix, monitor) {
+AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix, maxAgeBrowser, maxAgeCloudFront, monitor) {
   console.log(`Merging ${sourceDir} to ${destBucket}/${destPrefix}.`)
   const excludes = ['.DS_Store', 'script-src']
   const sourceFiles = await this.files.listDir(sourceDir, excludes)
@@ -193,7 +193,7 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
           const content = await this.files.loadFileBinary(sourceFile.path)
           const type = mime.getType(sourceFile.path) || 'text/html'
           const destPath = destPrefix + sourceFile.relPath
-          await this.put(destBucket, destPath, type, content)
+          await this.put(destBucket, destPath, type, content, maxAgeBrowser, maxAgeCloudFront)
           if (destFile) {
             monitor.push({
               updated: true,
@@ -356,12 +356,17 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
   try {
     // Read current state of the admin and logs json (unless cached in global var already)
     if ( ! stateCache.state) {
-      const stateStr = await this.get(adminUiBucket, 'admin/admin.json').Body.toString()
+      const stateStr = (await this.get(adminUiBucket, 'admin/admin.json')).Body.toString()
       stateCache.state = JSON.parse(stateStr)
     }
     if ( ! stateCache.logs) {
-      const logStr = await this.get(adminBucket, 'log.json').Body.toString()
-      stateCache.logs = JSON.parse(logStr)
+      stateCache.logs = []
+      try {
+        const logStr = (await this.get(adminBucket, 'log.json')).Body.toString()
+        stateCache.logs = JSON.parse(logStr)
+      } catch(e) {
+        // ignore
+      }
     }
 
     //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
@@ -427,8 +432,8 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
     // keep @Edge default handling
     return false
   } catch(error) {
-    const msg = 'Failed to get messages or update status data: ' + JSON.stringify(error)
-    console.log(msg)
+    const msg = 'Failed to get messages or update status data: ' + error.message
+    console.log(msg, error)
     return {
       status: '500',
       statusDescription: msg

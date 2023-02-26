@@ -1,22 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  ChakraProvider, extendTheme,
-  Box, Text, Input, Button, Link,
-  InputGroup, InputRightElement,
-  Flex, Spacer, Stack, HStack,
-  Grid,GridItem,
-  Tabs, TabList, TabPanels, Tab, TabPanel,
-  Spinner, Skeleton,
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody
+  ChakraProvider, extendTheme, Text, Button, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay
 } from '@chakra-ui/react'
 import {
-  InfoIcon, CheckIcon, NotAllowedIcon, ViewIcon, ViewOffIcon, QuestionOutlineIcon,
-  ExternalLinkIcon, InfoOutlineIcon
+  InfoIcon, ExternalLinkIcon, InfoOutlineIcon
 } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import Editor from './Editor'
-import TemplateCard from './TemplateCard'
+import Login from './Login'
+import SelectTemplate from './SelectTemplate'
+import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
 
 // Theme
@@ -52,11 +47,17 @@ if (process.env.NODE_ENV !== 'development') {
     siteHost = testSiteHost.substring(4)
   } else {
     siteHost = window.location.host
-    testSiteHost = 'test.' + siteHost
+    if (siteHost) {
+      siteHost = siteHost.replace('www.', '')
+      testSiteHost = 'test.' + siteHost
+    }
   }
 } else {
   siteHost = process.env.REACT_APP_TARGET_HOST
-  testSiteHost = 'test.' + siteHost
+  if (siteHost) {
+    siteHost = siteHost.replace('www.', '')
+    testSiteHost = 'test.' + siteHost
+  }
 }
 
 //
@@ -92,33 +93,19 @@ function endFastPolling() {
   }
 }
 
-const authStates = {
-  unknown: {
-    icon: <QuestionOutlineIcon m='6px 2px 2px 2px' color='red.600'/>
-    //icon: null
-  },
-  pending: {
-    icon: <Spinner size="xs" m='6px 2px 2px 2px'/>
-  },
-  success: {
-    icon: <CheckIcon m='6px 2px 2px 2px' color='green.300'/>
-  },
-  fail: {
-    icon: <NotAllowedIcon m='6px 2px 2px 2px' color='red.300'/>
-  }
-}
-
 //
 function App() {
   // State
   const [showLogin, setShowLogin] = useState(true)
-  const [showSelectTemplate, setShowSelectTemplate] = useState(true)
+  const [showSelectTemplate, setShowSelectTemplate] = useState(false)
+  const [showPreparingTemplate, setShowPreparingTemplate] = useState(false)
+  const [showGenerating, setShowGenerating] = useState(false)
+  const [showPublishing, setShowPublishing] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({})
   const [adminDisplay, setAdminDisplay] = useState({})
   const [adminTemplates, setAdminTemplates] = useState([])
-  const [showPwd, setShowPwd] = useState(false)
   const [authState, setAuthState] = useState('unknown')
   const [locked, setLocked] = useState(false)
   const [editorsEnabled, setEditorsEnabled] = useState(false)
@@ -146,16 +133,6 @@ function App() {
   }
 
   // Handlers
-  const viewPwdClick = () => {
-    if ( ! showPwd) { // Pwd currently hidden, will be shown
-      // Re-hide the password after 10s
-      setTimeout(() => {
-        setShowPwd(false)
-      }, 10000)
-    }
-    setShowPwd(!showPwd)
-  }
-
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
 
   const setTemplateId = (templateId) => {
@@ -169,16 +146,20 @@ function App() {
       controller.sendCommand('template', { id: templateId })
       currTemplate.current = adminTemplates.find(t => t.id === templateId)
       startFastPolling()
+      setShowPreparingTemplate(true)
+      setShowSelectTemplate(false)
     }
   }
 
   const onGenerate = () => {
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
+    setShowGenerating(true)
     startFastPolling()
   }
 
   const onPublish = () => {
     controller.sendCommand('publish')
+    setShowPublishing(true)
     startFastPolling()
   }
 
@@ -302,6 +283,7 @@ function App() {
                 editors.current = editorsData
                 setPath([{ name: editorId }])
                 setEditorsEnabled(true)
+                setShowPreparingTemplate(false)
               }
             })
         }
@@ -338,17 +320,31 @@ function App() {
     }
   },[adminConfig, contentToGet])
 
-  useEffect(() => {
-    if (adminConfig.templateId !== undefined) {
-      setTimeout(() => setShowSelectTemplate(false), 2000)
-    }
-  }, [adminConfig.templateId, setShowSelectTemplate])
-
+  // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
     if (authState === 'success') {
-      setTimeout(() => setShowLogin(false), 2000)
+      setTimeout(() => {
+        setShowLogin(false)
+        if ( ! adminConfig.templateId) {
+          setShowSelectTemplate(true)
+        }
+      }, 2000)
     }
-  }, [authState, setShowLogin])
+  }, [authState, setShowLogin, adminConfig.templateId, setShowSelectTemplate])
+
+  // Disable show generating when generating is complete
+  useEffect(() => {
+    if ( ! adminDisplay.building) {
+      setShowGenerating(false)
+    }
+  }, [adminDisplay.building, setShowGenerating])
+
+  // Disable show publishing when publishing is complete
+  useEffect(() => {
+    if ( ! adminDisplay.deploying) {
+      setShowPublishing(false)
+    }
+  }, [adminDisplay.deploying, setShowPublishing])
 
   // UI
   return (
@@ -364,22 +360,37 @@ function App() {
         templateRows={'2.5em 1fr 1em'}
         templateColumns={'1fr'}
       >
-        <GridItem color='base' bg='accent'>
+        <GridItem color='baseText' bg='accent'>
           <Flex p='0 1em 0 0'>
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>Site Admin</Text>
             <Spacer/>
-            <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Generate</Button>
+            <Button
+              size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
+              isLoading={showGenerating || adminDisplay.building} loadingText='Generating...' loadingSpinnerPosition='end'
+              margin='0 0.5em 0 0.5em'
+            >Generate</Button>
             {advancedMode ?
-              <Button size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled}>Debug</Button>
+              <Button
+                size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
+                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...' loadingSpinnerPosition='end'
+              >Generate Debug</Button>
             : null}
-            <Link href={`https://${testSiteHost}/`} size='sm' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <Button size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled}>Publish</Button>
-            <Link href={`https://${siteHost}/`} size='sm' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
+            <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
+            <Button
+              size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
+              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' loadingSpinnerPosition='end'
+              margin='0 0.5em 0 0.5em'
+            >Publish</Button>
+            <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
         <GridItem bg='accent' >
-          <Skeleton isLoaded={editorsEnabled}>
+          <Skeleton
+            isLoaded={editorsEnabled}
+            hidden={showLogin || showSelectTemplate || showPreparingTemplate}
+            height='100%'
+          >
             <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList>
                 {editors.current.map((editor) => (
@@ -389,9 +400,8 @@ function App() {
               <TabPanels bg='base'>
                 {editors.current.map((editor) => (
                   <TabPanel p='0' key={'Tab_' + editor.id}>
-                    <Skeleton isLoaded={configs.current[editor.id]}>
-                      <EditorTab key={'EditorTab_' + editor.id} editor={editor} />
-                    </Skeleton>
+                    <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='10em'/>
+                    <EditorTab key={'EditorTab_' + editor.id} editor={editor} />
                   </TabPanel>
                 ))}
               </TabPanels>
@@ -406,51 +416,19 @@ function App() {
         </GridItem>
       </Grid>
 
-      {/* Select template popup */}
-      <Modal isOpen={showSelectTemplate && ! showLogin}>
+      <Modal isOpen={showPreparingTemplate && ! showSelectTemplate && ! showLogin}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Select a template</ModalHeader>
-          <ModalBody>
-            <Stack>
-              {adminTemplates.map(tpl => {
-                return <TemplateCard
-                  id={tpl.id}
-                  title={tpl.name}
-                  text={tpl.description ? tpl.description : 'A cool template'}
-                  button='Select Template'
-                  onClick={() => setTemplateId(tpl.id)}
-                />
-              })}
-            </Stack>
-          </ModalBody>
-        </ModalContent>
+        <PreparingTemplate adminTemplates={adminTemplates} adminConfig={adminConfig} />
       </Modal>
 
-      {/* Login Popup */}
+      <Modal isOpen={showSelectTemplate && ! showLogin}>
+        <ModalOverlay />
+        <SelectTemplate adminTemplates={adminTemplates} setTemplateId={setTemplateId} />
+      </Modal>
+
       <Modal isOpen={showLogin}>
         <ModalOverlay/>
-        <ModalContent>
-          <ModalHeader>
-            <HStack spacing='5px' align='center'>
-              <Box>Login</Box>
-              <Box>{authStates[authState].icon}</Box>
-            </HStack>
-          </ModalHeader>
-          <ModalBody>
-            <InputGroup w='100%' size='sm' whiteSpace='nowrap' marginBottom='1em'>
-              <Input
-                type={showPwd ? 'text' : 'password'}
-                color='text'
-                placeholder='Password...'
-                onChangeCapture={passwordChanging}
-              />
-              <InputRightElement color='text' onClick={viewPwdClick}>
-                {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
-              </InputRightElement>
-            </InputGroup>
-          </ModalBody>
-        </ModalContent>
+        <Login authState={authState} passwordChanging={passwordChanging} />
       </Modal>
     </ChakraProvider>
   )

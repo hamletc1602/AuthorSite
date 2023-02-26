@@ -83,6 +83,34 @@ const cfnCreateHandler = async (params) => {
       }))
     }))
 
+    // Add default index.html to site buckets with redirect to the admin site
+    const indexPage = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta http-equiv="refresh" content="4; URL='https://${params.DomainName}/admin/index'" />
+        </head>
+        <body>
+          <h1>Under Construction!</h1>
+          <p>Redirecting to admin UI,,,,</p>
+        </body>
+      </html>
+    `
+    await s3.putObject({
+      Bucket: params.WebDataBucket,
+      Key: 'index.html',
+      Body: indexPage,
+      CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
+      ContentType: 'text/html'
+    }).promise()
+    await s3.putObject({
+      Bucket: params.TestWebDataBucket,
+      Key: 'index.html',
+      Body: indexPage,
+      CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
+      ContentType: 'text/html'
+    }).promise()
+
     //
     return {}
   } catch (error) {

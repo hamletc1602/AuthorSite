@@ -197,7 +197,7 @@ const handler = async (event, context) => {
         // Push completed build back to S3 (Test site)
         await displayUpdate(Aws, { building: true }, `Push site content to ${options.testSiteBucket}`)
         try {
-          await Aws.mergeToS3(outputDir, options.testSiteBucket, type, {
+          await Aws.mergeToS3(outputDir, options.testSiteBucket, type, 0, 0, {
             push: event => {
               console.log(mergeEventToString(event))
             }
