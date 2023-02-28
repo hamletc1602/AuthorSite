@@ -7,15 +7,19 @@ properties:
     type: string
     hidden: true
   title:
+    disp: Title
     desc: The title is displayed in a larger font at the top of the news post.
     type: string
   content:
+    disp: Content
     desc: Content is displayed in standard size news font in the body of the news post.
     type: text
   author:
+    disp: Author
     desc: Name of the post author. It should match an author name, but it does not need to, at this time.
     type: string
   status:
+    disp: Status
     desc: Whether this news item is visible (published) on the new page.
     type: list
     elemType: string
@@ -24,12 +28,15 @@ properties:
       - hidden
       - publish
   publishedDateIso:
+    disp: ISO Date
     desc: ISO format published date. Used for ordering posts in descending date order.
     type: string
   publishedDateDisplay:
+    disp: Display Date
     desc: A display date for to be shown on the news page for this news item.
     type: string
   type:
+    disp: Type
     desc: May be used in future to control how the post content is rendered on the site.
     type: list
     elemType: string
@@ -38,6 +45,7 @@ properties:
       - post
     hidden: true
   format:
+    disp: Format
     desc: May be used in future to control how the post is rendered on the site.
     type: list
     elemType: string
@@ -46,6 +54,7 @@ properties:
       - standard
     hidden: true
   category:
+    disp: Categories
     desc: Categories for this post. In future, the site may alow filtering by category.
     type: list
     elemType: string

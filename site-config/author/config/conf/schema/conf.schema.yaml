@@ -1,44 +1,56 @@
 type: object
 properties:
   siteName:
+    disp: Site Title
     type: string
     desc: A short title for your site. Appears in many places. The browser window/tab title, Copyright message, and when sharing site URLs on social media.
   publishedStickerText:
+    disp: Buy Now Text
     type: string
     desc: Text to use on the sticker for items on the site available for sale.
   unpublishedStickerText:
+    disp: Pre-order Text
     type: string
     desc: Text to use on the sicket for items on the site not currently available for sale.
   socialMediaPageText:
+    disp: Social Page Text
     type: text
     desc: Description at the top of the social media sharing/promotions page of the site.
   feedbackPageText:
+    disp: Feedback Page Text
     type: string
     desc: Description displayed on the site feedback form page.
     path: feedback/description
 
   copyrightShort:
+    disp: Abbreviated Copyright
     type: string
     desc: Site copyright notice. Appears at the bottom of the page. Narrow format for phone/tablet.
     hidden: true
   copyright:
+    disp: Copyright
     type: string
     desc: Site copyright notice. Appears at the bottom of the page.
     hidden: true
 
   license:
+    disp: Site Content License
     type: object
     properties:
+      disp: Show License Icon
       display:
         type: boolean
         desc: Control whether a licence image/link is displayed in the site footer.
       url:
+        disp: License URL
         type: url
         desc: URL for further information about how works on this page are licensed.
       imageUrl:
+        disp: License Icon URL
         type: url
         desc: Page content licensing descriptive image URL.
       description:
+        disp: License Name
         type: string
         desc: Page content license type description
 
@@ -87,10 +99,12 @@ properties:
         hidden: true
 
   fbAdminCode:
+    disp: Facebook Admin Code
     type: string
     desc: If you also maintain a facebook page related to this site, you can use it to link shares from this site back to your FB page. Maybe? Depends how Facebook is interpreting this code.
     hidden: true
   pintrestCode:
+    disp: Pinterst Verify Code
     type: string
     desc: A code used when users share this site URL on Pintrest. It used to make sharing to Pintrest easier. Honestly not sure if this is still useful?
     hidden: true

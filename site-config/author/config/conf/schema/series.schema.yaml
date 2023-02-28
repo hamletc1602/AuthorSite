@@ -4,17 +4,22 @@ nameProp: name
 addTitle: series
 properties:
   name:
+    disp: Name
     desc: Series name. This much match exatly to the name entered as the series name for each book.
     type: string
   image:
+    disp: Image
     desc: An image to associate with the series (optional)
     type: image
   content:
+    disp: Page Text
     desc: Test to be displayed on the series page.
     type: text
   external:
+    disp: Is External
     desc: Indicates that an external series page exsists already, so a series page should not be generated for this site.
     type: boolean
   url:
+    disp: External URL
     desc: The URL of the external series page.
     type: url
