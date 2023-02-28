@@ -60,12 +60,24 @@ export default function EditorImage({id, content, fileContent, setData}) {
           content: fileBuffer,
           contentType: mimeType
         }
-        // Triggers content push, even if file path is unchanged
-        setData('file', newContent)
+
+        // Parse the image file to get width and height
+        const image = new Image();
+        image.addEventListener('load', () => {
+          // Triggers content push, even if file path is unchanged
+          setData('file', {
+            name: newContent,
+            type: mimeType,
+            width: image.width,
+            height: image.height
+          })
+        });
+        image.src = URL.createObjectURL(new Blob([fileBuffer], { type: mimeType }))
+
         setCooldown(true)
         setTimeout(() => {
           // TODO: Tie this in to the actual file upload process rather than a static timeout
-          //  OR: Add and instance key to make the multipart upload less sensitive to overlapping uploads?
+          //  OR: Add an instance key to make the multipart upload less sensitive to overlapping uploads?
           setCooldown(false)
         }, 10000)
         setImage()

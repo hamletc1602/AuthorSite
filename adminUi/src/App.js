@@ -222,6 +222,7 @@ function App() {
           setContentToGet({ path: path })
         }}
         pushContent={scheduleContentPush}
+        advancedMode={advancedMode}
       />
     }
     return null
@@ -271,13 +272,6 @@ function App() {
                   return editor
                 })
                 const raw = await controller.getSiteConfig(adminConfig.templateId, editorId)
-                // Hack: Workaroud general schema missing type & properties, for now:
-                if (raw.content.schema && !raw.content.schema.properties) {
-                  raw.content.schema = {
-                    type: 'object',
-                    properties: raw.content.schema
-                  }
-                }
                 raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
                 configs.current[editorId] = raw.content
                 editors.current = editorsData
@@ -367,19 +361,19 @@ function App() {
             <Spacer/>
             <Button
               size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-              isLoading={showGenerating || adminDisplay.building} loadingText='Generating...' loadingSpinnerPosition='end'
+              isLoading={showGenerating || adminDisplay.building} loadingText='Generating...'
               margin='0 0.5em 0 0.5em'
             >Generate</Button>
             {advancedMode ?
               <Button
                 size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...' loadingSpinnerPosition='end'
+                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...'
               >Generate Debug</Button>
             : null}
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
             <Button
               size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
-              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' loadingSpinnerPosition='end'
+              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...'
               margin='0 0.5em 0 0.5em'
             >Publish</Button>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>

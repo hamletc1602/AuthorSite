@@ -1,9 +1,9 @@
 type: list
 elemType: object
-nameProp: name
+nameProp: title
 addTitle: promotion
 properties:
-  name:
+  title:
     desc: Title name to be used when this promo is shared.
     type: string
     key: true
@@ -19,6 +19,7 @@ properties:
   targetUrl:
     desc: URl to be associated with the promo when it's shared.
     type: url
+    forceHttps: true
   keywords:
     desc: Keywords to add to the promo when it's shared.
     type: list
@@ -26,13 +27,19 @@ properties:
   image:
     desc: Image to be used when the promo when it's shared.
     type: image
+  imageType:
+    desc: MIME type of the promo image.
+    type: image
+    hidden: true
   imageHeight:
     desc: Height of the promo image in pixels.
     type: number
+    hidden: true
   imageWidth:
     desc: With of the promo image in pixels.
     type: number
-  categories:
+    hidden: true
+  category:
     desc: Tags that may be used for filtering promos in future.
     type: list
     elemType: string

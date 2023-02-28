@@ -6,7 +6,7 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, content, schema, setData, editItem}) {
+export default function EditorProperties({id, content, schema, setData, editItem, advancedMode}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
@@ -99,7 +99,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
         return null
       }
       const itemSchema = properties[name]
-      if (itemSchema.hidden) {
+      if ( ! advancedMode && itemSchema.hidden) {
         return null
       }
       const value = content[name]

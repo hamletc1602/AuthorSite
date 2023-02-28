@@ -14,6 +14,7 @@ export default function SelectTemplate({id, adminTemplates, setTemplateId}) {
       <Stack>
         {adminTemplates.map(tpl => {
           return <TemplateCard
+            key={tpl.id}
             id={tpl.id}
             title={tpl.name}
             text={tpl.description ? tpl.description : 'A cool template'}

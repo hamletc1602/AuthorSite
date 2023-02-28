@@ -171,7 +171,12 @@ export default class Util {
       case 'number': return 0
       case 'url': return ''
       case 'color': return ''
-      case 'list': return []
+      case 'list':
+        if (type.closed) {
+          return [type.values[0]]
+        } else {
+          return []
+        }
       case 'object': throw new Error(`Should never see type 'object' here.`)
       default: return null
     }

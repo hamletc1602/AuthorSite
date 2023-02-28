@@ -151,15 +151,27 @@ const handler = async (event, context) => {
 
     // Load all core configuration files and merge their keys (Separate files make editing config easier)
     //    Note: skip resolveFileRefs for structure since it has no schema (and is unlikely to ever have any 'text' properties)
+    const initConfig = { build: options.buildId, yyyy: year }
+    let config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
+    // Process general conf. one more time, with site-name added to the initial config, so we cna use siteName in the same file where it's defined.
+    initConfig.siteName = config.siteName
+    config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
     const structure = await Files.loadConfig(Path.join(confDir, confIndex.structure.data))
     const style = await Files.loadConfig(Path.join(confDir, confIndex.style.data))
-    const config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), { build: options.buildId, yyyy: year })
-    await resolveFileRefs(contentDir, style, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)))
-    await resolveFileRefs(contentDir, config, await Files.loadConfig(Path.join(confDir, confIndex.general.schema)))
+    const styleSchema = await Files.loadConfig(Path.join(confDir, confIndex.style.schema))
+    await resolveFileRefs(contentDir, style, styleSchema)
+    await resolveGeneratorPaths(contentDir, style, styleSchema)
+    await ensureProtocolOnUrls(contentDir, style, styleSchema)
+    const generalSchema = await Files.loadConfig(Path.join(confDir, confIndex.general.schema))
+    await resolveFileRefs(contentDir, config, generalSchema)
+    await resolveGeneratorPaths(contentDir, config, generalSchema)
+    await ensureProtocolOnUrls(contentDir, config, generalSchema)
     Object.assign(config, structure, style)
     config.hostName = options.domainName
     config.tempDir = tempDir
     Object.assign(config, config.paths) // Shift paths vars up to root of config where the code expects them.
+
+    //
 
     // Force debug to true in config if it's supplied at runtime
     if (options.debug || configDebug == 'true') {
@@ -211,7 +223,9 @@ const handler = async (event, context) => {
     }
 
     // Save current cache content back to S3 (if updated)
-    Aws.push(cacheDir, options.adminBucket, `cache/${configName}/`)
+    if (context) {
+      Aws.push(cacheDir, options.adminBucket, `cache/${configName}/`)
+    }
 
     // Finish
     let dur = Date.now() - startTs
@@ -289,13 +303,40 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
 
     //
-    await resolveFileRefs(contentDir, data.styleConfig, await Files.loadConfig(Path.join(confDir, confIndex.style.schema)), config);
-    await resolveFileRefs(contentDir, data.published, await Files.loadConfig(Path.join(confDir, confIndex.books.schema)), config);
-    await resolveFileRefs(contentDir, data.social, await Files.loadConfig(Path.join(confDir, confIndex.social.schema)), config);
-    await resolveFileRefs(contentDir, data.authors, await Files.loadConfig(Path.join(confDir, confIndex.authors.schema)), config);
-    await resolveFileRefs(contentDir, data.series, await Files.loadConfig(Path.join(confDir, confIndex.series.schema)), config);
-    await resolveFileRefs(contentDir, data.news, await Files.loadConfig(Path.join(confDir, confIndex.news.schema)), config);
-    await resolveFileRefs(contentDir, data.distributors, await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema)), config);
+    const styleSchema = await Files.loadConfig(Path.join(confDir, confIndex.style.schema))
+    const booksSchema = await Files.loadConfig(Path.join(confDir, confIndex.books.schema))
+    const socialSchema = await Files.loadConfig(Path.join(confDir, confIndex.social.schema))
+    const authorsSchema = await Files.loadConfig(Path.join(confDir, confIndex.authors.schema))
+    const seriesSchema = await Files.loadConfig(Path.join(confDir, confIndex.series.schema))
+    const newsSchema = await Files.loadConfig(Path.join(confDir, confIndex.news.schema))
+    const distributorsSchema = await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema))
+
+    // Load real content for any 'test' elements and replace the file path
+    await resolveFileRefs(contentDir, data.styleConfig, styleSchema, config)
+    await resolveFileRefs(contentDir, data.published, booksSchema, config)
+    await resolveFileRefs(contentDir, data.social, socialSchema, config)
+    await resolveFileRefs(contentDir, data.authors, authorsSchema, config)
+    await resolveFileRefs(contentDir, data.series, seriesSchema, config)
+    await resolveFileRefs(contentDir, data.news, newsSchema, config)
+    await resolveFileRefs(contentDir, data.distributors, distributorsSchema, config)
+
+    // Copy values from their existing position in the config to a different one spcified by the 'path' property in the schema
+    await resolveGeneratorPaths(contentDir, data.styleConfig, styleSchema, config)
+    await resolveGeneratorPaths(contentDir, data.published, booksSchema, config)
+    await resolveGeneratorPaths(contentDir, data.social, socialSchema, config)
+    await resolveGeneratorPaths(contentDir, data.authors, authorsSchema, config)
+    await resolveGeneratorPaths(contentDir, data.series, seriesSchema, config)
+    await resolveGeneratorPaths(contentDir, data.news, newsSchema, config)
+    await resolveGeneratorPaths(contentDir, data.distributors, distributorsSchema, config)
+
+    // Ensure all URL properties have an appropriate protocol prefix.
+    await ensureProtocolOnUrls(contentDir, data.styleConfig, styleSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.published, booksSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.social, socialSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.authors, authorsSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.series, seriesSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.news, newsSchema, config)
+    await ensureProtocolOnUrls(contentDir, data.distributors, distributorsSchema, config)
 
     //
     console.info("Prepare headers and footers from page backgound images")
@@ -561,7 +602,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     groups: data.authors,
     social: data.social,
     series: data.series,
-    feature: data.published[0],
+    feature: data.published.find(p => p.featured === true),
     news: data.news,
     share: config,
     style: data.styleConfig
@@ -769,24 +810,20 @@ const mergeToOutput = async (sourceDir, destDir) => {
   }))
 }
 
-/** Resolve external text elements in the given props object and all child objects */
-const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
+/** Vist all schema elements, while resolving the properties object associated with that level of schema. */
+const visitProperties = async (rootDir, value, schema, config, actionFunc, parent, key) => {
   switch (schema.type) {
-    case 'text':
-      // Replace key value with external text content (possibly also rendered from a template)
-      parent[key] = await Files.loadLargeData(Path.join(rootDir, value), { props: parent, config: config });
-    break
     case 'list':
       // Check all items in the list
       if (value.map) {
         Promise.all(value.map(async (item, index) => {
           // Each list item uses the same schema info from the parent
-          await resolveFileRefs(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, value, index)
+          await visitProperties(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
         }))
       } else {
         console.log(`List type property ${key} does not have an array type value`)
       }
-    break
+      break
     case 'object':
       // Check all properties
       await Promise.all(Object.keys(value).map(async itemKey => {
@@ -794,7 +831,7 @@ const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
         if (defn) {
           let item = value[itemKey];
           if (item) {
-            await resolveFileRefs(rootDir, item, defn, config, value, itemKey)
+            await visitProperties(rootDir, item, defn, config, actionFunc, value, itemKey)
           }
         } else {
           if (itemKey[0] !== '_') {
@@ -802,8 +839,53 @@ const resolveFileRefs = async (rootDir, value, schema, config, parent, key) => {
           }
         }
       }))
-    break
+      break
+    default:
+      await actionFunc(rootDir, value, schema, config, parent, key)
   }
+}
+
+/** Resolve external text elements in the given props object and all child objects */
+const resolveFileRefs = async (rootDirI, valueI, schemaI, configI) => {
+  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+    if (schema.type === 'text') {
+      // Replace key value with external text content (possibly also rendered from a template)
+      parent[key] = await Files.loadLargeData(Path.join(rootDir, value), { props: parent, config: config });
+    }
+  })
+}
+
+/** Ensure all URL type properties begin with the appropriate protocol. */
+const ensureProtocolOnUrls = async (rootDirI, valueI, schemaI, configI) => {
+  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+    if (schema.type === 'url') {
+      let proto = '//'
+      if (schema.forceHttps) {
+        proto = 'https://'
+      } else if (schema.forceHttp) {
+        proto = 'http://'
+      }
+      if (value.indexOf(proto) !== 0) {
+        // Replace any existing protocol value with the proper one.
+        value = value.replace(/^\/\//, '').replace(/^http:\/\//, '').replace(/^https:\/\//, '')
+        parent[key] = proto + value
+      }
+    }
+  })
+}
+
+/** Find schema elements that have altered generator paths, copy the value from it's current config path to the gnerator path. */
+const resolveGeneratorPaths = async (rootDirI, valueI, schemaI, configI) => {
+  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+    if (schema.path) {
+      const parts = schema.path.split('/')
+      let currValue = valueI
+      for (const part of parts.slice(0, -1)) {
+        currValue = currValue[part]
+      }
+      currValue[parts[parts.length -1]] = value
+    }
+  })
 }
 
 const bookToShare = (book) => {

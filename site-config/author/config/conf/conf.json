@@ -2,20 +2,22 @@
     "siteName": "My Author Site",
     "publishedStickerText": "Buy Now",
     "unpublishedStickerText": "Coming Soon!",
-    "socialMediaPageHeader": "promotion/socialMediaHeader.md",
+    "socialMediaPageText": "promotion/socialMediaHeader.md",
+    "feedbackPageText": "If you have a question or concern that is not covered by the <a href=\"/p/faq\">FAQ</a>, here's a handy form you can use to send us an anonymous message.",
 
-    "copyrightShort": "&copy; {%yyyy%} %siteName%",
-    "copyright": "Copyright &copy; {%yyyy%} %siteName%",
+
+    "copyrightShort": "&copy; {%yyyy%} {%siteName%}",
+    "copyright": "Copyright &copy; {%yyyy%} {%siteName%}",
 
     "license": {
-        "url": "//creativecommons.org/licenses/by-nd/2.5/ca/",
-        "imageUrl": "//creativecommons.org/images/public/somerights20.png",
+        "url": "creativecommons.org/licenses/by-nd/2.5/ca/",
+        "imageUrl": "creativecommons.org/images/public/somerights20.png",
         "description": "Creative Commons License"
     },
 
     "metadata": {
         "ogType": "books.author",
-        "title": "%siteName%",
+        "title": "{%siteName%}",
         "description": "A handy list of all my books with links to distributors.",
         "image": "",
         "imageType": "image/jpeg",
@@ -24,7 +26,7 @@
     },
 
     "feedback": {
-        "description": "If you have a question or concern that is not covered by the <a href=\"/p/faq\">FAQ</a>, here's a handy form you can use to send us an anonymous message.",
+        "description": "",
         "subject": "Author Site Feedback",
         "email": "",
         "messages": [

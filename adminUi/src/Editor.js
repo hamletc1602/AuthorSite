@@ -9,7 +9,7 @@ import EditorText from './EditorText'
 import EditorImage from './EditorImage'
 
 /**  */
-export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent}) {
+export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent, advancedMode}) {
 
   const schema = Util.getSchemaForPath(configs, path)
   const hasList = schema.type === 'list'
@@ -98,10 +98,32 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       currContent = Util.getContentForPath(configs, path.slice(0, -1))
       name = path[path.length - 1].name
     }
-    const oldValue = currContent[name]
-    if (value !== oldValue) {
-      currContent[name] = value
+    if (schema.type === 'image') {
+      //
+      const imageProps = value
+      currContent[name] = imageProps.name
+      // Update the image path, and Set other image prop values if the relevant poperty names exist.
+      const parentSchema = Util.getSchemaForPath(configs, path.slice(0, -1))
+      const typeProp = name + 'Type'
+      if (parentSchema.properties[typeProp]) {
+        currContent[typeProp] = imageProps.type
+      }
+      const widthProp = name + 'Width'
+      if (parentSchema.properties[widthProp]) {
+        currContent[widthProp] = imageProps.width
+      }
+      const heightProp = name + 'Height'
+      if (parentSchema.properties[heightProp]) {
+        currContent[heightProp] = imageProps.height
+      }
       pushContent(editor.data, configs.current, editor.id)
+    } else {
+      // Upate the server content if this property value has changed
+      const oldValue = currContent[name]
+      if (value !== oldValue) {
+        currContent[name] = value
+        pushContent(editor.data, configs.current, editor.id)
+      }
     }
   }
 
@@ -202,6 +224,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         fileContent={fileContent}
         setData={setData}
         editItem={editItem}
+        advancedMode={advancedMode}
       ></SubEditor>
     </Flex>
     <Flex key='ops' color='editorText' bg='editorBg'>

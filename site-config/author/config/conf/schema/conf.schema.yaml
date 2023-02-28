@@ -76,12 +76,15 @@ properties:
       imageType:
         type: string
         desc: A MIME type for the default site image.
+        hidden: true
       imageWidth:
         type: number
         desc: Width in pixels for the default site image.
+        hidden: true
       imageHeight:
         type: number
         desc: Height in pixels for the default site image.
+        hidden: true
 
   fbAdminCode:
     type: string
