@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  VStack, Flex, StackDivider, Box, IconButton
+  VStack, Flex, Text, Box, IconButton, Tooltip,
+  Breadcrumb, BreadcrumbItem, BreadcrumbLink
 } from '@chakra-ui/react'
-import { DeleteIcon, CloseIcon, AddIcon } from '@chakra-ui/icons'
+import { DeleteIcon, CloseIcon, AddIcon, ArrowLeftIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import EditorProperties from './EditorProperties'
 import EditorText from './EditorText'
@@ -130,115 +131,112 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // Switch to editing a child item by updating the path with it's name (this will force a re-render)
   const editItem = (name) => setPath([...path, { name: name }])
 
-  // Create grid col widths
-  const colWidths = []
-  colWidths.push('' + hierarchyPath.length + 'em')
-  if (hasList) {
-    colWidths.push('10em')
-  } else {
-    colWidths.push('0em')
+  const breadcrumbs = () => {
+    const crumbs = []
+    if (hierarchyPath.length > 0) {
+      crumbs.push(<BreadcrumbItem>
+          <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, 1))}>
+            <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
+          </BreadcrumbLink>
+        </BreadcrumbItem>)
+      {(hierarchyPath.slice(0, -1)).forEach(elem => {
+        crumbs.push(<BreadcrumbItem>
+            <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
+              {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
+            </BreadcrumbLink>
+          </BreadcrumbItem>)
+      })}
+      const last = hierarchyPath[hierarchyPath.length - 1]
+      crumbs.push(<BreadcrumbItem isCurrentPage>
+          <BreadcrumbLink
+            href='#' onClick={() => setPath(rootPath.slice(0, last.origIndex))}
+            _hover={{textDecor: 'none', cursor: 'default'}}
+            marginBottom='3px'
+          >
+            {last.indexName ? '[' + last.indexName + '] ' + last.name : last.name}
+          </BreadcrumbLink>
+        </BreadcrumbItem>)
+    }
+    return crumbs
   }
-  colWidths.push('10em')
-  colWidths.push('1em')
-
-  const hierarchyStackHeight = 10
 
   //
-  return <Flex
+  return <VStack
     key='Editor'
   >
-    <Flex
-      align='flex-start'
-      color='editorText'
-      bg='blue.100'
-      w={(hierarchyPath.length * 1.3) + 'em'}
+    {hierarchyPath.length > 0 ? <Breadcrumb
+      onClick={() => setPath(rootPath.slice(0, hierarchyPath[hierarchyPath.length - 1].origIndex))}
+      w='100%' padding='0 3px 0 3px'
     >
-      <VStack
-        spacing={0}
-        transform='rotate(90deg)'
-        align='left'
-        position='relative'
-        minW={hierarchyStackHeight + 'em'}
-        top={4 + 'em'}
-        left={-4 + 'em'}
-        divider={<StackDivider borderColor='editorDivider' />}
-      >
-        {hierarchyPath.map((elem, index) => {
-          let name = elem.name
-          if (elem.indexName) {
-            name = elem.indexName + ' / ' + elem.name
-          }
-          return <Box
-            key={'hierarchy_' + index}
-            onClick={() => setPath(rootPath.slice(0, elem.origIndex))}
-            bg='blue:200'
-            fontWeight='bold'
-            cursor='pointer'
-            whiteSpace='nowrap'
-            textTransform='capitalize'
-          >{name}</Box>
-        })}
-      </VStack>
-    </Flex>
-    <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'}>
-      {hasList ? <VStack
-        spacing={0}
-      >
-        [
-          <Box
-            key={'listNew_' + editor.id}
-            width='10em'
-            padding='3px'
-            bg='listNew'
-            cursor='pointer'
-            onClick={ev => newItem(ev)}
-          >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
-          ,
-          {rootContent.map((item, index) => {
-            const name = item[schema.nameProp] || 'item' + index
-            return <Box
-              key={'list' + index + '_' + editor.id}
-              size='sm'
-              bg={index === pathIndex ? 'listSelected' : 'editorBg'}
+      {breadcrumbs()}
+    </Breadcrumb> : null}
+    <Flex w='100%' marginTop='0 !important'>
+      <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'}>
+        {hasList ? <VStack
+          spacing={0}
+        >
+          [
+            <Box
+              key={'listNew_' + editor.id}
               width='10em'
               padding='3px'
+              bg='listNew'
               cursor='pointer'
-              onClick={ev => itemSelected(ev, index, name)}
-            >{name}</Box>
-            })}
-        ]
-      </VStack> : null }
+              onClick={ev => newItem(ev)}
+            >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
+            ,
+            {rootContent.map((item, index) => {
+              const name = item[schema.nameProp] || 'item' + index
+              return <Box
+                key={'list' + index + '_' + editor.id}
+                size='sm'
+                bg={index === pathIndex ? 'listSelected' : 'editorBg'}
+                width='10em'
+                padding='3px'
+                cursor='pointer'
+                onClick={ev => itemSelected(ev, index, name)}
+              >{name}</Box>
+              })}
+          ]
+        </VStack> : null }
+      </Flex>
+      <Flex
+        flex='1'
+        minH='10em'
+        padding='0.3em'
+        color='editorText'
+        bg='editorBg'
+      >
+        <SubEditor
+          key={editor.id}
+          id={editor.id}
+          content={content}
+          schema={schema}
+          fileContent={fileContent}
+          setData={setData}
+          editItem={editItem}
+          advancedMode={advancedMode}
+        ></SubEditor>
+      </Flex>
+      <Flex key='ops' color='editorText' bg='editorBg'>
+        {hasList ?
+          inDelete ?
+            <VStack>
+              <Tooltip openDelay={450} closeDelay={250} label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
+                <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
+              </Tooltip>
+              <Tooltip openDelay={450} closeDelay={250} label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
+                <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
+              </Tooltip>
+            </VStack>
+          :
+            <Tooltip openDelay={450} closeDelay={250} label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
+              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/>
+            </Tooltip>
+        : null}
+      </Flex>
     </Flex>
-    <Flex
-      flex='1'
-      minH='10em'
-      padding='0.3em'
-      color='editorText'
-      bg='editorBg'
-    >
-      <SubEditor
-        key={editor.id}
-        id={editor.id}
-        content={content}
-        schema={schema}
-        fileContent={fileContent}
-        setData={setData}
-        editItem={editItem}
-        advancedMode={advancedMode}
-      ></SubEditor>
-    </Flex>
-    <Flex key='ops' color='editorText' bg='editorBg'>
-      {hasList ?
-        inDelete ?
-          <VStack>
-            <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
-            <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
-          </VStack>
-        :
-          <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/>
-      : null}
-    </Flex>
-  </Flex>
+  </VStack>
 }
 
 // Return the editor component to use for this data type.

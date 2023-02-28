@@ -1,6 +1,6 @@
 import React, {  } from 'react';
 import {
-  Input, NumberInput, Grid, GridItem, Box, Button, Checkbox, Select,
+  Input, NumberInput, Grid, GridItem, Box, Button, Checkbox, Select, Tooltip,
   NumberInputField, NumberIncrementStepper, NumberDecrementStepper, NumberInputStepper
 } from '@chakra-ui/react'
 //import EditableTags from './EditableTags';
@@ -104,9 +104,14 @@ export default function EditorProperties({id, content, schema, setData, editItem
       }
       const value = content[name]
       return [
-        <GridItem
-          key={`${id}-${name}-label`}><Box textTransform='capitalize'>{name}</Box></GridItem>,
-        <GridItem key={`${id}-${name}-edit`}>{editField(itemSchema, name, value)}</GridItem>
+        <GridItem key={`${id}-${name}-label`} >
+          <Tooltip openDelay={450} closeDelay={250} label={itemSchema.desc} hasArrow={true} aria-label={itemSchema.desc}>
+            {itemSchema.disp || name}
+          </Tooltip>
+        </GridItem>,
+        <GridItem key={`${id}-${name}-edit`}>
+          {editField(itemSchema, name, value)}
+        </GridItem>
       ]
     }).flat()}
     </Grid>
