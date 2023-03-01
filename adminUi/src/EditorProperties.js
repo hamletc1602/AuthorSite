@@ -1,6 +1,6 @@
 import React, {  } from 'react';
 import {
-  Input, NumberInput, Grid, GridItem, Box, Button, Checkbox, Select, Tooltip,
+  Input, NumberInput, Grid, GridItem, Button, Checkbox, Select, Tooltip,
   NumberInputField, NumberIncrementStepper, NumberDecrementStepper, NumberInputStepper
 } from '@chakra-ui/react'
 //import EditableTags from './EditableTags';
@@ -40,9 +40,16 @@ export default function EditorProperties({id, content, schema, setData, editItem
       />
       case 'list':
         if (schema.closed && schema.values) {
-          return <Select key={itemKey} size='sm'>
-            {schema.values.map((value, index) => {
-              return <option key={itemKey + '_opt' + index} value={index}>{value}</option>
+          let selIndex = -1
+          if (value && value.length > 0) {
+            selIndex = schema.values.findIndex(p => p === value[0])
+          }
+          return <Select key={itemKey} size='sm'
+            defaultValue={selIndex}
+            onChange={ev => { setData(name, [schema.values[ev.target.value]]) }}
+          >
+            {schema.values.map((listValue, index) => {
+              return <option key={itemKey + '_opt' + index} value={index}>{listValue}</option>
             })}
           </Select>
         } else if (schema.elemType !== 'string') {
@@ -82,8 +89,14 @@ export default function EditorProperties({id, content, schema, setData, editItem
     }
   }
 
-  const names = Object.keys(content)
-  const properties = schema.properties
+  let properties = null
+  if (schema.dynamicProperties && schema.dynamicProperties.cache) {
+    // If this schema has any dynamic properties, merge them into the properties set before rendering
+    properties = Object.assign({}, schema.properties, schema.dynamicProperties.cache)
+  } else {
+    properties = schema.properties
+  }
+  const names = Object.keys(properties)
   return <Grid
       key={'PropsEdit' + id}
       w='100%'
@@ -95,11 +108,11 @@ export default function EditorProperties({id, content, schema, setData, editItem
     bg='editor'
   >
     {names.map(name => {
-      if ( ! (properties && properties[name])) {
-        return null
-      }
       const itemSchema = properties[name]
       if ( ! advancedMode && itemSchema.hidden) {
+        return null
+      }
+      if (content === undefined || content === null || content.length === 0) {
         return null
       }
       const value = content[name]

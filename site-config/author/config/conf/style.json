@@ -1,5 +1,5 @@
 {
-    "theme": "dark",
+    "theme": ["dark"],
     "background": "backgrounds/author.jpg",
 
     "logoSticker": null,

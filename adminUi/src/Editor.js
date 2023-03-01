@@ -28,7 +28,9 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
       return
     }
     if (hasList && rootPath.length === path.length) {
-      setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
+      if (content.length > 0) {
+        setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
+      }
       return
     }
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
@@ -49,7 +51,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
     if ( ! fileContent.current[content]) {
       getContent(content)
     }
-    // TODO: If there's multiple renders while the content is downloading, multiple gets could be started.
+    // TODO: If there's multiple renders while the content is downloading, multiple gets could be started?
     //   Perhaps add a 'pending' placeholder record here in the content cache that will be replaced when the
     //   content download completes?
   }
@@ -139,13 +141,13 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
             <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
           </BreadcrumbLink>
         </BreadcrumbItem>)
-      {(hierarchyPath.slice(0, -1)).forEach(elem => {
+      (hierarchyPath.slice(0, -1)).forEach(elem => {
         crumbs.push(<BreadcrumbItem>
             <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
               {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
             </BreadcrumbLink>
           </BreadcrumbItem>)
-      })}
+      })
       const last = hierarchyPath[hierarchyPath.length - 1]
       crumbs.push(<BreadcrumbItem isCurrentPage>
           <BreadcrumbLink

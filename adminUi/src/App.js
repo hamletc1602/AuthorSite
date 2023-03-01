@@ -13,6 +13,7 @@ import Login from './Login'
 import SelectTemplate from './SelectTemplate'
 import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
+import Util from './Util'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -198,10 +199,10 @@ function App() {
     const configId = editor.id
     if ( ! configs.current[configId]) {
       const raw = await controller.getSiteConfig(adminConfig.templateId, configId)
-      raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
       raw.content.isConfig = true // Add config flag, for use later in uploading.
       configs.current[configId] = raw.content
     }
+    Util.processDynamicProperties(configs.current, configs.current[configId])
     setPath(editor.lastEditPath)
     prevEditorIndex.current = index
   }

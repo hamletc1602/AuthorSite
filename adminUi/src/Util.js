@@ -209,4 +209,32 @@ export default class Util {
     return newPath
   }
 
+  /** Find any dynamic properties in the schema of the current config and refresh their cached list of generated
+      property names based on the data in other refrenced schemas.
+  */
+  static processDynamicProperties(configs, currConfig) {
+    const currSchema = currConfig.schema
+    if (currSchema.dynamicProperties) {
+      currSchema.dynamicProperties.cache = {}
+      Object.entries(currSchema.dynamicProperties).forEach((propName, propConf) => {
+        if ( ! propConf.source) {
+          console.log(`Dynamic property ${propName} missing source attribute.`)
+          return
+        }
+        const [sourceConfigId, sourcePropName] = propConf.source.split('/')
+        const sourceConfig = configs[sourceConfigId]
+        if (sourceConfig.type !== 'list') {
+          console.log(`Dynamic property ${propName} source is ${sourceConfig.type} type, not a list as required.`)
+        }
+        sourceConfig.content.forEach(p => {
+          currSchema.dynamicProperties.cache[propName + p[sourcePropName]] = {
+            type: propConf.type,
+            disp: p[sourcePropName],
+            desc: propConf.desc
+          }
+        })
+      })
+    }
+  }
+
 }

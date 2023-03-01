@@ -82,7 +82,7 @@ properties:
     type: color
     desc: An HTML color value to be used for the logline for this book if it's displayed on the site feature page.
 dynamicProperties:
-  distributorId:
+  distId:
     type: string
     desc: Replaces the '@BOOKID@' varaible in the distributor URL to create the URL for this book at the distributor site.
     source: distributors/bookIdProp

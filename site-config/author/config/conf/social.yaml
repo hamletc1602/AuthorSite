@@ -3,6 +3,7 @@
   text: Just Well Loved (Short Story)
   altText: "Quote: Constance and her daughter are enjoying a peaceful walk when they hear someone crying. Who they find, and how they transform the agony of that troubled soul will touch your heart."
   image: social/just_well_loved_promo.png
+  enabled: true
   keywords: ['Notre Dame']
   imageType: image/png
   imageHeight: 512
@@ -14,6 +15,7 @@
   text: Manual Override (Short Story)
   altText: "Quote: Old pilots don't get that way by trusting machinery. Sometimes you've got to get your hands dirty."
   image: social/manual_override_promo.png
+  enabled: true
   keywords: ['Mars', 'engineer']
   imageType: image/png
   imageHeight: 450
