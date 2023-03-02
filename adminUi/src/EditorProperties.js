@@ -54,7 +54,8 @@ export default function EditorProperties({id, content, schema, setData, editItem
           </Select>
         } else if (schema.elemType !== 'string') {
           // Lists of any type but 'string' need an edit button
-          return <Button key={itemKey} size='sm'
+          return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
+              _hover={{ bg: 'accent', color: 'gray.400'}}
               onClick={() => editItem(name)}
             >Edit</Button>
         } else {
@@ -75,13 +76,16 @@ export default function EditorProperties({id, content, schema, setData, editItem
             }}
           />
         }
-      case 'object': return <Button key={itemKey} size='sm'
+      case 'object': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
+          _hover={{ bg: 'accent', color: 'gray.400'}}
           onClick={() => editItem(name)}
         >Edit</Button>
-      case 'text': return <Button key={itemKey} size='sm'
+      case 'text': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
+          _hover={{ bg: 'accent', color: 'gray.400'}}
           onClick={() => editItem(name)}
         >Edit</Button>
-      case 'image': return <Button key={itemKey} size='sm'
+      case 'image': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
+          _hover={{ bg: 'accent', color: 'gray.400'}}
           onClick={() => editItem(name)}
         >Edit</Button>
       default:

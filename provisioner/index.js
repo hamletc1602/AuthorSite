@@ -98,14 +98,28 @@ const cfnCreateHandler = async (params) => {
     `
     await s3.putObject({
       Bucket: params.WebDataBucket,
-      Key: 'index.html',
+      Key: 'desktop/index.html',
+      Body: indexPage,
+      CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
+      ContentType: 'text/html'
+    }).promise()
+    await s3.putObject({
+      Bucket: params.WebDataBucket,
+      Key: 'mobile/index.html',
       Body: indexPage,
       CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
       ContentType: 'text/html'
     }).promise()
     await s3.putObject({
       Bucket: params.TestWebDataBucket,
-      Key: 'index.html',
+      Key: 'desktop/index.html',
+      Body: indexPage,
+      CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
+      ContentType: 'text/html'
+    }).promise()
+    await s3.putObject({
+      Bucket: params.TestWebDataBucket,
+      Key: 'mobile/index.html',
       Body: indexPage,
       CacheControl: `max-age=${params.MaxAgeBrowser},s-maxage=${params.MaxAgeCloudFront}`,
       ContentType: 'text/html'

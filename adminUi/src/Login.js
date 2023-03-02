@@ -26,7 +26,7 @@ const authStates = {
 }
 
 /**  */
-export default function Login({authState, passwordChanging}) {
+export default function Login({authState, authErrorMsg, passwordChanging}) {
 
   const [showPwd, setShowPwd] = useState(false)
 
@@ -59,6 +59,7 @@ export default function Login({authState, passwordChanging}) {
           {showPwd ? <ViewIcon/> : <ViewOffIcon/>}
         </InputRightElement>
       </InputGroup>
+      <Box color='danger'>{authErrorMsg}</Box>
     </ModalBody>
   </ModalContent>
 }

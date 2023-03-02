@@ -134,22 +134,22 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   const editItem = (name) => setPath([...path, { name: name }])
 
   const breadcrumbs = () => {
-    const crumbs = []
+    const crumbs2 = []
     if (hierarchyPath.length > 0) {
-      crumbs.push(<BreadcrumbItem>
+      crumbs2.push(<BreadcrumbItem>
           <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, 1))}>
             <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
           </BreadcrumbLink>
         </BreadcrumbItem>)
       (hierarchyPath.slice(0, -1)).forEach(elem => {
-        crumbs.push(<BreadcrumbItem>
+        crumbs2.push(<BreadcrumbItem>
             <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
               {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
             </BreadcrumbLink>
           </BreadcrumbItem>)
       })
       const last = hierarchyPath[hierarchyPath.length - 1]
-      crumbs.push(<BreadcrumbItem isCurrentPage>
+      crumbs2.push(<BreadcrumbItem isCurrentPage>
           <BreadcrumbLink
             href='#' onClick={() => setPath(rootPath.slice(0, last.origIndex))}
             _hover={{textDecor: 'none', cursor: 'default'}}
@@ -159,7 +159,7 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
           </BreadcrumbLink>
         </BreadcrumbItem>)
     }
-    return crumbs
+    return crumbs2
   }
 
   //

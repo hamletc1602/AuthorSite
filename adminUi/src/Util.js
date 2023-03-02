@@ -212,18 +212,21 @@ export default class Util {
   /** Find any dynamic properties in the schema of the current config and refresh their cached list of generated
       property names based on the data in other refrenced schemas.
   */
-  static processDynamicProperties(configs, currConfig) {
+  static async processDynamicProperties(configs, currConfig, loadConfig) {
     const currSchema = currConfig.schema
     if (currSchema.dynamicProperties) {
       currSchema.dynamicProperties.cache = {}
-      Object.entries(currSchema.dynamicProperties).forEach((propName, propConf) => {
+      await Promise.all(Object.entries(currSchema.dynamicProperties).map(async ([propName, propConf]) => {
         if ( ! propConf.source) {
           console.log(`Dynamic property ${propName} missing source attribute.`)
           return
         }
         const [sourceConfigId, sourcePropName] = propConf.source.split('/')
-        const sourceConfig = configs[sourceConfigId]
-        if (sourceConfig.type !== 'list') {
+        let sourceConfig = configs[sourceConfigId]
+        if ( ! sourceConfig) {
+          sourceConfig = await loadConfig(sourceConfigId)
+        }
+        if (sourceConfig.schema.type !== 'list') {
           console.log(`Dynamic property ${propName} source is ${sourceConfig.type} type, not a list as required.`)
         }
         sourceConfig.content.forEach(p => {
@@ -233,7 +236,7 @@ export default class Util {
             desc: propConf.desc
           }
         })
-      })
+      }))
     }
   }
 

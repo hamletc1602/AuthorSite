@@ -20,12 +20,20 @@ const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to a
 const customTheme = extendTheme({
   initialColorMode: props.colorMode,
   useSystemColorMode: true,
+  styles: {
+    global: () => ({
+      body: {
+        bg: 'accent'
+      }
+    }),
+  },
   semanticTokens: {
     colors: {
       base: mode('gray.300', 'gray.700')(props),
       baseText: mode('black', 'white')(props),
       disabledBaseText: mode('gray.600', 'gray.800')(props),
-      accent: mode('blue', 'blue')(props),
+      accent: mode('blue.500', 'blue.500')(props),
+      accentLighter: mode('blue.400', 'blue.400')(props),
       accentText: mode('white', 'white')(props),
       accentActiveText: mode('orange', 'orange')(props),
       editor: mode('white', 'black')(props),
@@ -104,10 +112,11 @@ function App() {
   const [showPublishing, setShowPublishing] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
-  const [adminConfig, setAdminConfig] = useState({})
+  const [adminConfig, setAdminConfig] = useState({ new: true })
   const [adminDisplay, setAdminDisplay] = useState({})
   const [adminTemplates, setAdminTemplates] = useState([])
   const [authState, setAuthState] = useState('unknown')
+  const [authErrorMsg, setAuthErrorMsg] = useState('')
   const [locked, setLocked] = useState(false)
   const [editorsEnabled, setEditorsEnabled] = useState(false)
   const [path, setPath] = useState([])
@@ -168,6 +177,7 @@ function App() {
   const passwordChanging = (ev) => {
     clearTimeout(passwordChangingDebounce)
     passwordChangingDebounce = setTimeout(async () => {
+      setAuthErrorMsg('')
       const currPwd = ev.target.value
       if (currPwd.length > 0) {
         setAuthState('pending')
@@ -177,6 +187,7 @@ function App() {
             controller.setPassword(currPwd)
           } else {
             setAuthState('fail')
+            setAuthErrorMsg('Invalid password')
           }
         } catch (error) {
           console.error('Unable to authenticate with server.', error)
@@ -190,6 +201,14 @@ function App() {
   // and set the current edit item path to the last saved ath for this editor.
   const editorTabChange = async (index) => {
     //
+    async function loadAndCacheConfig(configId) {
+      const raw = await controller.getSiteConfig(adminConfig.templateId, configId)
+      raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
+      raw.content.isConfig = true // Add config flag, for use later in uploading.
+      configs.current[configId] = raw.content
+      return raw.content
+    }
+    //
     const prevEditor = editors.current[prevEditorIndex.current]
     if (prevEditor) {
       prevEditor.lastEditPath = [...path]
@@ -198,11 +217,9 @@ function App() {
     const editor = editors.current[index]
     const configId = editor.id
     if ( ! configs.current[configId]) {
-      const raw = await controller.getSiteConfig(adminConfig.templateId, configId)
-      raw.content.isConfig = true // Add config flag, for use later in uploading.
-      configs.current[configId] = raw.content
+      await loadAndCacheConfig(configId)
     }
-    Util.processDynamicProperties(configs.current, configs.current[configId])
+    await Util.processDynamicProperties(configs.current, configs.current[configId], loadAndCacheConfig)
     setPath(editor.lastEditPath)
     prevEditorIndex.current = index
   }
@@ -309,7 +326,7 @@ function App() {
         })
         .catch(error => {
           setContentToGet(null)
-          toGet.state = 'failed'
+          toGet.state = 'fail'
         })
       }
     }
@@ -318,14 +335,26 @@ function App() {
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
     if (authState === 'success') {
-      setTimeout(() => {
-        setShowLogin(false)
-        if ( ! adminConfig.templateId) {
-          setShowSelectTemplate(true)
+      let minWait = 3  // wait min 1.5 seconds before dropping login modal
+      let maxWait = 20  // wait max. 10 seconds for adminConfig from the server.
+      const cancel = setInterval(() => {
+        if (minWait <= 0 && ! adminConfig.new) {
+          setShowLogin(false)
+          if ( ! adminConfig.templateId) {
+            setShowSelectTemplate(true)
+          }
+          clearInterval(cancel)
         }
-      }, 2000)
+        --maxWait
+        --minWait
+        if (maxWait === 0) {
+          setAuthState('fail')
+          setAuthErrorMsg('Failed to get admin state.')
+          clearInterval(cancel)
+        }
+      }, 500)
     }
-  }, [authState, setShowLogin, adminConfig.templateId, setShowSelectTemplate])
+  }, [authState, setShowLogin, adminConfig.templateId, adminConfig.new, setShowSelectTemplate])
 
   // Disable show generating when generating is complete
   useEffect(() => {
@@ -345,7 +374,8 @@ function App() {
   return (
     <ChakraProvider theme={customTheme}>
       <Grid
-        h='calc(100vh - 1em)'
+        h='calc(100vh - 12px)'
+        bg='accent'
         templateAreas={`
           "header"
           "build"
@@ -355,57 +385,60 @@ function App() {
         templateRows={'2.5em 1fr 1em'}
         templateColumns={'1fr'}
       >
-        <GridItem color='baseText' bg='accent'>
-          <Flex p='0 1em 0 0'>
+        <GridItem color='baseText' bg='accent' h='1.5em'>
+          <Flex p='5px 1em 5px 5px'>
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>Site Admin</Text>
             <Spacer/>
             <Button
               size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
               isLoading={showGenerating || adminDisplay.building} loadingText='Generating...'
-              margin='0 0.5em 0 0.5em'
+              margin='0 0.5em 0 0.5em' color='accent' _hover={{ bg: 'gray.400' }}
             >Generate</Button>
             {advancedMode ?
               <Button
                 size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...'
+                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...' color='accent'
+                _hover={{ bg: 'gray.400' }}
               >Generate Debug</Button>
             : null}
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
             <Button
               size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
-              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...'
-              margin='0 0.5em 0 0.5em'
+              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' color='accent'
+              margin='0 0.5em 0 0.5em' _hover={{ bg: 'gray.400' }}
             >Publish</Button>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
-        <GridItem bg='accent' >
+        <GridItem bg='editorBg' >
           <Skeleton
             isLoaded={editorsEnabled}
             hidden={showLogin || showSelectTemplate || showPreparingTemplate}
             height='100%'
           >
-            <Tabs size='sm' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
-              <TabList>
+            <Tabs size='sm' h='1em' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
+              <TabList bg='accent'>
                 {editors.current.map((editor) => (
-                  <Tab color='accentText' key={editor.id} disabled={!uiEnabled}>{editor.title}</Tab>
+                  <Tab color='accentText' _selected={{ color: 'gray.400' }} _hover={{ color: 'gray.400' }}
+                    key={editor.id} disabled={!uiEnabled}
+                  >{editor.title}</Tab>
                 ))}
               </TabList>
-              <TabPanels bg='base'>
+              <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)' overflowY='auto'>
                 {editors.current.map((editor) => (
                   <TabPanel p='0' key={'Tab_' + editor.id}>
-                    <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='10em'/>
-                    <EditorTab key={'EditorTab_' + editor.id} editor={editor} />
+                    <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='calc(100vh - 6.3em)'/>
+                    <EditorTab key={'EditorTab_' + editor.id} editor={editor}/>
                   </TabPanel>
                 ))}
               </TabPanels>
             </Tabs>
           </Skeleton>
         </GridItem>
-        <GridItem h='1.55em' bg='accent'>
-          <Flex>
-              <Text fontSize='xs' m='2px 5px' color='accentText'>Copyright BraeVitae 2022</Text>
+        <GridItem h='1.6em' bg='accent'>
+          <Flex p='3px 5px'>
+              <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2022</Text>
               <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
           </Flex>
         </GridItem>
@@ -423,7 +456,7 @@ function App() {
 
       <Modal isOpen={showLogin}>
         <ModalOverlay/>
-        <Login authState={authState} passwordChanging={passwordChanging} />
+        <Login authState={authState} authErrorMsg={authErrorMsg} passwordChanging={passwordChanging} />
       </Modal>
     </ChakraProvider>
   )
