@@ -1,18 +1,16 @@
 $offWhite: #EEE;
 
 /** Vibrant Color styles for all the skins */
-<%#style.skins%>
-    <%#if active %>
-    .<%className%> {
+<%#style%>
+    .skin {
 		<%#each palette.bkgnd %>
 			$<%@key%>: <%this%>;
 		<%/each%>
 		<%#each palette.fgnd %>
 			$<%@key%>: <%this%>;
 		<%/each%>
-    } /* Theme */
-    <%/if%>
-<%/style.skins%>
+	}
+<%/style%>
 
 /* Import the common functions. */
 $host: "<%@config.imagePath%>";
@@ -175,14 +173,14 @@ html {
 .page-content {
 	.content {
 		min-height: 40em;
-		margin-top: <%style.headerHeight.sm%>;
+		margin-top: <%@config.headerHeight.sm%>;
 
 		padding: 1px 12px;
 		border-radius: 2em;
 	}
 
 	.contentNoPanel {
-		margin-top: <%style.headerHeight.noPanel.sm%>;
+		margin-top: <%@config.headerHeight.noPanel.sm%>;
 	}
 
 	.title-centre h1 {
@@ -207,14 +205,9 @@ html {
 
 	.table {
 		table {
-			tr {
-
-			}
-
 			th {
 				padding: 3px;
 			}
-
 			td {
 				padding: 3px;
 			}
@@ -232,7 +225,34 @@ html {
 			border: 2px solid red;
 		}
 		.feedbackButton {
-			color: black;
+
+			.fb_buttonUi {
+				border: 1px solid white;
+				padding: 5px;
+			}
+			.fb_status {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+
+				color: white;
+				border: 2px solid black;
+				padding: 5px;
+				border-radius: 5px;
+				background-color: rgb(153, 153, 153);
+
+				//.fb_statusInner {
+				//}
+
+				&.error {
+					border: 2px solid red;
+				}
+
+				&.done {
+					border: 2px solid green;
+				}
+			}
 		}
 	}
 
@@ -691,7 +711,6 @@ html {
 	position: relative;
 	top: -15px;
 	width: <%@config.publishedMarkerWidth%>px;
-	//width: $publishedMarkerWidth;
 	margin: 0px auto;
 	border-radius: 8px;
 	padding: 5px;
@@ -809,10 +828,8 @@ a.themebtn {
 	a:active {
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
@@ -904,8 +921,7 @@ a.themebtn {
 			}
 
 		} /* Theme */
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 }
 
@@ -959,13 +975,13 @@ a.themebtn:hover {
 
 /*** Small screen ***********************************************************/
 /*
-@media screen and (min-width: <%style.bkgndConfig.widthXSm%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthXSm%>px) {
 
 }
 */
 
 /*** Medium screen ***********************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthSm%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthSm%>px) {
 	/** Common */
 	.pure-md-hide {
 		display: none !important;
@@ -990,12 +1006,12 @@ a.themebtn:hover {
 
 		.content
 		{
-			margin-top: <%style.headerHeight.md%>;
+			margin-top: <%@config.headerHeight.md%>;
 			min-height: 30em;
 		}
 
 		.contentNoPanel {
-			margin-top: <%style.headerHeight.noPanel.md%>;
+			margin-top: <%@config.headerHeight.noPanel.md%>;
 
 			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
 				max-width: 800px;
@@ -1128,10 +1144,8 @@ a.themebtn:hover {
 
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
@@ -1167,29 +1181,11 @@ a.themebtn:hover {
 			}
 
 		}
-	  <%/if%>
-	<%/style.skins%>
-
-	/** Mist Warden structural fixes ***************************************/
-	.mistwarden {
-		.content
-		{
-			margin-top: 90px;
-			min-height: 30em;
-		}
-
-		.contentNoPanel {
-			margin-top: 90px;
-		}
-
-		.header-menu {
-			min-height: 110px;
-		}
-	}
+	<%/style%>
 }
 
 /*** Large screen ***********************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthMd%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthMd%>px) {
 
 	.pure-lg-hide {
 		display: none !important;
@@ -1211,12 +1207,12 @@ a.themebtn:hover {
 
 	.page-content {
 		.content {
-			margin-top: <%style.headerHeight.lg%>;
+			margin-top: <%@config.headerHeight.lg%>;
 			min-height: 40em;
 		}
 
 		.contentNoPanel {
-			margin-top: <%style.headerHeight.noPanel.lg%>;
+			margin-top: <%@config.headerHeight.noPanel.lg%>;
 
 			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
 				max-width: 1000px;
@@ -1228,10 +1224,8 @@ a.themebtn:hover {
 		font-size: 4em;
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
@@ -1255,8 +1249,7 @@ a.themebtn:hover {
 				width: 300px;
 			}
 		}
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 	.authorsig {
 		img {
@@ -1266,7 +1259,7 @@ a.themebtn:hover {
 }
 
 /** Extra Large Screen **************************************************************/
-@media screen and (min-width: <%style.bkgndConfig.widthLg%>px) {
+@media screen and (min-width: <%@config.bkgndConfig.widthLg%>px) {
 	.pure-xl-hide {
 		display: none !important;
 	}
@@ -1286,18 +1279,15 @@ a.themebtn:hover {
 		}
 	}
 
-	<%#style.skins%>
-	  <%#if active %>
-		/** <%displayName%> ****************************************/
-		.<%className%> {
+	<%#style%>
+		.skin {
 			<%#if solid %>
 				@include background-gradients-solid(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%else%>
 				@include background-gradients-XL(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%/if%>
 		}
-	  <%/if%>
-	<%/style.skins%>
+	<%/style%>
 
 	.authorsig {
 		img {

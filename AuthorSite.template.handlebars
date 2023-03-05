@@ -672,7 +672,7 @@ Resources:
       Runtime: nodejs16.x
       Role: !GetAtt BuildSiteRole.Arn
       MemorySize: 512
-      Timeout: 300
+      Timeout: 900
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -694,10 +694,11 @@ Resources:
       Layers:
         - !Ref BuildSiteNMLayer
 
-  BuildSiteVersion:
-    Type: AWS::Lambda::Version
+  BuildSiteAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
     Properties:
-      FunctionName: !GetAtt BuildSite.Arn
+      FunctionName: !Ref BuildSite
+      MaximumRetryAttempts: 0
 
   LambdaInvokeFromAdminPermission:
     Type: 'AWS::Lambda::Permission'
@@ -749,6 +750,12 @@ Resources:
         S3Key: 'AutoSite/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
+
+  AdminWorkerAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref AdminWorker
+      MaximumRetryAttempts: 0
 
   StatePump:
     Type: 'AWS::Lambda::Function'

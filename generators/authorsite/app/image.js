@@ -55,10 +55,10 @@ exports.applySticker = async (srcImagePath, stickerImagePath, vAlign, hAlign) =>
             ImageLib.addOverlay(srcImg, stickerImg, vAlign, hAlign)
             await ImageLib.save(srcImg, srcImagePath)
         } else {
-            console.log(`Could not load image ${imagePath}`)
+            console.log(`Could not load image ${stickerImagePath}`)
         }
     } else {
-        console.log(`Could not load image ${imagePath}`)
+        console.log(`Could not load image ${srcImagePath}`)
     }
 }
 
@@ -77,10 +77,10 @@ exports.createPromo = async (srcImagePath, bkgrndImagePath, outImagePath) => {
             await ImageLib.save(bkgrndImg, outImagePath)
             return { width: bkgrndImg.width, height: bkgrndImg.height }
         } else {
-            console.log(`Could not load image ${imagePath}`)
+            console.log(`Could not load image ${bkgrndImagePath}`)
         }
     } else {
-        console.log(`Could not load image ${imagePath}`)
+        console.log(`Could not load image ${srcImagePath}`)
     }
 }
 
@@ -99,7 +99,7 @@ exports.generatePalette = async (contentPath, tempDir, config, skin) => {
         ImageLib.blit(img, siteImage, 0, config.height, 0, origHeight - config.footerHeight, origWidth, config.footerHeight)
 
         // Save a temp file, reun Vibrant and delete the temp (since Node-Vibrant only accepts a file path)
-        paletteImagePath = path.join(tempDir, skin._imageFileNameRoot + '_Palette_Source.png')
+        const paletteImagePath = path.join(tempDir, skin._imageFileNameRoot + '_Palette_Source.png')
         await ImageLib.save(img, sourceImagePath)
         let palette = await Vibrant.from(paletteImagePath).getPalette()
         Fs.unlinkSync(paletteImagePath)
@@ -239,7 +239,6 @@ const prepareSm = async function(config, outNameTpl, origImage) {
             let img = await ImageLib.create(origWidth, config.heightSm)
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, 0, config.widthSm + 2, config.heightSm)
             await ImageLib.save(img, outName)
-            delete img;
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;
@@ -253,7 +252,6 @@ const prepareSm = async function(config, outNameTpl, origImage) {
             let img = await ImageLib.create(origWidth, config.footerHeight)
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, origHeight - config.footerHeight, config.widthSm + 2, config.footerHeight)
             await ImageLib.save(img, outName)
-            delete img
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;
@@ -281,7 +279,6 @@ const prepareMd = async function(config, outNameTpl, origImage) {
             ImageLib.blit(img, origImage, x2 - 1, 0, x2 - 1, 0, partWidth + 2, config.height)
             ImageLib.blit(img, origImage, x1 + partWidth - 1, config.heightSm, x1 + partWidth - 1, config.heightSm, config.widthSm + 2, config.height - config.heightSm)
             await ImageLib.save(img, outName)
-            delete img;
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;
@@ -296,7 +293,6 @@ const prepareMd = async function(config, outNameTpl, origImage) {
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, origHeight - config.footerHeight, partWidth + 2, config.footerHeight)
             ImageLib.blit(img, origImage, x2 - 1, 0, x2 - 1, origHeight - config.footerHeight, partWidth + 2, config.footerHeight)
             await ImageLib.save(img, outName)
-            delete img
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;
@@ -305,7 +301,6 @@ const prepareMd = async function(config, outNameTpl, origImage) {
 }
 
 const prepareLg = async function(config, outNameTpl, origImage) {
-    const origHeight = origImage.height
     const origWidth = origImage.width
     const origCenter = origWidth / 2
     const halfWidthMd = config.widthMd / 2
@@ -319,7 +314,6 @@ const prepareLg = async function(config, outNameTpl, origImage) {
 }
 
 const prepareXl = async function(config, outNameTpl, origImage) {
-    const origHeight = origImage.height
     const origWidth = origImage.width
     const origCenter = origWidth / 2
     const halfWidthLg = config.widthLg / 2
@@ -343,7 +337,6 @@ const prepareSides = async function(config, outNameTpl, size, origImage, x1, x2,
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, 0, partWidth + 2, config.height)
             ImageLib.blit(img, origImage, x2 - 1, 0, x2 - 1, 0, partWidth + 2, config.height)
             await ImageLib.save(img, outName)
-            delete img;
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;
@@ -358,7 +351,6 @@ const prepareSides = async function(config, outNameTpl, size, origImage, x1, x2,
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, origHeight - config.footerHeight, partWidth + 2, config.footerHeight)
             ImageLib.blit(img, origImage, x2 - 1, 0, x2 - 1, origHeight - config.footerHeight, partWidth + 2, config.footerHeight)
             await ImageLib.save(img, outName)
-            delete img
         } catch(err) {
             console.error(JSON.stringify(err));
             throw err;

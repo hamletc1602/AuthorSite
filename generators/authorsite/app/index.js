@@ -128,7 +128,7 @@ const handler = async (event, context) => {
           sqs: new sdk.SQS(),
           stateQueueUrl: options.stateQueueUrl
         })
-        await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Build ${options.buildId} started`)
+        await displayUpdate(Aws, { building: true, buildError: false, stepMsg: 'Generating' }, `Build ${options.buildId} started`)
         await Aws.pull(options.adminBucket, `site-config/${configName}/`, confDir)
         await Aws.pull(options.adminUiBucket, `content/${configName}/`, contentDir)
         await Aws.pull(options.adminBucket, `cache/${configName}/`, cacheDir)
@@ -194,11 +194,11 @@ const handler = async (event, context) => {
       Files.createOutputDirs([tempDir]);
       //
       console.log(`======== Render site for ${type} ========`)
-      await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Render website for ${type}`)
+      await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
       const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options);
-      await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating server content`)
+      await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating server content`)
       await renderPages(confDir, config, contentDir, data, type, outputDir, options);
-      await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, `Generating client side code`)
+      await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating client side code`)
       await renderReactComponents(config, outputDir, tempDir, options);
       // Copy template content to output dir (TODO: make this a structure config option? )
       await mergeToOutput(Path.join(contentDir, 'dist-icons'), Path.join(outputDir, 'dist-icons'))
@@ -207,7 +207,7 @@ const handler = async (event, context) => {
       //
       if (context) {
         // Push completed build back to S3 (Test site)
-        await displayUpdate(Aws, { building: true }, `Push site content to ${options.testSiteBucket}`)
+        await displayUpdate(Aws, {}, `Push site content to ${options.testSiteBucket}`)
         try {
           await Aws.mergeToS3(outputDir, options.testSiteBucket, type, 0, 0, {
             push: event => {
@@ -217,7 +217,7 @@ const handler = async (event, context) => {
         } catch (e) {
           const msg = `Sync to test site for ${type} failed`
           console.error(msg + ` ${JSON.stringify(e)}`)
-          await displayUpdate(Aws, { building: true, stepMsg: 'Generating' }, msg)
+          await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, msg)
         }
       }
     }
@@ -242,7 +242,7 @@ const handler = async (event, context) => {
     if (err.details) {
       console.log(err.details)
     }
-    await displayUpdate(Aws, { building: false, stepMsg: 'Generating' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
+    await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
     return {
       statusCode: 500,
       body: JSON.stringify({
@@ -284,7 +284,7 @@ const mergeEventToString = (event) => {
 }
 
 /** Prepare data used when rendering page templates */
-const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options) => {
+const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, _options) => {
     const data = {
       styleConfig: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
       published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
@@ -398,7 +398,6 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       if (/^\d/.test(pub.id[0])) {
         pub.id = '_' + pub.id
       }
-      pub.published = (pub.published === 'yes')
       pub.loglineTrunc = pub.logline.substr(0, 50) + "..."
 
       if (pub.seriesName && pub.seriesName.length > 0) {
@@ -447,7 +446,11 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       pub.distributors = list.filter(dist => ! dist.hidden)
 
       // Add booleans for pub type conditionals in templates. Eg: 'anthology' becomes 'isAnthology = true'
-      pub.type.forEach(type => {
+      let pubType = pub.type
+      if ( ! Array.isArray(pubType)) {
+        pubType = [pubType]
+      }
+      pubType.forEach(type => {
         pub['is' + type[0].toUpperCase() + type.substr(1)] = true
       })
 
@@ -576,7 +579,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   const catchupTpl = await Files.loadTemplate(config.templatesDir, templateType, 'catchup.html')
   // Template for each author page
   const groupTpl = await Files.loadTemplate(config.templatesDir, templateType, 'group.html')
-  const authorFacebookTpl = await Files.loadTemplate(config.templatesDir, templateType, 'authorFacebook.html')
+  //const authorFacebookTpl = await Files.loadTemplate(config.templatesDir, templateType, 'authorFacebook.html')
   // Template for each book promo URL page
   const bookPromoFacebookTpl = await Files.loadTemplate(config.templatesDir, templateType, 'bookPromoFacebook.html')
   const bookPromoTwitterTpl = await Files.loadTemplate(config.templatesDir, templateType, 'bookPromoTwitter.html')
@@ -720,7 +723,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 }
 
 /** Compile React components and style for this config into an app package */
-const renderReactComponents = async (config, outputDir, tempDir, options) => {
+const renderReactComponents = async (config, outputDir, tempDir, _options) => {
   console.log(`Rendering React components for client side script. tempDir=${tempDir}, outputDir=${outputDir}`)
   const absTempDir = (tempDir[0] === '/' ? tempDir : Path.join(__dirname, '..', tempDir))
   const absOutputDir = (outputDir[0] === '/' ? outputDir : Path.join(__dirname, '..', outputDir))
@@ -812,36 +815,35 @@ const mergeToOutput = async (sourceDir, destDir) => {
 
 /** Vist all schema elements, while resolving the properties object associated with that level of schema. */
 const visitProperties = async (rootDir, value, schema, config, actionFunc, parent, key) => {
-  switch (schema.type) {
-    case 'list':
-      // Check all items in the list
-      if (value.map) {
-        Promise.all(value.map(async (item, index) => {
-          // Each list item uses the same schema info from the parent
-          await visitProperties(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
-        }))
-      } else {
-        console.log(`List type property ${key} does not have an array type value`)
-      }
-      break
-    case 'object':
-      // Check all properties
-      await Promise.all(Object.keys(value).map(async itemKey => {
-        let defn = schema.properties[itemKey];
-        if (defn) {
-          let item = value[itemKey];
-          if (item) {
-            await visitProperties(rootDir, item, defn, config, actionFunc, value, itemKey)
-          }
-        } else {
-          if (itemKey[0] !== '_') {
-            console.log(`Missing schema for ${itemKey}`)
-          }
-        }
+  if (schema.type === 'list' && (!schema.closed || schema.multi)) {
+    // Check all items in multi-value lists
+    if (value.map) {
+      Promise.all(value.map(async (item, index) => {
+        // Each list item uses the same schema info from the parent
+        await visitProperties(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
       }))
-      break
-    default:
-      await actionFunc(rootDir, value, schema, config, parent, key)
+    } else {
+      console.log(`List type property ${key} does not have an array type value`)
+    }
+  } else if (schema.type === 'object') {
+    // Check all properties
+    await Promise.all(Object.keys(value).map(async itemKey => {
+      let defn = schema.properties[itemKey];
+      if (defn) {
+        let item = value[itemKey];
+        if (item) {
+          await visitProperties(rootDir, item, defn, config, actionFunc, value, itemKey)
+        }
+      } else {
+        // TODO: It's largely generated props that don't have a schema. Could likely check this case and generate
+        // the relevant schema from the dynamicProperties section of the parent schema.
+        if (itemKey[0] !== '_') {
+          console.log(`Missing schema for ${itemKey}`)
+        }
+      }
+    }))
+  } else {
+    await actionFunc(rootDir, value, schema, config, parent, key)
   }
 }
 
@@ -859,6 +861,14 @@ const resolveFileRefs = async (rootDirI, valueI, schemaI, configI) => {
 const ensureProtocolOnUrls = async (rootDirI, valueI, schemaI, configI) => {
   await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
     if (schema.type === 'url') {
+      if (value.length <= 3) {
+        // Don't try to much with any URL string 3 chars or less. this is likely an error.
+        return
+      }
+      if (value[0] === '/' && value[1] !== '/') {
+        // Don't motify root-relative URLs starting with a single fwd-slash /
+        return
+      }
       let proto = '//'
       if (schema.forceHttps) {
         proto = 'https://'
@@ -876,7 +886,7 @@ const ensureProtocolOnUrls = async (rootDirI, valueI, schemaI, configI) => {
 
 /** Find schema elements that have altered generator paths, copy the value from it's current config path to the gnerator path. */
 const resolveGeneratorPaths = async (rootDirI, valueI, schemaI, configI) => {
-  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+  await visitProperties(rootDirI, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, _key) => {
     if (schema.path) {
       const parts = schema.path.split('/')
       let currValue = valueI
@@ -907,7 +917,7 @@ const bookToShare = (book) => {
     isbn: book.isbn,
     title: book.promoTitle || book.title,
     description: book.text || book.logline,
-    keywords: book.keywords || book.tags,
+    keywords: book.keywords || tags,
     image: book.image,
     altText: book.altText || book.promoTitle || book.title + ' book cover',
     imageType: book.imageType || book.coverImageType || 'image/jpeg',
@@ -956,8 +966,13 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
       authorObjList.push(author)
 
       // Add books to author
-      pub.type.forEach(type => {
-        const pluralType = typePluralMap[pub.type] || pub.type
+      // Currently, book type is a single-select, but it may change to multi-select in future
+      let pubType = pub.type
+      if ( ! Array.isArray(pubType)) {
+        pubType = [pubType]
+      }
+      pubType.forEach(type => {
+        const pluralType = typePluralMap[type] || type
         if ( ! pubs[pluralType]) {
           pubs[pluralType] = {
             displayName: displayNameMap[pluralType] || pluralType,
@@ -973,24 +988,6 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
     // Replace list of author names with objects.
     pub.author = authorObjList
-
-    // Series
-    const series = seriesMap[pub.seriesName]
-    if (series) {
-      const pubs = series.pubs || {}
-      // Add books to series
-      if ( ! pubs[type]) {
-        pubs[type] = {
-          displayName: displayNameMap[type] || type,
-          list: []
-        }
-      }
-      pubs[type].list.push(pub)
-      if ( ! series.pubs) {
-        series.pubs = pubs
-      }
-    }
-
   })
   // Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
   Object.keys(authorMap).forEach(authorKey => {
@@ -1081,11 +1078,6 @@ const createDirs = (outputDir) => {
     ])
 }
 
-/** Rot-13 encrypt/decrypt */
-function endecode(source) {
-    return source.replace(/[a-zA-Z]/g,function(c){return String.fromCharCode((c<="Z"?90:122)>=(c=c.charCodeAt(0)+13)?c:c-26);});
-}
-
 function webpack(config) {
   return new Promise((resolve, reject) => {
     Webpack(config, function(err, stats) {
@@ -1113,6 +1105,6 @@ if ( ! process.env.AWS_EXECUTION_ENV) {
     process.env[args[i]] = args[i + 1]
   }
 
-  return handler({}).then(() => {
+  handler({}).then(() => {
   })
 }

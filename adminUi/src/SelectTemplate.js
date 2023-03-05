@@ -1,6 +1,6 @@
 import React, { } from 'react';
 import {
-    Stack, HStack,
+    Stack,
     ModalContent, ModalHeader, ModalBody, Skeleton
 } from '@chakra-ui/react'
 import TemplateCard from './TemplateCard'

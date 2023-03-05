@@ -48,6 +48,10 @@ export default class Controller {
     return this.config.display.deploying || this.config.display.building || this.config.display.preparing
   }
 
+  isLocked() {
+    return this.isLocked
+  }
+
   /** Check if the server admin state has been changed. If yes, store the new value and return true. */
   async checkState() {
     // Get latest admin data

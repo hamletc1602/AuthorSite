@@ -65,7 +65,7 @@ AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
   const dirList = await this.files.listDir(sourceDir, [])
   const sourcePaths = dirList.map(e => e.relPath)
   const batchedList = this.batch(sourcePaths, 32)
-  for await (const list of batchedList) {
+  for (const list of batchedList) {
     await Promise.all(list.map(async file => {
       return this.put(bucket, keyPrefix + file, null, await this.files.loadFileBinary(sourceDir + file))
     }))
@@ -355,9 +355,12 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
   opts = opts || {}
   try {
     // Read current state of the admin and logs json (unless cached in global var already)
+    let warmCache = false
     if ( ! stateCache.state) {
       const stateStr = (await this.get(adminUiBucket, 'admin/admin.json')).Body.toString()
       stateCache.state = JSON.parse(stateStr)
+    } else {
+      warmCache = true
     }
     if ( ! stateCache.logs) {
       stateCache.logs = []
@@ -367,9 +370,14 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       } catch(e) {
         // ignore
       }
+    } else {
+      warmCache = true
     }
-
     //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
+
+    //
+    let logsUpdated = false
+    let stateUpdated = false
     const sqsResp = await this.sqs.receiveMessage({
       QueueUrl: this.stateQueueUrl,
       AttributeNames: ['ApproximateNumberOfMessages'],
@@ -377,18 +385,26 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       MessageAttributeNames: ['All']
     }).promise()
     if (sqsResp.Messages) {
-      console.log(`Received ${sqsResp.Messages.length} messages.`)
+      //console.log(`Received ${sqsResp.Messages.length} messages.`)
+      console.log(`${sqsResp.Messages.length} messages to merge into current state.${warmCache ? ' Warm Cache.' : ''}`, stateCache)
       sqsResp.Messages.forEach(msg => {
         let msgObj = null
         try {
           msgObj = JSON.parse(msg.Body)
+          console.log(`Message`, msgObj)
+          try {
+            const status = _mergeState(stateCache.state, stateCache.logs, msgObj)
+            if (status.logsUpdated) {
+              logsUpdated = true
+            }
+            if (status.stateUpdated) {
+              stateUpdated = true
+            }
+          } catch(error) {
+            console.error('Failed to merge message. Error: ' + JSON.stringify(error))
+          }
         } catch(error) {
-          console.log('Failed to parse message: ' + msg.Body + ' Error: ' + JSON.stringify(error))
-        }
-        try {
-          _mergeState(stateCache.state, stateCache.logs, msgObj)
-        } catch(error) {
-          console.log('Failed to merge message. Error: ' + JSON.stringify(error))
+          console.error('Failed to parse message: ' + msg.Body + ' Error: ' + JSON.stringify(error))
         }
       })
 
@@ -403,14 +419,21 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
           })
           const cleaned = msgCount - stateCache.logs.length
           if (cleaned > 0) {
+            logsUpdated = true
             console.log(`Cleaned ${cleaned} messages from log.`)
           }
         }
       }
 
-      //console.log(`Save the state (admin.json)`)
-      await this.put(adminBucket, 'log.json', 'application/json', Buffer.from(JSON.stringify(stateCache.logs)))
-      await this.put(adminUiBucket, 'admin/admin.json', 'application/json', Buffer.from(JSON.stringify(stateCache.state)), 0, 0)
+      // Store logs and state back into S3, if they've been updated
+      if (logsUpdated) {
+        //console.log(`Save the logs (log.json)`, stateCache.logs)
+        await this.put(adminBucket, 'log.json', 'application/json', Buffer.from(JSON.stringify(stateCache.logs)))
+      }
+      if (stateUpdated) {
+        console.log(`Save the state (admin.json)`, stateCache.state)
+        await this.put(adminUiBucket, 'admin/admin.json', 'application/json', Buffer.from(JSON.stringify(stateCache.state)), 0, 0)
+      }
 
       //console.log(`Delete ${sqsResp.Messages.length} merged messages`)
       const msgsForDelete = sqsResp.Messages.map(msg => {
@@ -426,7 +449,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       if (deleteResp.Failed && deleteResp.Failed.length > 0) {
         console.log(`Failed to delete some processed messages: ${JSON.stringify(deleteResp.Failed)}`)
       } else {
-        console.log(`Deleted all processed messages.`)
+        //console.log(`Deleted all processed messages.`)
       }
     }
     // keep @Edge default handling
@@ -441,14 +464,17 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
   }
 }
 
-// Merge this new message into the current state.
+// Merge this new message into the current state. Return a status object indicating what portions of the state were
+// updated in this merge.
 const _mergeState = (state, logs, message) => {
+  let logsUpdated = false
+  let stateUpdated = false
   // Add any new log messages to the state
   //    Log messages will have a current time in MS set when they are generated at the source (time)
   //    And a receipt time (rcptTime) is added here, in case of any major clock differences or processing
   //    hangups.
-  console.log(`Merge into state: ${JSON.stringify(message)}`)
   if (message.logs) {
+    logsUpdated = true
     const rcptTime = Date.now()
     if ( ! logs) {
       logs = []
@@ -460,12 +486,18 @@ const _mergeState = (state, logs, message) => {
   }
   // Config properties
   if (message.config) {
+    stateUpdated = true
+    console.log(`Merge new config ${JSON.stringify(message.config)} into state config ${JSON.stringify(state.config)}`)
     Object.assign(state.config, message.config)
   }
   // Display properties
   if (message.display) {
+    stateUpdated = true
+    console.log(`Merge new display ${JSON.stringify(message.display)} into state display ${JSON.stringify(state.display)}`)
     Object.assign(state.display, message.display)
   }
+  //
+  return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }
 }
 
 /** Check the contents of the lock file against the given lockId. Return locked or unlocked state, and
@@ -484,7 +516,7 @@ AwsUtils.prototype.takeLockIfFree = async function(newLockId, adminUiBucket) {
     console.log(`locked by ${lock.id} at ${lock.time}`)
     resp = `locked by ${lock.id} at ${lock.time}`
   } else {
-    console.log('unlocked')
+    //console.log('unlocked')
     resp = 'unlocked'
     // (re-)write the lock file
     const lockStr = newLockId + ' ' + Date.now()

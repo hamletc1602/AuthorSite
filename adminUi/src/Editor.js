@@ -10,7 +10,9 @@ import EditorText from './EditorText'
 import EditorImage from './EditorImage'
 
 /**  */
-export default function Editor({editor, configs, path, setPath, fileContent, getContent, pushContent, advancedMode}) {
+export default function Editor({
+  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, advancedMode
+}) {
 
   const schema = Util.getSchemaForPath(configs, path)
   const hasList = schema.type === 'list'
@@ -94,16 +96,16 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // changed. Push the referenced file to the server if this is a text or image type value.
   const setData = (name, value) => {
     let currContent = content
-    if (schema.type === 'image' || schema.type === 'text') {
+    if (schema.type === 'image') {
+      // Image File Content
+      // For image files, the value is an object with extra data.
       // The subEditor will have already updated the fileContent cache in this case.
-      pushContent(value, fileContent.current, value)
+      const imageProps = value
+      pushContent(imageProps.name, fileContent.current, imageProps.name)
       // Ensure the content file path is updated in config if the editor changed it
       currContent = Util.getContentForPath(configs, path.slice(0, -1))
       name = path[path.length - 1].name
-    }
-    if (schema.type === 'image') {
       //
-      const imageProps = value
       currContent[name] = imageProps.name
       // Update the image path, and Set other image prop values if the relevant poperty names exist.
       const parentSchema = Util.getSchemaForPath(configs, path.slice(0, -1))
@@ -120,6 +122,13 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         currContent[heightProp] = imageProps.height
       }
       pushContent(editor.data, configs.current, editor.id)
+    } else if (schema.type === 'text') {
+      // Text File Content
+      // The subEditor will have already updated the fileContent cache in this case.
+      pushContent(value, fileContent.current, value)
+      // Ensure the content file path is updated in config if the editor changed it
+      currContent = Util.getContentForPath(configs, path.slice(0, -1))
+      name = path[path.length - 1].name
     } else {
       // Upate the server content if this property value has changed
       const oldValue = currContent[name]
@@ -133,33 +142,38 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
   // Switch to editing a child item by updating the path with it's name (this will force a re-render)
   const editItem = (name) => setPath([...path, { name: name }])
 
-  const breadcrumbs = () => {
-    const crumbs2 = []
-    if (hierarchyPath.length > 0) {
-      crumbs2.push(<BreadcrumbItem>
-          <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, 1))}>
-            <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
-          </BreadcrumbLink>
-        </BreadcrumbItem>)
-      (hierarchyPath.slice(0, -1)).forEach(elem => {
-        crumbs2.push(<BreadcrumbItem>
-            <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
-              {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
-            </BreadcrumbLink>
-          </BreadcrumbItem>)
-      })
-      const last = hierarchyPath[hierarchyPath.length - 1]
-      crumbs2.push(<BreadcrumbItem isCurrentPage>
-          <BreadcrumbLink
-            href='#' onClick={() => setPath(rootPath.slice(0, last.origIndex))}
-            _hover={{textDecor: 'none', cursor: 'default'}}
-            marginBottom='3px'
-          >
-            {last.indexName ? '[' + last.indexName + '] ' + last.name : last.name}
-          </BreadcrumbLink>
-        </BreadcrumbItem>)
+  function breadcrumbs() {
+    if (hierarchyPath.length === 0) {
+      return []
     }
-    return crumbs2
+    const crumbs = []
+    crumbs.push(<BreadcrumbItem key='root'>
+        <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, 1))}>
+          <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
+        </BreadcrumbLink>
+      </BreadcrumbItem>)
+    //WARN: Linter will say this nested block ({}) around the forEach is redundent, but if you remove it.
+    // React processing throws a 'push(...) is not a function error when trying to append to the array.
+    /*eslint-disable no-lone-blocks */
+    {(hierarchyPath.slice(0, -1)).forEach(elem => {
+      crumbs.push(<BreadcrumbItem key={elem.origIndex}>
+          <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
+            {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
+          </BreadcrumbLink>
+        </BreadcrumbItem>)
+    })}
+    /*eslint-enable no-lone-blocks */
+    const last = hierarchyPath[hierarchyPath.length - 1]
+    crumbs.push(<BreadcrumbItem key='current' isCurrentPage>
+        <BreadcrumbLink
+          href='#' onClick={() => setPath(rootPath.slice(0, last.origIndex))}
+          _hover={{textDecor: 'none', cursor: 'default'}}
+          marginBottom='3px'
+        >
+          {last.indexName ? '[' + last.indexName + '] ' + last.name : last.name}
+        </BreadcrumbLink>
+      </BreadcrumbItem>)
+    return crumbs
   }
 
   //
@@ -212,11 +226,13 @@ export default function Editor({editor, configs, path, setPath, fileContent, get
         <SubEditor
           key={editor.id}
           id={editor.id}
+          path={path}
           content={content}
           schema={schema}
           fileContent={fileContent}
           setData={setData}
           editItem={editItem}
+          putContentComplete={putContentComplete}
           advancedMode={advancedMode}
         ></SubEditor>
       </Flex>

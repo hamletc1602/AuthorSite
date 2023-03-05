@@ -41,14 +41,14 @@ exports.addOverlay = function(srcImg, overlayImg, vAlign, hAlign) {
         case 'top': startY = 0; break
         case 'center': startY = (srcImg.height / 2) - (overlayImg.height / 2); break
         case 'bottom': startY = srcImg.height - overlayImg.height; break
-        default: throw `Unnexcpected vert. align value: ${vAlign}`
+        default: throw Error(`Unnexcpected vert. align value: ${vAlign}`)
     }
     let startX = -1
     switch (hAlign) {
         case 'left': startX = 0; break
         case 'center': startX = (srcImg.width / 2) - (overlayImg.width / 2); break
         case 'right': startX = srcImg.width - overlayImg.width; break
-        default: throw `Unnexcpected horiz. align value: ${hAlign}`
+        default: throw Error(`Unnexcpected horiz. align value: ${hAlign}`)
     }
     for (let ix = 0; ix < overlayImg.width; ++ix) {
         for (let iy = 0; iy < overlayImg.height; ++iy) {

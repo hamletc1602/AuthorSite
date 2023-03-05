@@ -29,11 +29,6 @@
     "fonts": [],
 
     "customPages": {
-        "attrib": {
-            "content": { "file": "custom-pages/attribution.md" },
-            "outputPath": "attribution.html",
-            "menuRef": "index"
-        }
     },
 
     "bkgndConfig": {

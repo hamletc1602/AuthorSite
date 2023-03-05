@@ -23,18 +23,18 @@ properties:
         desc: Complete URL to the author's main page on this social media site.
   image:
     disp: Photo
-      type: image
-      desc: Image placed prominently on the author's bio page.
+    type: image
+    desc: Image placed prominently on the author's bio page.
   imageLink:
-      type: string
-      desc: A link to use for the main author bio image (optional)
+    type: string
+    desc: A link to use for the main author bio image (optional)
   content:
-      type: text
-      desc: Author bio text, displayed on the author page.
+    type: text
+    desc: Author bio text, displayed on the author page.
   external:
-      disp: Is External
-      type: boolean
-      desc: Indicates that a bio page should not be generated on this site for this author, that the author name is only added because they are refrenced as a contributor to a book.
+    disp: Is External
+    type: boolean
+    desc: Indicates that a bio page should not be generated on this site for this author, that the author name is only added because they are refrenced as a contributor to a book.
   url:
     disp: External URL
     type: url

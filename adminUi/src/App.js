@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Button, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
-  Tab, TabPanel, Skeleton, Modal, ModalOverlay
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Tooltip
 } from '@chakra-ui/react'
 import {
   InfoIcon, ExternalLinkIcon, InfoOutlineIcon
@@ -53,7 +53,7 @@ let testSiteHost = null
 if (process.env.NODE_ENV !== 'development') {
   if (window.location.host.indexOf('test.') === 0) {
     testSiteHost = window.location.host
-    siteHost = testSiteHost.substring(4)
+    siteHost = testSiteHost.substring(5)
   } else {
     siteHost = window.location.host
     if (siteHost) {
@@ -71,6 +71,10 @@ if (process.env.NODE_ENV !== 'development') {
 
 //
 const controller = new Controller()
+
+// Text
+const BUTTON_GENERATE_TOOLTIP = 'Generate a test site from your configuration.'
+const BUTTON_PUBLISH_TOOLTIP = 'Replate your current live site content with the test site content.'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -121,6 +125,7 @@ function App() {
   const [editorsEnabled, setEditorsEnabled] = useState(false)
   const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
+  const [putContentComplete, setPutContentComplete] = useState(null)
 
   // Calculated State
   const uiEnabled = !locked && authState === 'success'
@@ -164,12 +169,20 @@ function App() {
   const onGenerate = () => {
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     setShowGenerating(true)
+    setTimeout(() => {
+      console.log(`Cancel generating state after 15 minutes. Server-side generator timed out.`)
+      setShowGenerating(false)
+    }, 15 * 60 * 1000)
     startFastPolling()
   }
 
   const onPublish = () => {
     controller.sendCommand('publish')
     setShowPublishing(true)
+    setTimeout(() => {
+      console.log(`Cancel publishing state after 5 minutes. Server-side generator timed out.`)
+      setShowPublishing(false)
+    }, 5 * 60 * 1000)
     startFastPolling()
   }
 
@@ -240,6 +253,7 @@ function App() {
           setContentToGet({ path: path })
         }}
         pushContent={scheduleContentPush}
+        putContentComplete={putContentComplete}
         advancedMode={advancedMode}
       />
     }
@@ -262,6 +276,12 @@ function App() {
       }
       if ( ! deepEqual(adminState.display, adminDisplay)) {
         setAdminDisplay(adminState.display)
+        if ( ! adminState.display.deploying) {
+          setShowPublishing(false)
+        }
+        if ( ! adminState.display.building) {
+          setShowGenerating(false)
+        }
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -272,7 +292,7 @@ function App() {
   //
   useAdminStatePolling(adminLive, setAdminState)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, adminConfig, contentToPut)
+  usePutContentWorker(controller, adminConfig, contentToPut, setPutContentComplete)
 
   // Get config data from the server
   useEffect(() => {
@@ -290,7 +310,8 @@ function App() {
                   return editor
                 })
                 const raw = await controller.getSiteConfig(adminConfig.templateId, editorId)
-                raw.content.contentType = 'application/json' // Hard code content-type for now, since server is not returning it yet
+                raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
+                raw.content.isConfig = true // Add config flag, for use later in uploading.
                 configs.current[editorId] = raw.content
                 editors.current = editorsData
                 setPath([{ name: editorId }])
@@ -358,6 +379,13 @@ function App() {
 
   // Disable show generating when generating is complete
   useEffect(() => {
+    if ( ! adminDisplay.preparing) {
+      setShowPreparingTemplate(false)
+    }
+  }, [adminDisplay.preparing, setShowPreparingTemplate])
+
+  // Disable show generating when generating is complete
+  useEffect(() => {
     if ( ! adminDisplay.building) {
       setShowGenerating(false)
     }
@@ -390,24 +418,37 @@ function App() {
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>Site Admin</Text>
             <Spacer/>
-            <Button
-              size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-              isLoading={showGenerating || adminDisplay.building} loadingText='Generating...'
-              margin='0 0.5em 0 0.5em' color='accent' _hover={{ bg: 'gray.400' }}
-            >Generate</Button>
+            <Tooltip
+              openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
+              label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
+              aria-label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
+            >
+              <Button
+                size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
+                isLoading={showGenerating || adminDisplay.building} loadingText='Generating...'
+                margin='0 0.5em 0 0.5em' color='accent' _hover={{ bg: 'gray.400' }}
+                bg={adminDisplay.buildError ? 'danger' : 'accentText'}
+              >Generate</Button>
+            </Tooltip>
             {advancedMode ?
               <Button
                 size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
                 isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...' color='accent'
-                _hover={{ bg: 'gray.400' }}
+                _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
               >Generate Debug</Button>
             : null}
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <Button
-              size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
-              isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' color='accent'
-              margin='0 0.5em 0 0.5em' _hover={{ bg: 'gray.400' }}
-            >Publish</Button>
+            <Tooltip
+              openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
+              label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_PUBLISH_TOOLTIP}
+              aria-label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_PUBLISH_TOOLTIP}
+            >
+              <Button
+                size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
+                isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' color='accent'
+                margin='0 0.5em 0 0.5em' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
+              >Publish</Button>
+            </Tooltip>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
@@ -520,7 +561,7 @@ function useLockStatePolling(setLocked) {
 }
 
 // Periodically push updated content to the server
-function usePutContentWorker(controller, adminConfig, contentToPut) {
+function usePutContentWorker(controller, adminConfig, contentToPut, setPutContentComplete) {
   useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
@@ -547,6 +588,7 @@ function usePutContentWorker(controller, adminConfig, contentToPut) {
                 )
               }
               toPut.state = 'done'
+              setPutContentComplete(toPutId)
             }
           }
         }))
@@ -556,7 +598,7 @@ function usePutContentWorker(controller, adminConfig, contentToPut) {
       clearInterval(putContentWorker)
       putContentWorker = null
     }
-  }, [adminConfig, contentToPut, controller])
+  }, [adminConfig, contentToPut, controller, setPutContentComplete])
 }
 
 export default App

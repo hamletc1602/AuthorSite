@@ -32,7 +32,7 @@ export default class Util {
   }
 
   // Generate a file path string from the given routing path and schema
-  static createFilePath(path, ext) {
+  static createFilePath(path, extwithDot) {
     // The file name will be generated from the last path entry name, or the last index entry, if there is one or more.
     const reversePath = [...path].reverse()
     const filePath = []
@@ -52,8 +52,8 @@ export default class Util {
         }
       }
     })
-    if (ext) {
-      fileName += ('.' + ext)
+    if (extwithDot) {
+      fileName += extwithDot
     }
     // Add the file name to the end of the path
     filePath.push(fileName)
@@ -230,7 +230,8 @@ export default class Util {
           console.log(`Dynamic property ${propName} source is ${sourceConfig.type} type, not a list as required.`)
         }
         sourceConfig.content.forEach(p => {
-          currSchema.dynamicProperties.cache[propName + p[sourcePropName]] = {
+          // Generator will not alert in log for property names with underscore that don't have a schema attached.
+          currSchema.dynamicProperties.cache['_' + propName + p[sourcePropName]] = {
             type: propConf.type,
             disp: p[sourcePropName],
             desc: propConf.desc

@@ -1,6 +1,6 @@
 import React, {  } from 'react';
 import {
-  Input, NumberInput, Grid, GridItem, Button, Checkbox, Select, Tooltip,
+  Box, Input, NumberInput, Grid, GridItem, Button, Checkbox, Select, Tooltip,
   NumberInputField, NumberIncrementStepper, NumberDecrementStepper, NumberInputStepper
 } from '@chakra-ui/react'
 //import EditableTags from './EditableTags';
@@ -31,22 +31,28 @@ export default function EditorProperties({id, content, schema, setData, editItem
           </NumberInputStepper>
         </NumberInput>
       case 'boolean': return <Checkbox key={itemKey} size='sm'
-        isChecked={value}
-        onChange={ev => { setData(name, ev.target.checked) }}
+        defaultChecked={value}
+        onChange={ev => {
+          setData(name, ev.target.checked)
+        }}
         />
       case 'color': return <Input key={itemKey} size='sm'
         defaultValue={value}
         onChange={ev => { setData(name, ev.target.value) }}
       />
       case 'list':
-        if (schema.closed && schema.values) {
+        if (schema.closed && schema.values && schema.multi) {
+          // TODO: Multi-select list is not yet implemented
+          // UI will likely be a checkboxes group??
+          return <Box>{'Multi-select list input is not yet available'}</Box>
+        } else if (schema.closed && schema.values) {
           let selIndex = -1
-          if (value && value.length > 0) {
-            selIndex = schema.values.findIndex(p => p === value[0])
+          if (value) {
+            selIndex = schema.values.findIndex(p => p === value)
           }
           return <Select key={itemKey} size='sm'
             defaultValue={selIndex}
-            onChange={ev => { setData(name, [schema.values[ev.target.value]]) }}
+            onChange={ev => { setData(name, schema.values[ev.target.value]) }}
           >
             {schema.values.map((listValue, index) => {
               return <option key={itemKey + '_opt' + index} value={index}>{listValue}</option>

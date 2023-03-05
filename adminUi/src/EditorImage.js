@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Center
 } from '@chakra-ui/react'
+import Util from './Util'
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({id, content, fileContent, setData}) {
+export default function EditorImage({id, path, content, fileContent, setData, putContentComplete}) {
 
   const [cooldown, setCooldown] = useState(false)
   const imageUrl = useRef(null)
@@ -47,10 +48,14 @@ export default function EditorImage({id, content, fileContent, setData}) {
         return
       }
       let newContent = content
-      const parts = content.split('.')
-      const currExt = '.' + parts[parts.length - 1]
-      if (currExt !== ext) {
-        newContent = content.replace(currExt, ext)
+      if (content !== null) {
+        const parts = content.split('.')
+        const currExt = '.' + parts[parts.length - 1]
+        if (currExt !== ext) {
+          newContent = content.replace(currExt, ext)
+        }
+      } else {
+        newContent = Util.createFilePath(path, ext)
       }
 
       //
@@ -72,19 +77,29 @@ export default function EditorImage({id, content, fileContent, setData}) {
             height: image.height
           })
         });
-        image.src = URL.createObjectURL(new Blob([fileBuffer], { type: mimeType }))
 
+        // Show the dropped image
+        image.src = URL.createObjectURL(new Blob([fileBuffer], { type: mimeType }))
+        setImage()
+
+        // Disable the input while uploading
+        //     Provide a hard timeout here of 10 minutes, in case something goes wrong with
         setCooldown(true)
         setTimeout(() => {
-          // TODO: Tie this in to the actual file upload process rather than a static timeout
-          //  OR: Add an instance key to make the multipart upload less sensitive to overlapping uploads?
+          console.log(`Cancel upload cooldown for ${content} after 10 minutes.`)
           setCooldown(false)
-        }, 10000)
-        setImage()
+        }, 10 * 60 * 1000)
       })
     }
-  }, [content, fileContent, setData, cooldown, setImage])
+  }, [path, content, fileContent, setData, cooldown, setImage])
   const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
+
+  useEffect(() => {
+    if (putContentComplete === content) {
+      console.log(`File upload complete for ${content}`)
+      setCooldown(false)
+    }
+  }, [putContentComplete, content, setCooldown])
 
   // Text outline props
   const ow = 1

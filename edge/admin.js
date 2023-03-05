@@ -19,9 +19,9 @@ let editorsList = null
   - Forward admin actions to backend worker lambdas.
 */
 exports.handler = async (event, context) => {
-  console.log('Event: ' + JSON.stringify(event))
+  //console.log('Event: ' + JSON.stringify(event))
   const req = event.Records[0].cf.request
-  console.log(`Method: ${req.method}, URI: ${req.uri}`)
+  //console.log(`Method: ${req.method}, URI: ${req.uri}`)
 
   // Get site name from function name
   const awsAccountId = context.invokedFunctionArn.split(':')[4]
@@ -38,7 +38,7 @@ exports.handler = async (event, context) => {
     parts.pop()
     rootName = parts.join('-')
   }
-  console.log(`Method: ${req.method}, Func name: ${functionName}, Root name: ${rootName}`)
+  //console.log(`Method: ${req.method}, Func name: ${functionName}, Root name: ${rootName}`)
   const adminBucket = functionName
   const adminUiBucket = adminBucket + '-ui'
 
@@ -90,7 +90,7 @@ exports.handler = async (event, context) => {
     else if (req.uri.indexOf('/admin/lock') === 0) {
       const queryObject = new URLSearchParams(req.querystring)
       const newLockId = queryObject.get('lockId')
-      console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
+      //console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
       return aws.takeLockIfFree(newLockId, adminUiBucket)
     }
     else if (req.uri.indexOf('/admin/site-config/') === 0) {
@@ -122,7 +122,7 @@ const authenticate = async (aws, req, adminBucket) => {
   try {
     const time = Date.now()
     if ((time - passwdInfo.lastFailTs) > AuthFailWindowMs) {
-      console.log(`login lockout reset after ${AuthFailWindowMs}ms`)
+      //console.log(`login lockout reset after ${AuthFailWindowMs}ms`)
       passwdInfo.failedCount = 0
     } else {
       if (passwdInfo.failedCount >= MaxAuthFailedAttempts) {
@@ -175,7 +175,6 @@ const postCommand = async (aws, req, adminBucket, arnPrefix) => {
   parts.shift() // /
   parts.shift() // admin
   const action = parts.shift()
-  console.log(`Action: ${action}`)
   if (action === 'command') {
     let ret = null
     const command = parts.shift()
@@ -183,7 +182,7 @@ const postCommand = async (aws, req, adminBucket, arnPrefix) => {
     if (req.body && req.body.data) {
       body = Buffer.from(req.body.data, 'base64')
     }
-    console.log(`Command: ${command}, Body: ${body}`)
+    //console.log(`Command: ${command}, Body: ${body}`)
     let params = {}
     if (body) {
       params = JSON.parse(body.toString())
@@ -221,21 +220,21 @@ const postCommand = async (aws, req, adminBucket, arnPrefix) => {
           statusDescription: `Unknown admin acion: ${command}`
         }
     }
-    console.log(`Return: ${JSON.stringify(ret)}`)
+    //console.log(`Return: ${JSON.stringify(ret)}`)
     return ret
   }
 }
 
 const invokeAdminWorker = async (command, adminWorkerArn, params) => {
+  const payload = JSON.stringify({ command: command, body: params })
   try {
-    const payload = JSON.stringify({ command: command, body: params })
-    console.log(`Send command ${command} site to admin-worker. Payload: ${payload}`)
+    //console.log(`Send command ${command} site to admin-worker. Payload: ${payload}`)
     const respData = await lambda.invoke({
       FunctionName: adminWorkerArn,
       InvocationType: 'Event',
       Payload: payload
     }).promise()
-    console.log(`Aync Invoked ${adminWorkerArn}, response: ${JSON.stringify(respData)}`)
+    console.log(`Sent command ${command} site to admin-worker. Payload: ${payload}, response: ${JSON.stringify(respData)}`)
     return {
       status: '200',
       statusDescription: `Invoked admin worker: ${JSON.stringify(respData)}`
@@ -244,24 +243,26 @@ const invokeAdminWorker = async (command, adminWorkerArn, params) => {
     console.log(`Failed invoke of ${adminWorkerArn}: ${error}`)
     return {
       status: '500',
-      statusDescription: `Failed to invoke admin worker: ${JSON.stringify(error)}`
+      statusDescription: `Failed to invoke admin worker with command ${command}, Payload: ${payload}: ${JSON.stringify(error)}`
     }
   }
 }
 
 const buildSite = async (path, adminBucket, builderArn, params) => {
+  let siteBucket = null
+  let testSiteBucket = null
   try {
     const parts = adminBucket.split('-')
     parts.pop()
-    const siteBucket = parts.join('.')
-    const testSiteBucket = 'test.' + siteBucket
-    console.log(`Build site from ${adminBucket} to ${testSiteBucket}.`)
+    siteBucket = parts.join('.')
+    testSiteBucket = 'test.' + siteBucket
+    //console.log(`Build site from ${adminBucket} to ${testSiteBucket}.`)
     const respData = await lambda.invoke({
       FunctionName: builderArn,
       InvocationType: 'Event',
       Payload: JSON.stringify(params)
     }).promise()
-    console.log(`Aync Invoked ${builderArn}, response: ${JSON.stringify(respData)}`)
+    console.log(`Build site from ${adminBucket} to ${testSiteBucket}, response: ${JSON.stringify(respData)}`)
     return {
       status: '200',
       statusDescription: `Invoked site builder: ${JSON.stringify(respData)}`
@@ -270,7 +271,7 @@ const buildSite = async (path, adminBucket, builderArn, params) => {
     console.log(`Failed invoke of ${builderArn}: ${error}`)
     return {
       status: '500',
-      statusDescription: `Failed to invoke site builder: ${JSON.stringify(error)}`
+      statusDescription: `Failed to build site from ${adminBucket} to ${testSiteBucket}: ${JSON.stringify(error)}`
     }
   }
 }
@@ -283,20 +284,25 @@ const siteConfig = async (aws, req, adminBucket) => {
   uriParts.shift() // site-config
   const template = uriParts.shift()
   const name = uriParts.shift()
-  console.log(`Config name: ${name}`)
+  //console.log(`Config name: ${name}`)
   if (req.method === 'GET') {
+    let errorResp = ''
     try {
       let content = null
       let schema = null
+      errorResp = 'Unable to get editors index.'
       const editors = await aws.get(adminBucket, `site-config/${template}/editors.json`)
       if ( ! name) {
         content = editors
       } else {
         if ( ! editorsList) {
+          errorResp = 'Failed to parse editors index.'
           editorsList = JSON.parse(editors.Body.toString())
         }
         const editor = editorsList.find(p => p.id === name)
+        errorResp = 'Failed to get config data.'
         content = await aws.get(adminBucket, `site-config/${template}/${editor.data}`)
+        errorResp = 'Failed to get config schema.'
         schema = await aws.get(adminBucket, `site-config/${template}/${editor.schema}`)
       }
       if (content && schema) {
@@ -325,10 +331,10 @@ const siteConfig = async (aws, req, adminBucket) => {
         }
       }
     } catch (error) {
-      console.error(`Failed to get content for site-config/${template}/${name}`, error)
+      console.error(`Failed to get content for site-config/${template}/${name}. ${errorResp}`, error)
       return {
         status: '500',
-        statusDescription: 'Unable to read content.',
+        statusDescription: errorResp,
       }
     }
   }
@@ -345,7 +351,7 @@ const siteContent = async (aws, req, isConfig, adminBucket, adminUiBucket, arnPr
   const destBucket = isConfig ? adminBucket : adminUiBucket
   const pathRoot = isConfig ? 'site-config' : 'content'
   const contentAbsPath = `${pathRoot}/${template}/${contentPath}`
-  console.log(`${req.method} Template: ${template}. Content path: ${contentPath}`)
+  //console.log(`${req.method} Template: ${template}. Content path: ${contentPath}`)
   if (req.method === 'POST' || req.method === 'PUT') {
     try {
       if (req.body && req.body.data) {
@@ -363,7 +369,7 @@ const siteContent = async (aws, req, isConfig, adminBucket, adminUiBucket, arnPr
           await aws.put(adminBucket, contentAbsPath + '.part_' + part, reqContentType, contentBuff)
           if (part == totalParts) {
             // Last part received. Invoke worker lambda to Load previous parts from S3 and concatenate into the final file
-            console.log(`Invoke worker to assemble ${totalParts} uploaded file parts.`)
+            //console.log(`Invoke worker to assemble ${totalParts} uploaded file parts.`)
             ret = invokeAdminWorker('completeUpload', arnPrefix + '-admin-worker', {
               basePath: contentAbsPath,
               partCount: totalParts,

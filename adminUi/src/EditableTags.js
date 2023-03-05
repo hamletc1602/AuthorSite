@@ -27,7 +27,7 @@ export default function EditableTags({key, tags, setTags}) {
   return (
     <HStack>
       {tags.map((tag, index) => {
-        <Tag key={key + index} size='sm'>{tag}</Tag>
+        return <Tag key={key + index} size='sm'>{tag}</Tag>
       })}
       <Editable key={key + '-editable'} defaultValue='+ New tag'>
         <EditableControls />

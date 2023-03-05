@@ -49,6 +49,7 @@ exports.handler = async (event, _context) => {
 
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
+  const deployId = new Date().getTime()
   const counts = {
     updated: 0,
     added: 0,
@@ -57,7 +58,7 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   }
   try {
     // Sync all test site files to prod site, deleting missing files (Full overwrite)
-    await aws.displayUpdate(Object.assign(counts, { deploying: true }), 'publish', 'Starting deploy...')
+    await aws.displayUpdate(Object.assign(counts, { deploying: true, deployError: false, stepMsg: `Starting deploy ${deployId}` }), 'publish', 'Starting deploy...')
     await aws.mergeBuckets(testSiteBucket, '', siteBucket, '', {
         push: async event => {
           if (event.updated) { counts.updated++ }
@@ -65,17 +66,16 @@ const deploySite = async (testSiteBucket, siteBucket) => {
           if (event.deleted) { counts.deleted++ }
           if (event.unchanged) { counts.unchanged++ }
           //console.log(mergeEventToString(event))
-          await aws.displayUpdate(Object.assign(counts, { deploying: true, total: event.total }), 'publish')
         }
       })
   } catch (e) {
-      const msg = `Deploy failed: ${JSON.stringify(e)}`
+      const msg = `Deploy ${deployId} failed: ${e.message}`
       console.error(msg)
-      await aws.displayUpdate(Object.assign(counts, { deployError: JSON.stringify(e) }), 'publish', msg)
+      await aws.displayUpdate(Object.assign(counts, { deploying: false, deployError: true, stepMsg: msg }), 'publish', msg)
   } finally {
-    const msg = `Deploy complete: Updated: ${counts.updated}, Added: ${counts.added}, Deleted: ${counts.deleted}, Unchanged: ${counts.unchanged}`
+    const msg = `Deploy ${deployId} complete: Updated: ${counts.updated}, Added: ${counts.added}, Deleted: ${counts.deleted}, Unchanged: ${counts.unchanged}`
     console.log(msg)
-    await aws.displayUpdate(Object.assign(counts, { deploying: false }), 'publish', msg)
+    await aws.displayUpdate(Object.assign(counts, { deploying: false, stepMsg: msg }), 'publish', msg)
   }
 }
 
@@ -86,7 +86,7 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
   try {
     //
     await aws.displayUpdate({
-        preparing: true, stepMsg: 'Prepare'
+        preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
 
     // Check if this template is a public or private template
@@ -161,7 +161,7 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
 
   } catch (error) {
     console.log(`Failed prepare with ${templateName} template.`, error)
-    await aws.displayUpdate({ preparing: false }, 'prepare', `Failed prepare with ${templateName} template. Error: ${error.message}.`)
+    await aws.displayUpdate({ preparing: false, prepareError: true }, 'prepare', `Failed prepare with ${templateName} template. Error: ${error.message}.`)
     success = false
   } finally {
     if (success) {
@@ -171,7 +171,7 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
       await aws.adminStateUpdate({ config: { preparedTemplateId: templateName, preparedTemplates: [templateName] } })
     } else {
       console.log(`Failed prepare with ${templateName} template.`)
-      await aws.displayUpdate({ preparing: false }, 'prepare', `Failed Prepare with ${templateName} template.`)
+      await aws.displayUpdate({ preparing: false, prepareError: true }, 'prepare', `Failed Prepare with ${templateName} template.`)
     }
   }
 }
