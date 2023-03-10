@@ -11,7 +11,8 @@ import EditorImage from './EditorImage'
 
 /**  */
 export default function Editor({
-  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, advancedMode
+  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, advancedMode,
+  locked
 }) {
 
   const schema = Util.getSchemaForPath(configs, path)
@@ -65,6 +66,7 @@ export default function Editor({
 
   // Create a new item for a list
   const newItem = (ev) => {
+    if (locked) { return }
     // Transform list schema into an item schema
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
     const newIndex = rootContent.length
@@ -197,7 +199,8 @@ export default function Editor({
               width='10em'
               padding='3px'
               bg='listNew'
-              cursor='pointer'
+              color={locked ? 'gray.400' : 'inherit'}
+              cursor={locked ? 'not-allowed' : 'pointer'}
               onClick={ev => newItem(ev)}
             >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
             ,
@@ -234,6 +237,7 @@ export default function Editor({
           editItem={editItem}
           putContentComplete={putContentComplete}
           advancedMode={advancedMode}
+          locked={locked}
         ></SubEditor>
       </Flex>
       <Flex key='ops' color='editorText' bg='editorBg'>
@@ -249,7 +253,7 @@ export default function Editor({
             </VStack>
           :
             <Tooltip openDelay={450} closeDelay={250} label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
-              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem}/>
+              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
             </Tooltip>
         : null}
       </Flex>

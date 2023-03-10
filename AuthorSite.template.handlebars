@@ -45,7 +45,7 @@ Parameters:
   UploaderPassword:
     Type: String
     NoEcho: true
-    Description: Enter a password for the website files uploader user.
+    Description: Enter a password for the website admin app. Please use at least 8 characters.
   FeedbackEmail:
     Type: String
     Description: Recipient address for feedback emails.
@@ -671,7 +671,7 @@ Resources:
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt BuildSiteRole.Arn
-      MemorySize: 512
+      MemorySize: 1024
       Timeout: 900
       Tags:
         - Key: 'Service'
@@ -698,6 +698,7 @@ Resources:
     Type: AWS::Lambda::EventInvokeConfig
     Properties:
       FunctionName: !Ref BuildSite
+      Qualifier: $LATEST
       MaximumRetryAttempts: 0
 
   LambdaInvokeFromAdminPermission:
@@ -730,6 +731,7 @@ Resources:
       PackageType: Zip
       Runtime: nodejs16.x
       Role: !GetAtt AdminRole.Arn
+      MemorySize: 1024
       Timeout: 300
       Tags:
         - Key: 'Service'
@@ -755,6 +757,7 @@ Resources:
     Type: AWS::Lambda::EventInvokeConfig
     Properties:
       FunctionName: !Ref AdminWorker
+      Qualifier: $LATEST
       MaximumRetryAttempts: 0
 
   StatePump:
@@ -1126,15 +1129,18 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-        - PolicyName: AdminDataRead
+        - PolicyName: AdminDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
+                 - 's3:PutObject'
                  - 's3:GetObject'
                  - 's3:ListBucket'
+                 - 's3:DeleteObject'
                  - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
                 # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
                 #Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
                 Resource: !Join ['', ['arn:aws:s3:::', !Join ['-',[!Ref AWS::StackName,'admin']], '*']]

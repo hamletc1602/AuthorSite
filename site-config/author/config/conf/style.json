@@ -2,7 +2,12 @@
     "theme": "dark",
     "background": "backgrounds/author.jpg",
 
-    "logoSticker": null,
+    "logo": {
+        "small": null,
+        "medium": null,
+        "large": null,
+        "extraLarge": null
+    },
 
     "coverPromoBackground": "promotion/near-black.png",
 

@@ -137,6 +137,12 @@ const handler = async (event, context) => {
         console.error(`Pull of config failed: ${e.message}`, e)
         throw new Error(`Pull of config failed: ${e.message}`, e)
       }
+
+      // Ensure we update the admin state on any unhandled rejections
+      process.on('unhandledRejection', async error => {
+        await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed.`)
+        console.log(`Unhandled promise rejection that escaped the main try/catch wrapper, somehow?`, error)
+      });
     }
 
     // Load conf index, convert to map
@@ -238,17 +244,23 @@ const handler = async (event, context) => {
       })
     }
   } catch (err) {
-    console.log(err.stack || err)
-    if (err.details) {
-      console.log(err.details)
-    }
-    await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        msg: err.stack || err,
-        details: err.details
-      })
+    try {
+      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
+        .catch(err => { console.log(`Display update failed: ${err.message}`, err) })
+      console.log(err.stack || err)
+      if (err.details) {
+        console.log(err.details)
+      }
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          msg: err.stack || err,
+          details: err.details
+        })
+      }
+    } catch (err2) {
+      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed. ${err2.message}`)
+      console.log(`Failure in failure handler code! ${err2.message}`, { error1: err, error2: err2 })
     }
   }
 }

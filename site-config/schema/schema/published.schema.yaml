@@ -39,6 +39,7 @@ properties:
       - book
       - short
       - novella
+      - anthology
   published:
     disp: Is Published
     type: boolean

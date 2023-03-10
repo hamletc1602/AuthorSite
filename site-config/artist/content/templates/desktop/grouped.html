@@ -16,7 +16,7 @@
     <div class="bookSeriesTitle">Book {%feature.seriesIndex%} of the {%feature.seriesName%} series</div>
     {%/if%}
     <div class="bookLogline" style="color: {%feature.loglineColor%};">{%feature.logline%}</div>
-    <div class="bookBlurb">{%breaklines feature.blurb%}</div>
+    <div class="bookBlurb">{%noescape feature.blurb%}</div>
     <p></p>
     <a class="buybookStyle" href="{%feature.primaryDistributor.url%}" target="_blank" title="{%feature.primaryDistributor.popupText%}">{%@config.publishedStickerText%}</a>
     <p style="min-height: 2em;"></p>
@@ -34,7 +34,7 @@
   {%#if external%}
   {%else%}
     <h2><a href="{%@config.authorPath%}/{%id%}{%@config.ext%}">{%name%}</a></h2>
-    <div id="{%id%}_pubs" class="booklist" data-overlayText="Request Info/SOLD"></div>
+    <div id="{%id%}_pubs" class="booklist" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
     </p>
   {%/if%}
 {%/groups%}

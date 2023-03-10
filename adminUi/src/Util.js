@@ -160,20 +160,20 @@ export default class Util {
       // HACK: The 'ensurePath' algorithm will try to create a directory for the last path element unless it contains a '.', which then breaks when it tries to write the file, so we make sure to add a spurious extension here.
       return Util.createFilePath(rootPath) + '/' + v1() + '.image'
     } else {
-      return Util.getDefaultValue(schema.type)
+      return Util.getDefaultValue(schema)
     }
   }
 
   // Return a default (single) value for the given type.
-  static getDefaultValue(type) {
-    switch(type) {
+  static getDefaultValue(schema) {
+    switch(schema.type) {
       case 'string': return ''
       case 'number': return 0
       case 'url': return ''
       case 'color': return ''
       case 'list':
-        if (type.closed) {
-          return [type.values[0]]
+        if (schema.closed) {
+          return schema.values[0]
         } else {
           return []
         }
@@ -231,7 +231,7 @@ export default class Util {
         }
         sourceConfig.content.forEach(p => {
           // Generator will not alert in log for property names with underscore that don't have a schema attached.
-          currSchema.dynamicProperties.cache['_' + propName + p[sourcePropName]] = {
+          currSchema.dynamicProperties.cache['_' + propName + '_' + p[sourcePropName]] = {
             type: propConf.type,
             disp: p[sourcePropName],
             desc: propConf.desc

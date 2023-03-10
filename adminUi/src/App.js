@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Button, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
-  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Tooltip
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Tooltip, Divider
 } from '@chakra-ui/react'
 import {
   InfoIcon, ExternalLinkIcon, InfoOutlineIcon
@@ -128,7 +128,7 @@ function App() {
   const [putContentComplete, setPutContentComplete] = useState(null)
 
   // Calculated State
-  const uiEnabled = !locked && authState === 'success'
+  const authenticated = authState === 'success'
 
   // Global Refs
   const editors = useRef([])
@@ -166,6 +166,14 @@ function App() {
     }
   }
 
+  const onLoadTemplate = () => {
+    setShowSelectTemplate(true)
+  }
+
+  // const onSaveTemplate = () => {
+  //   throw Error('NYI')
+  // }
+
   const onGenerate = () => {
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     setShowGenerating(true)
@@ -186,7 +194,7 @@ function App() {
     startFastPolling()
   }
 
-  // On a .5 second debounce, check if the current entered password is valid, and set the auth state occordingly.
+  // On a 1 second debounce, check if the current entered password is valid, and set the auth state occordingly.
   const passwordChanging = (ev) => {
     clearTimeout(passwordChangingDebounce)
     passwordChangingDebounce = setTimeout(async () => {
@@ -207,7 +215,7 @@ function App() {
           setAuthState('unknown')
         }
       }
-    }, 500)
+    }, 1000)
   }
 
   // On Editor tab change, pull the config file for this tab, if we haven't already cached it
@@ -255,6 +263,7 @@ function App() {
         pushContent={scheduleContentPush}
         putContentComplete={putContentComplete}
         advancedMode={advancedMode}
+        locked={locked}
       />
     }
     return null
@@ -297,7 +306,7 @@ function App() {
   // Get config data from the server
   useEffect(() => {
     try {
-      if (uiEnabled && editors.current.length === 0) {
+      if (authenticated && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
         if (adminConfig.templateId) {
            controller.getEditors(adminConfig.templateId)
@@ -324,7 +333,7 @@ function App() {
     } catch (error) {
       console.error('Failed Get editors init.', error)
     }
-  }, [adminConfig, uiEnabled])
+  }, [adminConfig, authenticated])
 
   // Get content data from the server on start editing
   useEffect(() => {
@@ -343,6 +352,8 @@ function App() {
             toGet.content = contentRec.content
             toGet.contentType = contentRec.contentType
             toGet.state = 'complete'
+          } else {
+            toGet.state = 'fail'
           }
         })
         .catch(error => {
@@ -413,28 +424,46 @@ function App() {
         templateRows={'2.5em 1fr 1em'}
         templateColumns={'1fr'}
       >
-        <GridItem color='baseText' bg='accent' h='1.5em'>
-          <Flex p='5px 1em 5px 5px'>
+        <GridItem color='baseText' bg='accent' h='2.75em'>
+          <Flex h='2.75em' p='5px 1em 5px 5px'>
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>Site Admin</Text>
+            <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer/>
+            {advancedMode ? [
+              <Divider orientation='vertical' />,
+              <Text color='accentText' m='2px 5px' >Template:</Text>,
+              // <Button
+              //   size='sm' m='3px' onClick={onSaveTemplate}
+              //   disabled={!authenticated || locked}
+              //   color='accent' _hover={{ bg: 'gray.400' }}
+              // >Save</Button>,
+              <Button
+                size='sm' m='0 0.5em' onClick={onLoadTemplate}
+                disabled={!authenticated || locked}
+                color='accent' _hover={{ bg: 'gray.400' }}
+              >Load</Button>,
+              <Divider orientation='vertical' />,
+              ]
+            : null}
             <Tooltip
               openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
               label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
               aria-label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
             >
               <Button
-                size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-                isLoading={showGenerating || adminDisplay.building} loadingText='Generating...'
-                margin='0 0.5em 0 0.5em' color='accent' _hover={{ bg: 'gray.400' }}
-                bg={adminDisplay.buildError ? 'danger' : 'accentText'}
+                size='sm' m='0 0.5em' onClick={onGenerate}
+                disabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
+                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating...'
+                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
               >Generate</Button>
             </Tooltip>
             {advancedMode ?
               <Button
-                size='sm' m='3px' onClick={onGenerate} disabled={!uiEnabled || showGenerating || adminDisplay.building}
-                isLoading={showGenerating || adminDisplay.building} loadingText='Generating Debug...' color='accent'
-                _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
+                size='sm' m='0 0.5em' onClick={onGenerate}
+                disabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
+                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating Debug...'
+                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
               >Generate Debug</Button>
             : null}
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
@@ -444,9 +473,10 @@ function App() {
               aria-label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_PUBLISH_TOOLTIP}
             >
               <Button
-                size='sm' m='3px' onClick={onPublish} disabled={!uiEnabled || showPublishing || adminDisplay.deploying}
-                isLoading={showPublishing || adminDisplay.deploying} loadingText='Publishing...' color='accent'
-                margin='0 0.5em 0 0.5em' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
+                size='sm' m='0 0.5em' onClick={onPublish}
+                disabled={(!authenticated || locked || showPublishing || adminDisplay.deploying) && !advancedMode}
+                isLoading={(showPublishing || adminDisplay.deploying) && !advancedMode} loadingText='Publishing...'
+                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
               >Publish</Button>
             </Tooltip>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
@@ -462,7 +492,7 @@ function App() {
               <TabList bg='accent'>
                 {editors.current.map((editor) => (
                   <Tab color='accentText' _selected={{ color: 'gray.400' }} _hover={{ color: 'gray.400' }}
-                    key={editor.id} disabled={!uiEnabled}
+                    key={editor.id} disabled={!authenticated}
                   >{editor.title}</Tab>
                 ))}
               </TabList>
@@ -586,9 +616,14 @@ function usePutContentWorker(controller, adminConfig, contentToPut, setPutConten
                   toPut.contentType || sourceRec.contentType,
                   sourceRec.content
                 )
+                // HACK: The Image editor is the only component that needs to change in response to the
+                // putContent complete (at least for now), so only chnage this for non-text content, so
+                // it does not push a re-render of the text editor and cause it to lose focus.
+                if (sourceRec.contentType !== 'text/plain') {
+                  setPutContentComplete(toPutId)
+                }
               }
               toPut.state = 'done'
-              setPutContentComplete(toPutId)
             }
           }
         }))

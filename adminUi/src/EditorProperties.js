@@ -6,22 +6,22 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, content, schema, setData, editItem, advancedMode}) {
+export default function EditorProperties({id, content, schema, setData, editItem, advancedMode, locked}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
     const itemKey = id + '-' + name + '-edit-ctrl'
     switch (schema.type) {
       case 'string': return <Input key={itemKey} size='sm'
-          defaultValue={value}
+          defaultValue={value} disabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
         />
       case 'url': return <Input key={itemKey} size='sm'
-          defaultValue={value}
+          defaultValue={value} disabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
         />
       case 'number': return <NumberInput key={itemKey} size='sm'
-          defaultValue={value}
+          defaultValue={value} disabled={locked}
           onChange={value => { setData(name, value) }}
         >
           <NumberInputField />
@@ -31,13 +31,13 @@ export default function EditorProperties({id, content, schema, setData, editItem
           </NumberInputStepper>
         </NumberInput>
       case 'boolean': return <Checkbox key={itemKey} size='sm'
-        defaultChecked={value}
+        defaultChecked={value} disabled={locked}
         onChange={ev => {
           setData(name, ev.target.checked)
         }}
         />
       case 'color': return <Input key={itemKey} size='sm'
-        defaultValue={value}
+        defaultValue={value} disabled={locked}
         onChange={ev => { setData(name, ev.target.value) }}
       />
       case 'list':
@@ -51,7 +51,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
             selIndex = schema.values.findIndex(p => p === value)
           }
           return <Select key={itemKey} size='sm'
-            defaultValue={selIndex}
+            defaultValue={selIndex} disabled={locked}
             onChange={ev => { setData(name, schema.values[ev.target.value]) }}
           >
             {schema.values.map((listValue, index) => {
@@ -61,7 +61,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
         } else if (schema.elemType !== 'string') {
           // Lists of any type but 'string' need an edit button
           return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
-              _hover={{ bg: 'accent', color: 'gray.400'}}
+              _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
               onClick={() => editItem(name)}
             >Edit</Button>
         } else {
@@ -70,7 +70,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
           // return <EditableTags key={itemKey} tags={value} setTags={tags => {
           //   setConfig(item.path, name, tags)
           // }}/>
-          return <Input key={itemKey} size='sm'
+          return <Input key={itemKey} size='sm' disabled={locked}
             defaultValue={(value && value.join) ? value.join(", ") : value}
             onChange={ev => {
               let v = ev.target.value
@@ -83,15 +83,15 @@ export default function EditorProperties({id, content, schema, setData, editItem
           />
         }
       case 'object': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
-          _hover={{ bg: 'accent', color: 'gray.400'}}
+          _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
           onClick={() => editItem(name)}
         >Edit</Button>
       case 'text': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
-          _hover={{ bg: 'accent', color: 'gray.400'}}
+          _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
           onClick={() => editItem(name)}
         >Edit</Button>
       case 'image': return <Button key={itemKey} size='xs' bg='accentLighter' color='accentText'
-          _hover={{ bg: 'accent', color: 'gray.400'}}
+          _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
           onClick={() => editItem(name)}
         >Edit</Button>
       default:

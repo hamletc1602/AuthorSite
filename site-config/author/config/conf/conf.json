@@ -5,11 +5,11 @@
     "socialMediaPageText": "promotion/socialMediaHeader.md",
     "feedbackPageText": "If you have a question or concern that is not covered by the <a href=\"/p/faq\">FAQ</a>, here's a handy form you can use to send us an anonymous message.",
 
-
     "copyrightShort": "&copy; {%yyyy%} {%siteName%}",
     "copyright": "Copyright &copy; {%yyyy%} {%siteName%}",
 
     "license": {
+        "display": true,
         "url": "creativecommons.org/licenses/by-nd/2.5/ca/",
         "imageUrl": "creativecommons.org/images/public/somerights20.png",
         "description": "Creative Commons License"

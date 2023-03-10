@@ -15,7 +15,7 @@
     {%#if book.published %}{%else%}<div class="sold">SOLD</div>{%/if%}
     <div style="min-height: 1em;"></div>
     <div class="logline">{%breaklines book.logline%}</div>
-    <div class="summaryText">{%breaklines book.blurb%}</div>
+    <div class="summaryText">{%noescape book.blurb%}</div>
     <a class="buybookStyle" href="{%book.primaryDistributor.url%}" target="_blank" title="{%book.primaryDistributor.popupText%}">{%@config.publishedStickerText%}</a>
     <div class="linksWide">
       <div class="linksBoxWide">

@@ -37,8 +37,8 @@ properties:
     disp: Site Content License
     type: object
     properties:
-      disp: Show License Icon
       display:
+        disp: Show License Link
         type: boolean
         desc: Control whether a licence image/link is displayed in the site footer.
       url:

@@ -16,10 +16,27 @@ properties:
     disp: Site Background Image
     desc: A background image that is used for both the header and footer of the site. It is also used as a source for background and highlight colours applied to the site, modified by the them value above.
     type: image
-  logoSticker:
-    disp: Site Logo Image
-    desc: A logo image to be placed at the top right of the site page, and added to generated social mendia promo images. It should be around 200-300px on a side, and be nearly square.
-    type: image
+  logo:
+    disp: Site Logo Images
+    desc: A logo images to be placed at the top right of the site page, and added to generated social mendia promo images.
+    type: object
+    properties:
+      small:
+        disp: Small
+        desc: Optional. Logo image for the smallest screens. Aim for about 150px a side.
+        type: image
+      medium:
+        disp: Medium
+        desc: Optional. Logo image for smaller screens. Aim for about 250px a side.
+        type: image
+      large:
+        disp: Large
+        desc: Optional. Logo image for desktop screens. Aim for about 500px a side.
+        type: image
+      extraLarge:
+        disp: Extra large
+        desc: Optional. Logo image for the widest display. Go wild!
+        type: image
   coverPromoBackground:
     disp: Cover Promo Background Image
     desc: Background image used when generating social medai promo images from book covers.
@@ -79,13 +96,17 @@ properties:
     type: string
   webFonts:
     disp: WebFonts
-    desc: Extra fonts to load for this website from external sources (ie. google fonts). The family name can then be used in any font setting above.
+    desc: Extra fonts to load for this website from external sources (ie. google fonts).
     type: list
     elemType: object
-    nameProp: family
+    nameProp: name
     addTitle: font
     properties:
-      family:
+      name:
+        disp: Name
+        desc: A name for the list entry. Not actually used.
         type: string
       url:
+        disp: URL
+        desc: URL to a webfont. This URL will normally include the font family name that can be used to reference the font in the default font settings above.
         type: url

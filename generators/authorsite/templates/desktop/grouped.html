@@ -24,7 +24,7 @@
     <div class="bookSeriesTitle">Book {%feature.seriesIndex%} of the {%feature.seriesName%} series</div>
     {%/if%}
     <div class="bookLogline" style="color: {%feature.loglineColor%};">{%feature.logline%}</div>
-    <div class="bookBlurb">{%breaklines feature.blurb%}</div>
+    <div class="bookBlurb">{%noescape feature.blurb%}</div>
   </div>
   <div class="distributorList bookFeatureBottom">
     <div class="distributorLink">
@@ -49,7 +49,7 @@
   {%#unless external%}
     <h2><a href="{%@config.authorPath%}/{%id%}">{%name%}</a></h2>
     {%#if useCarousel%}
-      <div id="{%id%}_pubs" class="booklist" data-overlayText="Buy Now/Coming Soon!"></div>
+      <div id="{%id%}_pubs" class="booklist" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
     {%else%}
       {%#each pubs%}
         {%#list%}

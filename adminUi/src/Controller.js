@@ -40,6 +40,7 @@ export default class Controller {
         } else {
           this.locked = true
         }
+        return this.locked
       })
   }
 
