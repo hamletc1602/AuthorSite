@@ -11,6 +11,7 @@ properties:
     disp: Image
     desc: An image to associate with the series (optional)
     type: image
+    filter: image/png,image/jpeg
   content:
     disp: Page Text
     desc: Test to be displayed on the series page.

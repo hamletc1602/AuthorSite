@@ -19,11 +19,14 @@ properties:
     disp: Icon
     type: image
     desc: Icon to be used for this distributor on site pages. Should be fairly small (lke 100x100 pixels, for example.)
-    tag: dist-icons
+    publish: true
+    pubDir: dist-icons
   featureIcon:
     disp: Feature Icon
     type: image
-    desc: A larger icon image for this distributor, if needed, for use on larger-format book pages, though really the same small icon image can be used.
+    desc: A larger icon image for this distributor, if needed, for use on larger-format book pages, though the same small icon image can also be used.
+    publish: true
+    pubDir: dist-icons
   bookIdProp:
     disp: Book Property Name
     type: string

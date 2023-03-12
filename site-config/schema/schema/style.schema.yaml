@@ -16,6 +16,12 @@ properties:
     disp: Site Background Image
     desc: A background image that is used for both the header and footer of the site. It is also used as a source for background and highlight colours applied to the site, modified by the them value above.
     type: image
+  favicon:
+    disp: Site Icon
+    desc: A small image (normally 64x64px) suitable for display on the browser window/tab title bar, or in the browser favourites list.
+    type: image
+    publish: true
+    pubDir: /
   logo:
     disp: Site Logo Images
     desc: A logo images to be placed at the top right of the site page, and added to generated social mendia promo images.
@@ -25,18 +31,22 @@ properties:
         disp: Small
         desc: Optional. Logo image for the smallest screens. Aim for about 150px a side.
         type: image
+        publish: true
       medium:
         disp: Medium
         desc: Optional. Logo image for smaller screens. Aim for about 250px a side.
         type: image
+        publish: true
       large:
         disp: Large
         desc: Optional. Logo image for desktop screens. Aim for about 500px a side.
         type: image
+        publish: true
       extraLarge:
         disp: Extra large
         desc: Optional. Logo image for the widest display. Go wild!
         type: image
+        publish: true
   coverPromoBackground:
     disp: Cover Promo Background Image
     desc: Background image used when generating social medai promo images from book covers.
@@ -61,6 +71,11 @@ properties:
   footerColor:
     disp: Footer Colour
     desc: Override the site footer colour.
+    type: color
+    hidden: true
+  footerTextShadowColor:
+    disp: Footer Text Shadow Colour
+    desc: Override the site footer text shadow colour to make the footer text more visible on your selected background.
     type: color
     hidden: true
   contentBkColor:

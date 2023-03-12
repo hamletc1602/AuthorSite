@@ -140,7 +140,8 @@ const handler = async (event, context) => {
 
       // Ensure we update the admin state on any unhandled rejections
       process.on('unhandledRejection', async error => {
-        await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed.`)
+        const errMsg = `Website build ${options.buildId} failed.`
+        await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating', buildErrMsg: errMsg }, errMsg)
         console.log(`Unhandled promise rejection that escaped the main try/catch wrapper, somehow?`, error)
       });
     }
@@ -155,59 +156,119 @@ const handler = async (event, context) => {
       }, {})
     }
 
-    // Load all core configuration files and merge their keys (Separate files make editing config easier)
-    //    Note: skip resolveFileRefs for structure since it has no schema (and is unlikely to ever have any 'text' properties)
+    // Load all data
     const initConfig = { build: options.buildId, yyyy: year }
     let config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
-    // Process general conf. one more time, with site-name added to the initial config, so we cna use siteName in the same file where it's defined.
+    //    Process general conf. one more time, with site-name added to the initial config, so we cna use siteName in the same file where it's defined.
     initConfig.siteName = config.siteName
     config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
-    const structure = await Files.loadConfig(Path.join(confDir, confIndex.structure.data))
-    const style = await Files.loadConfig(Path.join(confDir, confIndex.style.data))
-    const styleSchema = await Files.loadConfig(Path.join(confDir, confIndex.style.schema))
-    await resolveFileRefs(contentDir, style, styleSchema)
-    await resolveGeneratorPaths(contentDir, style, styleSchema)
-    await ensureProtocolOnUrls(contentDir, style, styleSchema)
-    const generalSchema = await Files.loadConfig(Path.join(confDir, confIndex.general.schema))
-    await resolveFileRefs(contentDir, config, generalSchema)
-    await resolveGeneratorPaths(contentDir, config, generalSchema)
-    await ensureProtocolOnUrls(contentDir, config, generalSchema)
-    Object.assign(config, structure, style)
     config.hostName = options.domainName
     config.tempDir = tempDir
-    Object.assign(config, config.paths) // Shift paths vars up to root of config where the code expects them.
+    const data = {
+      config: config,
+      structure: await Files.loadConfig(Path.join(confDir, confIndex.structure.data), config),
+      style: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
+      published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
+      social: await Files.loadConfig(confDir + '/' + confIndex.social.data, config),
+      authors: await Files.loadConfig(confDir + '/' + confIndex.authors.data, config),
+      series: await Files.loadConfig(confDir + '/' + confIndex.series.data, config),
+      news: await Files.loadConfig(confDir + '/' + confIndex.news.data, config),
+      distributors: await Files.loadConfig(confDir + '/' + confIndex.distributors.data, config)
+    }
 
-    //
+    // Added 'skin' config adjustments
+    const skin = data.style
+    skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
+    // Shift paths vars up to root of structure config where the code expects them.
+    Object.assign(data.structure, data.structure.paths)
+    // Ensure all logo sizes are defined, borrowing oher logo sizes if needed.
+    fillInMissingLogoEntries(data.style.logo)
+
+    // Load all schema
+    const schema = {
+      config: await Files.loadConfig(Path.join(confDir, confIndex.general.schema)),
+      style: await Files.loadConfig(Path.join(confDir, confIndex.style.schema)),
+      published: await Files.loadConfig(Path.join(confDir, confIndex.books.schema)),
+      social: await Files.loadConfig(Path.join(confDir, confIndex.social.schema)),
+      authors: await Files.loadConfig(Path.join(confDir, confIndex.authors.schema)),
+      series: await Files.loadConfig(Path.join(confDir, confIndex.series.schema)),
+      news: await Files.loadConfig(Path.join(confDir, confIndex.news.schema)),
+      distributors: await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema))
+    }
+
+    // Load real content for any 'text' type elements and replace the file path
+    const resolveFileRefsWorker = async (value, parent, key) => {
+      // Replace key value with external text content (possibly also rendered from a template)
+      if (typeof value === 'string' || value instanceof String) {
+        parent[key] = await Files.loadLargeData(Path.join(contentDir, value), { props: parent, config: data.config });
+      } else {
+        console.warn(`Text type value is not string. Value: ${JSON.stringify(value)}`)
+      }
+    }
+
+    // Appy data manipulations to all configuration objects
+    for (const key in data) {
+      const d = data[key]
+      const s = schema[key]
+      if (s) {
+        await resolveFileRefs(d, s, config, resolveFileRefsWorker)
+        await resolveGeneratorPaths(d, s, config)
+        await ensureProtocolOnUrls(d, s, config)
+      }
+    }
 
     // Force debug to true in config if it's supplied at runtime
     if (options.debug || configDebug == 'true') {
       config.debug = true
     }
 
-    // Resolve file refs for conf after local is applied, but before enccoding and loading
-    // other properties files.
-
-    // clean any old files
-    cleanDirs(tempDir)
-    Files.createOutputDirs([tempDir]);
-
-    //
+    // Generate site for each output type ( ie. desktop and mobile, usually )
     for (let type of options.types.split(",")) {
       type = type.trim()
       const outputDir = Path.join(tempDir, 'site', type)
-      //
+      // Clean any old files
       cleanDirs(tempDir)
-      Files.createOutputDirs([tempDir]);
+      Files.createOutputDirs([tempDir, outputDir]);
+
+      // Publish any content marked as 'publish' to the site output dir
+      const pubContentWorker = async (value, pubDir) => {
+        let filePath = null
+        if (pubDir) {
+          const parts = value.split('/')
+          const fileName = parts[parts.length - 1]
+          filePath = Path.join(outputDir, pubDir, fileName)
+        } else {
+          filePath = Path.join(outputDir, value)
+        }
+        Files.ensurePath(filePath)
+        await Files.copy(Path.join(contentDir, value), filePath)
+      }
+
+      // Appy data manipulations that require the output path to all configuration objects
+      for (const key in data) {
+        const d = data[key]
+        const s = schema[key]
+        if (s) {
+          await publishContent(d, s, config, pubContentWorker)
+        }
+      }
+
+      // Merge core configuration files (Separate files make editing config easier, but this builder expects them as one)
+      const mergedConfig = Object.assign({}, data.config, data.structure, data.style)
+
       //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
-      const data = await preparePageData(confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, options);
+      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, data, skin, tempDir, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating server content`)
-      await renderPages(confDir, config, contentDir, data, type, outputDir, options);
+      await renderPages(confDir, mergedConfig, contentDir, pageData, type, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating client side code`)
-      await renderReactComponents(config, outputDir, tempDir, options);
-      // Copy template content to output dir (TODO: make this a structure config option? )
-      await mergeToOutput(Path.join(contentDir, 'dist-icons'), Path.join(outputDir, 'dist-icons'))
+      await renderReactComponents(mergedConfig, outputDir, tempDir, options);
+
+      // Copy favicon to root of site
+      await Files.copy(Path.join(contentDir, data.style.favicon), Path.join(outputDir, 'favicon.ico'))
+      // Font files (These static fonr files are specific to BraeVitae, other sites should use webfonts for now)
+      await mergeToOutput(Path.join(contentDir, 'fonts'), Path.join(outputDir, 'fonts'))
       // Copy selected cached content to output dir (TODO: make this a structure config option? )
       await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'image', 'headers'))
       //
@@ -236,7 +297,7 @@ const handler = async (event, context) => {
     // Finish
     let dur = Date.now() - startTs
     console.log(`Complete in ${dur / 1000}s`)
-    await displayUpdate(Aws, { building: false, stepMsg: 'Generating' }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
+    await displayUpdate(Aws, { building: false, buildError: false, stepMsg: 'Generating' }, `Website build ${options.buildId} complete in ${dur / 1000}s`)
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -245,7 +306,8 @@ const handler = async (event, context) => {
     }
   } catch (err) {
     try {
-      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`)
+      const errMsg = `Website build ${options.buildId} failed: ${err.stack || err}. ${err.details}`
+      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating', buildErrMsg: errMsg }, errMsg)
         .catch(err => { console.log(`Display update failed: ${err.message}`, err) })
       console.log(err.stack || err)
       if (err.details) {
@@ -259,7 +321,8 @@ const handler = async (event, context) => {
         })
       }
     } catch (err2) {
-      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating' }, `Website build ${options.buildId} failed. ${err2.message}`)
+      const err2Msg = `Website build ${options.buildId} failed. ${err2.message}`
+      await displayUpdate(Aws, { building: false, buildError: true, stepMsg: 'Generating', buildErrMsg: err2Msg}, err2Msg)
       console.log(`Failure in failure handler code! ${err2.message}`, { error1: err, error2: err2 })
     }
   }
@@ -295,61 +358,16 @@ const mergeEventToString = (event) => {
   }
 }
 
+/** If one of the logo sizes is missing, fill it in from the nearest available size. */
+const fillInMissingLogoEntries = (logo) => {
+  if ( ! logo.small) { logo.small = logo.medium || logo.large || logo.extraLarge }
+  if ( ! logo.medium) { logo.medium = logo.small || logo.large || logo.extraLarge }
+  if ( ! logo.large) { logo.large = logo.medium || logo.small || logo.extraLarge }
+  if ( ! logo.extraLarge) { logo.extraLarge = logo.large || logo.medium || logo.small }
+}
+
 /** Prepare data used when rendering page templates */
-const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config, tempDir, outputDir, _options) => {
-    const data = {
-      styleConfig: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
-      published: await Files.loadConfig(confDir + '/' + confIndex.books.data, config),
-      social: await Files.loadConfig(confDir + '/' + confIndex.social.data, config),
-      authors: await Files.loadConfig(confDir + '/' + confIndex.authors.data, config),
-      series: await Files.loadConfig(confDir + '/' + confIndex.series.data, config),
-      news: await Files.loadConfig(confDir + '/' + confIndex.news.data, config),
-      distributors: await Files.loadConfig(confDir + '/' + confIndex.distributors.data, config)
-    }
-    // Series config file is optional
-    if ( ! data.series) {
-      data.series = []
-    }
-    // Added 'skin' config adjustments
-    const skin = data.styleConfig
-    skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
-
-    //
-    const styleSchema = await Files.loadConfig(Path.join(confDir, confIndex.style.schema))
-    const booksSchema = await Files.loadConfig(Path.join(confDir, confIndex.books.schema))
-    const socialSchema = await Files.loadConfig(Path.join(confDir, confIndex.social.schema))
-    const authorsSchema = await Files.loadConfig(Path.join(confDir, confIndex.authors.schema))
-    const seriesSchema = await Files.loadConfig(Path.join(confDir, confIndex.series.schema))
-    const newsSchema = await Files.loadConfig(Path.join(confDir, confIndex.news.schema))
-    const distributorsSchema = await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema))
-
-    // Load real content for any 'test' elements and replace the file path
-    await resolveFileRefs(contentDir, data.styleConfig, styleSchema, config)
-    await resolveFileRefs(contentDir, data.published, booksSchema, config)
-    await resolveFileRefs(contentDir, data.social, socialSchema, config)
-    await resolveFileRefs(contentDir, data.authors, authorsSchema, config)
-    await resolveFileRefs(contentDir, data.series, seriesSchema, config)
-    await resolveFileRefs(contentDir, data.news, newsSchema, config)
-    await resolveFileRefs(contentDir, data.distributors, distributorsSchema, config)
-
-    // Copy values from their existing position in the config to a different one spcified by the 'path' property in the schema
-    await resolveGeneratorPaths(contentDir, data.styleConfig, styleSchema, config)
-    await resolveGeneratorPaths(contentDir, data.published, booksSchema, config)
-    await resolveGeneratorPaths(contentDir, data.social, socialSchema, config)
-    await resolveGeneratorPaths(contentDir, data.authors, authorsSchema, config)
-    await resolveGeneratorPaths(contentDir, data.series, seriesSchema, config)
-    await resolveGeneratorPaths(contentDir, data.news, newsSchema, config)
-    await resolveGeneratorPaths(contentDir, data.distributors, distributorsSchema, config)
-
-    // Ensure all URL properties have an appropriate protocol prefix.
-    await ensureProtocolOnUrls(contentDir, data.styleConfig, styleSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.published, booksSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.social, socialSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.authors, authorsSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.series, seriesSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.news, newsSchema, config)
-    await ensureProtocolOnUrls(contentDir, data.distributors, distributorsSchema, config)
-
+const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir, outputDir, _options) => {
     //
     console.info("Prepare headers and footers from page backgound images")
 
@@ -437,7 +455,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
       var list = [];
       data.distributors.map((distributor) => {
         const d = Object.assign({}, distributor)
-        const externalId = pub[d.bookIdProp]
+        const externalId = pub['_distId_' + d.bookIdProp] // Prefix is added when props are generated in the UI.
         if (externalId) {
           let externalIdEnc = externalId
           if (d.id == 'infoRequest') {
@@ -493,8 +511,8 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
         const newPath = Path.join(contentDir, pub.coverPromo)
         Files.ensurePath(newPath)
         pub.coverPromoSize = await Image.createPromo(Path.join(outputDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
-        if (config.logoSticker && config.addLogoToSocialImages) {
-          await Image.applySticker(newPath, Path.join(contentDir, config.logoSticker), 'top', 'left')
+        if (config.logo && config.addLogoToSocialImages) {
+          await Image.applySticker(newPath, Path.join(contentDir, config.logo.small), 'top', 'left')
         }
       }
 
@@ -558,7 +576,7 @@ const preparePageData = async (confDir, confIndex, contentDir, cacheDir, config,
     let clientAuthorMap = filterAuthorMap(config, authorMap);
     Files.ensurePath(Path.join(tempDir, 'script-src'))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'authorMap.json'), JSON.stringify(clientAuthorMap, null, 4))
-    await Files.saveFile(Path.join(tempDir, 'script-src', 'skin.json'), JSON.stringify(data.styleConfig, null, 4))
+    await Files.saveFile(Path.join(tempDir, 'script-src', 'skin.json'), JSON.stringify(data.style, null, 4))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'breakpoints.json'), JSON.stringify(config.bkgndConfig, null, 4))
 
     return data;
@@ -620,21 +638,23 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     feature: data.published.find(p => p.featured === true),
     news: data.news,
     share: config,
-    style: data.styleConfig
+    style: data.style
   }
 
   // Write custom content pages defined in Config:
   if (config.customPages) {
     Promise.all(Object.keys(config.customPages).map(async pageId => {
       const pageConfig = config.customPages[pageId]
-      const pageContentConfig = {
-        name: 'page-' + pageId,
-        content: pageConfig.content
-      };
-      if (pageConfig.menuRef) {
-        pageContentConfig[pageConfig.menuRef] = true;
+      if (pageConfig.content) {
+        const pageContentConfig = {
+          name: 'page-' + pageId,
+          content: await Files.loadLargeData(Path.join(confDir, pageConfig.content))
+        };
+        if (pageConfig.menuRef) {
+          pageContentConfig[pageConfig.menuRef] = true;
+        }
+        await Files.savePage(outputDir + '/' + pageConfig.outputPath, contentPage(pageContentConfig, tplData))
       }
-      await Files.savePage(outputDir + '/' + pageConfig.outputPath, contentPage(pageContentConfig, tplData))
     }))
   }
 
@@ -653,11 +673,11 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     // Write book pages
     const bookShare = bookToShare(Object.assign(autoPromo, elem));
     bookShare.url = `/p/fb/${elem.id}-${autoPromo.name}`
-    let content = itemTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
+    let content = itemTpl({ book: elem, share: bookShare, style: data.style }, tplData);
     await Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
     if (elem.catchup && elem.series) {
-      content = catchupTpl({ book: elem, share: bookShare, style: data.styleConfig }, tplData);
+      content = catchupTpl({ book: elem, share: bookShare, style: data.style }, tplData);
       await Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
     }
   }))
@@ -700,7 +720,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
   await Promise.all(data.authors.map(async function(elem) {
-    let content = groupTpl({ group: elem, share: groupToShare(elem, 'author', 'books.author'), style: data.styleConfig }, tplData)
+    let content = groupTpl({ group: elem, share: groupToShare(elem, 'author', 'books.author'), style: data.style }, tplData)
     await Files.savePage(outputDir + '/author/' + elem.id + '.html', content)
     if (elem.image) {
       Files.ensurePath(Path.join(outputDir, elem.image))
@@ -710,7 +730,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each series, render a new series page based on the series template
   await Promise.all(data.series.map(async function(elem) {
-    let content = groupTpl({ group: elem, share: groupToShare(elem, 'series', 'books'), style: data.styleConfig }, tplData)
+    let content = groupTpl({ group: elem, share: groupToShare(elem, 'series', 'books'), style: data.style }, tplData)
     await Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
   }))
 
@@ -726,9 +746,9 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // Render stylesheets
   console.log("Rendering stylsheets.")
-  let content = await Style.render(templateType, 'style/main.scss', { style: data.styleConfig }, tplData)
+  let content = await Style.render(templateType, 'style/main.scss', { style: data.style }, tplData)
   await Files.savePage(outputDir + `/style/main.css`, content.css)
-  content = await Style.render(templateType, 'style/images.scss', {  style: data.styleConfig, books: data.published, groups: [...data.authors, ...data.series] }, tplData)
+  content = await Style.render(templateType, 'style/images.scss', {  style: data.style, books: data.published, groups: [...data.authors, ...data.series] }, tplData)
   await Files.savePage(outputDir + `/style/images.css`, content.css)
   let tpl = await Files.loadTemplate(outputDir + `/style`, null, 'grid-min.css')
   await Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: config.bkgndConfig }, tplData))
@@ -860,18 +880,17 @@ const visitProperties = async (rootDir, value, schema, config, actionFunc, paren
 }
 
 /** Resolve external text elements in the given props object and all child objects */
-const resolveFileRefs = async (rootDirI, valueI, schemaI, configI) => {
-  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+const resolveFileRefs = async (valueI, schemaI, configI, worker) => {
+  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, parent, key) => {
     if (schema.type === 'text') {
-      // Replace key value with external text content (possibly also rendered from a template)
-      parent[key] = await Files.loadLargeData(Path.join(rootDir, value), { props: parent, config: config });
+      await worker(value, parent, key)
     }
   })
 }
 
 /** Ensure all URL type properties begin with the appropriate protocol. */
-const ensureProtocolOnUrls = async (rootDirI, valueI, schemaI, configI) => {
-  await visitProperties(rootDirI, valueI, schemaI, configI, async (rootDir, value, schema, config, parent, key) => {
+const ensureProtocolOnUrls = async (valueI, schemaI, configI) => {
+  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, parent, key) => {
     if (schema.type === 'url') {
       if (value.length <= 3) {
         // Don't try to much with any URL string 3 chars or less. this is likely an error.
@@ -897,8 +916,8 @@ const ensureProtocolOnUrls = async (rootDirI, valueI, schemaI, configI) => {
 }
 
 /** Find schema elements that have altered generator paths, copy the value from it's current config path to the gnerator path. */
-const resolveGeneratorPaths = async (rootDirI, valueI, schemaI, configI) => {
-  await visitProperties(rootDirI, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, _key) => {
+const resolveGeneratorPaths = async (valueI, schemaI, configI) => {
+  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, _key) => {
     if (schema.path) {
       const parts = schema.path.split('/')
       let currValue = valueI
@@ -906,6 +925,20 @@ const resolveGeneratorPaths = async (rootDirI, valueI, schemaI, configI) => {
         currValue = currValue[part]
       }
       currValue[parts[parts.length -1]] = value
+    }
+  })
+}
+
+/** Resolve external text elements in the given props object and all child objects */
+const publishContent = async (valueI, schemaI, configI, worker) => {
+  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, key) => {
+    if (schema.publish) {
+      if (schema.pubDir) {
+        console.log(`Publish content ${key}:${value} to site at dir ${schema.pubDir}.`)
+      } else {
+        console.log(`Publish content ${key}:${value} to site.`)
+      }
+      await worker(value, schema.pubDir)
     }
   })
 }
@@ -973,29 +1006,33 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     pub.author.map(authorName => {
       authorName = authorName.trim()
       const author = authorMap[authorName]
-      const pubs = author.pubs || {}
+      if (author) {
+        const pubs = author.pubs || {}
 
-      authorObjList.push(author)
+        authorObjList.push(author)
 
-      // Add books to author
-      // Currently, book type is a single-select, but it may change to multi-select in future
-      let pubType = pub.type
-      if ( ! Array.isArray(pubType)) {
-        pubType = [pubType]
-      }
-      pubType.forEach(type => {
-        const pluralType = typePluralMap[type] || type
-        if ( ! pubs[pluralType]) {
-          pubs[pluralType] = {
-            displayName: displayNameMap[pluralType] || pluralType,
-            list: []
+        // Add books to author
+        // Currently, book type is a single-select, but it may change to multi-select in future
+        let pubType = pub.type
+        if ( ! Array.isArray(pubType)) {
+          pubType = [pubType]
+        }
+        pubType.forEach(type => {
+          const pluralType = typePluralMap[type] || type
+          if ( ! pubs[pluralType]) {
+            pubs[pluralType] = {
+              displayName: displayNameMap[pluralType] || pluralType,
+              list: []
+            }
           }
-        }
-        pubs[pluralType].list.push(pub)
-        if ( ! author.pubs) {
-          author.pubs = pubs
-        }
-      })
+          pubs[pluralType].list.push(pub)
+          if ( ! author.pubs) {
+            author.pubs = pubs
+          }
+        })
+      } else {
+        console.error(`Can't find author ${authorName} in the list of authors.`, authorMap)
+      }
     })
 
     // Replace list of author names with objects.

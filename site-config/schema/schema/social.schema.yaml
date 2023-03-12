@@ -34,6 +34,8 @@ properties:
     disp: Image
     desc: Image to be used when the promo when it's shared.
     type: image
+    filter: image/png,image/jpeg
+    publish: true
   imageType:
     desc: MIME type of the promo image.
     type: image

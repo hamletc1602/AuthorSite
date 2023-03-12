@@ -25,6 +25,7 @@ properties:
     disp: Photo
     type: image
     desc: Image placed prominently on the author's bio page.
+    publish: true
   imageLink:
     type: string
     desc: A link to use for the main author bio image (optional)

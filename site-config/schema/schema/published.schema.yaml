@@ -16,6 +16,7 @@ properties:
     disp: Cover
     type: image
     desc: The book's cover image. A PNG or JPG file only.
+    filter: image/png,image/jpeg
   tags:
     disp: Tags
     type: list

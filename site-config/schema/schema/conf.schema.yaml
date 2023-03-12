@@ -16,6 +16,10 @@ properties:
     disp: Social Page Text
     type: text
     desc: Description at the top of the social media sharing/promotions page of the site.
+  addLogoToSocialImages:
+    disp: Add Logo to Social Images
+    type: boolean
+    desc: Add site logo to social media shareables auto-generated from book covers. Uses the 'small' logo image.
   feedbackPageText:
     disp: Feedback Page Text
     type: string
@@ -85,6 +89,7 @@ properties:
       image:
         type: image
         desc: Default image displayed when site pages are shared on social media sites, unless overriden by more specific content, like for book pages.
+        publish: true
       imageType:
         type: string
         desc: A MIME type for the default site image.

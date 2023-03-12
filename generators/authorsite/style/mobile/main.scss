@@ -498,7 +498,6 @@ html {
 
 		.summaryText {
 			margin-bottom: 1em;
-			white-space: pre-wrap;
 		}
 	}
 
@@ -598,10 +597,6 @@ html {
 			font-size: 200%;
 			font-weight: bold;
 			margin-top: 1em;
-		}
-
-		.bookBlurb {
-			white-space: pre-wrap;
 		}
 	}
 
@@ -845,7 +840,7 @@ a.themebtn {
 				z-index: -1;
 				height: 200px;
 				width: 200px;
-				background: url('<%logo.small%>');
+				background: url('/<%logo.small%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
 				background-size: 170px;
@@ -1156,7 +1151,7 @@ a.themebtn:hover {
 				position: absolute;
 				height: 500px;
 				width: 500px;
-				background: url('<%logo.large%>');
+				background: url('/<%logo.medium%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
 				background-size: 250px;
@@ -1236,17 +1231,17 @@ a.themebtn:hover {
 				position: absolute;
 				height: 500px;
 				width: 500px;
-				background: url('<%logo.large%>');
+				background: url('/<%logo.large%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
-				background-size: 320px;
+				background-size: 500px 500px;
 			}
 
 			.page-header-logo-link {
 				display: block;
 				position: absolute;
-				height: 190px;
-				width: 300px;
+				height: 500px;
+				width: 500px;
 			}
 		}
 	<%/style%>
@@ -1286,6 +1281,23 @@ a.themebtn:hover {
 			<%else%>
 				@include background-gradients-XL(<%headerColor%>, <%footerColor%>, <%_imageFileNameRoot%>);
 			<%/if%>
+		}
+
+		.page-header-logo {
+			position: absolute;
+			height: 500px;
+			width: 1000px;
+			background: url('/<%logo.extraLarge%>');
+			background-repeat: no-repeat;
+			background-position: 0px 0px;
+			background-size: 1000px 500px;
+		}
+
+		.page-header-logo-link {
+			display: block;
+			position: absolute;
+			height: 400px;
+			width: 1000px;
 		}
 	<%/style%>
 
