@@ -1,8 +1,5 @@
 /* Image classes generated from configuration data
-
     .<id>CoverImage: Adjusts between icon size on small screens to feature size on medium and higher.
-
-
 */
 
 <%#books%>
@@ -47,6 +44,45 @@
     <%/promos%>
 <%/books%>
 
+.post {
+    .entry-image {
+        min-width: 300px;
+        min-height: 200px;
+        background-position: center;
+        background-size: contain;
+        background-repeat: no-repeat;
+    }
+}
+<%#news%>
+    .post-<%id%> {
+        .entry-image-<%id%> {
+            background-image: url('/<%image%>');
+        }
+    }
+<%/news%>
+
+<%#groups%>
+    .<%id%>Image {
+        background-image: url('<%@config.imagePath%>/<%image%>');
+        background-repeat: no-repeat;
+    }
+<%/groups%>
+
+/** Vibrant Color styles */
+.skin {
+    <%#each palette.bkgnd %>
+        .<%@key%> {
+            background-color: <%this%>
+        }
+    <%/each%>
+    <%#each palette.fgnd %>
+        .<%@key%> {
+            color: <%this%>
+        }
+    <%/each%>
+}
+
+/** Medium width **/
 @media screen and (min-width: <%style.bkgndConfig.widthSm%>px) {
     <%#books%>
         .<%id%>CoverImage {
@@ -56,30 +92,36 @@
             background-repeat: no-repeat;
         }
     <%/books%>
+
+    .post {
+        .entry-image {
+            display: inline-block;
+            min-width: 300px;
+            min-height: 300px;
+        }
+        .entry-image-left {
+            background-position: top left;
+        }
+        .entry-image-right {
+            background-position: top right;
+        }
+    }
 }
 
-<%#groups%>
-    .<%id%>Image {
-        background-image: url('<%@config.imagePath%>/<%image%>');
-        background-repeat: no-repeat;
+/** Large width **/
+@media screen and (min-width: <%style.bkgndConfig.widthMd%>px) {
+    .post {
+        .entry-image {
+            min-width: 500px;
+        }
     }
-<%/groups%>
+}
 
-/** Vibrant Color styles for all the skins */
-<%#style.skins%>
-    <%#if active %>
-    /** <%displayName%> ****************************************/
-    .<%className%> {
-        <%#each palette.bkgnd %>
-            .<%@key%> {
-                background-color: <%this%>
-            }
-        <%/each%>
-        <%#each palette.fgnd %>
-            .<%@key%> {
-                color: <%this%>
-            }
-        <%/each%>
-    } /* Theme */
-    <%/if%>
-<%/style.skins%>
+/** Extra Large width **/
+@media screen and (min-width: <%style.bkgndConfig.widthLg%>px) {
+    .post {
+        .entry-image {
+            min-width: 800px;
+        }
+    }
+}

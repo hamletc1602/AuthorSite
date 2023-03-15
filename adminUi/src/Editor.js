@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  VStack, Flex, Text, Box, IconButton, Tooltip,
+  VStack, Flex, Text, Box, IconButton, Tooltip, Spacer,
   Breadcrumb, BreadcrumbItem, BreadcrumbLink
 } from '@chakra-ui/react'
-import { DeleteIcon, CloseIcon, AddIcon, ArrowLeftIcon } from '@chakra-ui/icons'
+import { DeleteIcon, CloseIcon, AddIcon, ArrowLeftIcon, ArrowDownIcon, ArrowUpIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import EditorProperties from './EditorProperties'
 import EditorText from './EditorText'
@@ -72,7 +72,11 @@ export default function Editor({
     const newIndex = rootContent.length
     const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties })
     newObj[schema.nameProp] = 'item' + newIndex
-    rootContent.push(newObj)
+    if (schema.addAtEnd) {
+      rootContent.unshift(newObj)
+    } else {
+      rootContent.push(newObj)
+    }
     pushContent(editor.data, configs.current, editor.id)
     itemSelected(null, newIndex)
   }
@@ -92,6 +96,32 @@ export default function Editor({
     } else {
       setInDelete(true)
     }
+  }
+
+  // Move the selected item up on rank in the list (swap it with the previous item)
+  const moveItemUp = (ev) => {
+    if (pathIndex <= 0) {
+      console.warn(`Can't move item above head of list.`)
+      return;
+    }
+    const tmp = rootContent[pathIndex - 1]
+    rootContent[pathIndex - 1] = rootContent[pathIndex]
+    rootContent[pathIndex] = tmp
+    pushContent(editor.data, configs.current, editor.id)
+    itemSelected(null, pathIndex - 1)
+  }
+
+  // Move the selected item up on rank in the list (swap it with the previous item)
+  const moveItemDown = (ev) => {
+    if (pathIndex >= (rootContent.length - 1)) {
+      console.warn(`Can't move item after the end of the list.`)
+      return;
+    }
+    const tmp = rootContent[pathIndex + 1]
+    rootContent[pathIndex + 1] = rootContent[pathIndex]
+    rootContent[pathIndex] = tmp
+    pushContent(editor.data, configs.current, editor.id)
+    itemSelected(null, pathIndex + 1)
   }
 
   // Update this data value in the config. Push the config data to the server if the value has
@@ -242,19 +272,26 @@ export default function Editor({
       </Flex>
       <Flex key='ops' color='editorText' bg='editorBg'>
         {hasList ?
-          inDelete ?
-            <VStack>
-              <Tooltip openDelay={450} closeDelay={250} label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
+          <VStack>
+            {inDelete ?
+              [<Tooltip openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
                 <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
-              </Tooltip>
-              <Tooltip openDelay={450} closeDelay={250} label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
+              </Tooltip>,
+              <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
                 <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
-              </Tooltip>
-            </VStack>
-          :
-            <Tooltip openDelay={450} closeDelay={250} label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
-              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
-            </Tooltip>
+              </Tooltip>]
+            :
+              [<Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
+                <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
+              </Tooltip>,
+              <Box height='1em'/>,
+              <Tooltip openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Up' hasArrow={true} aria-label='Move List Item Up'>
+                <IconButton size='sm' icon={<ArrowUpIcon />} onClick={moveItemUp} disabled={locked}/>
+              </Tooltip>,
+              <Tooltip openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Down' hasArrow={true} aria-label='Move List Item Down'>
+                <IconButton size='sm' icon={<ArrowDownIcon />} onClick={moveItemDown} disabled={locked}/>
+              </Tooltip>]}
+          </VStack>
         : null}
       </Flex>
     </Flex>

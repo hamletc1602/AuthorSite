@@ -117,6 +117,7 @@ const handler = async (event, context) => {
     }
     Files.ensurePath(confDir)
     Files.ensurePath(tempDir)
+    Files.ensurePath(cacheDir)
 
     // When in AWS, will need to copy all site template files from S3 to the local disk before build
     if (context) {
@@ -145,6 +146,9 @@ const handler = async (event, context) => {
         console.log(`Unhandled promise rejection that escaped the main try/catch wrapper, somehow?`, error)
       });
     }
+
+    //
+    Files.ensurePath(Path.join(cacheDir, 'headers'))
 
     // Load conf index, convert to map
     let confIndex = {}
@@ -177,12 +181,14 @@ const handler = async (event, context) => {
     }
 
     // Added 'skin' config adjustments
-    const skin = data.style
-    skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
-    // Shift paths vars up to root of structure config where the code expects them.
-    Object.assign(data.structure, data.structure.paths)
-    // Ensure all logo sizes are defined, borrowing oher logo sizes if needed.
-    fillInMissingLogoEntries(data.style.logo)
+    {
+      const skin = data.style
+      skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
+      // Shift paths vars up to root of structure config where the code expects them.
+      Object.assign(data.structure, data.structure.paths)
+      // Ensure all logo sizes are defined, borrowing oher logo sizes if needed.
+      fillInMissingLogoEntries(data.style.logo)
+    }
 
     // Load all schema
     const schema = {
@@ -253,20 +259,22 @@ const handler = async (event, context) => {
         }
       }
 
+      // Deep Copy all source data so any manipulations in one build type don't impact the next
+      const dataCopy = JSON.parse(JSON.stringify(data))
       // Merge core configuration files (Separate files make editing config easier, but this builder expects them as one)
-      const mergedConfig = Object.assign({}, data.config, data.structure, data.style)
+      const mergedConfig = Object.assign({}, dataCopy.config, dataCopy.structure, dataCopy.style)
 
       //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
-      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, data, skin, tempDir, outputDir, options);
+      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, dataCopy, dataCopy.style, tempDir, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating server content`)
       await renderPages(confDir, mergedConfig, contentDir, pageData, type, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating client side code`)
       await renderReactComponents(mergedConfig, outputDir, tempDir, options);
 
       // Copy favicon to root of site
-      await Files.copy(Path.join(contentDir, data.style.favicon), Path.join(outputDir, 'favicon.ico'))
+      await Files.copy(Path.join(contentDir, dataCopy.style.favicon), Path.join(outputDir, 'favicon.ico'))
       // Font files (These static fonr files are specific to BraeVitae, other sites should use webfonts for now)
       await mergeToOutput(Path.join(contentDir, 'fonts'), Path.join(outputDir, 'fonts'))
       // Copy selected cached content to output dir (TODO: make this a structure config option? )
@@ -555,7 +563,7 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
     console.debug(`Add books to authors and resolve author names in news data.`)
     data.postsByCat = {}
     // Resolve author names in news data.
-    await Promise.all(data.news.map(async post => {
+    await Promise.all(data.news.map(async (post, index) => {
       // Resolve author
       post.author = authorMap[post.author] || post.author;
       // Add ids to category entries
@@ -567,6 +575,21 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
         data.postsByCat[catId].posts.push(post);
         return { id: catId, name: catStr }
       })
+      // Add image left/right flags to each post
+      if ( ! post.imagePosition || post.imagePosition === 'auto') {
+        if (index % 2 === 0) {
+          post.imageLeft = true
+        } else {
+          post.imageRight = true
+        }
+      } else {
+        if (post.imagePosition === 'left') {
+          post.imageLeft = true
+        }
+        if (post.imagePosition === 'right') {
+          post.imageRight = true
+        }
+      }
     }))
 
     //
@@ -748,7 +771,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   console.log("Rendering stylsheets.")
   let content = await Style.render(templateType, 'style/main.scss', { style: data.style }, tplData)
   await Files.savePage(outputDir + `/style/main.css`, content.css)
-  content = await Style.render(templateType, 'style/images.scss', {  style: data.style, books: data.published, groups: [...data.authors, ...data.series] }, tplData)
+  content = await Style.render(templateType, 'style/images.scss', {  style: data.style, books: data.published, groups: [...data.authors, ...data.series], news: data.news }, tplData)
   await Files.savePage(outputDir + `/style/images.css`, content.css)
   let tpl = await Files.loadTemplate(outputDir + `/style`, null, 'grid-min.css')
   await Files.savePage(outputDir + `/style/grid-min.css`, tpl({ bkgndConfig: config.bkgndConfig }, tplData))
@@ -850,7 +873,7 @@ const visitProperties = async (rootDir, value, schema, config, actionFunc, paren
   if (schema.type === 'list' && (!schema.closed || schema.multi)) {
     // Check all items in multi-value lists
     if (value.map) {
-      Promise.all(value.map(async (item, index) => {
+      await Promise.all(value.map(async (item, index) => {
         // Each list item uses the same schema info from the parent
         await visitProperties(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
       }))

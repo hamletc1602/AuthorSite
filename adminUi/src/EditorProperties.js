@@ -108,12 +108,12 @@ export default function EditorProperties({id, content, schema, setData, editItem
   }
   const names = Object.keys(properties)
   return <Grid
-      key={'PropsEdit' + id}
-      w='100%'
-      templateAreas={`
-      "edit edit"
-    `}
+    key={'PropsEdit' + id}
+    w='100%'
+    maxHeight={(names.length * 2) + 'em'}
+    templateAreas={`"edit edit"`}
     templateColumns={'12em 1fr'}
+    rowGap={0}
     color='editorText'
     bg='editor'
   >

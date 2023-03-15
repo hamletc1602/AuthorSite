@@ -17,6 +17,30 @@ properties:
   image:
     type: image
     publish: true
+  imageType:
+    type: string
+    desc: A MIME type for the default site image.
+    hidden: true
+  imageWidth:
+    type: number
+    desc: Width in pixels for the default site image.
+    hidden: true
+  imageHeight:
+    type: number
+    desc: Height in pixels for the default site image.
+    hidden: true
+  imageAlt:
+    type: string
+  imagePosition:
+    disp: Image Position
+    desc: Place the image on the left or right of the post content.
+    type: list
+    elemType: string
+    closed: true
+    values:
+      - auto
+      - left
+      - right
   author:
     disp: Author
     desc: Name of the post author. It should match an author name, but it does not need to, at this time.

@@ -472,14 +472,14 @@ function App() {
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
             <Tooltip
               openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
-              label={adminDisplay.prepareError ? adminDisplay.prepareErrMsg : BUTTON_PUBLISH_TOOLTIP}
-              aria-label={adminDisplay.prepareError ? adminDisplay.prepareErrMsg : BUTTON_PUBLISH_TOOLTIP}
+              label={adminDisplay.deployError ? adminDisplay.deployErrMsg : BUTTON_PUBLISH_TOOLTIP}
+              aria-label={adminDisplay.deployError ? adminDisplay.deployErrMsg : BUTTON_PUBLISH_TOOLTIP}
             >
               <Button
                 size='sm' m='0 0.5em' onClick={onPublish}
                 disabled={(!authenticated || locked || showPublishing || adminDisplay.deploying) && !advancedMode}
                 isLoading={(showPublishing || adminDisplay.deploying) && !advancedMode} loadingText='Publishing...'
-                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.prepareError ? 'danger' : 'accentText'}
+                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.deployError ? 'danger' : 'accentText'}
               >Publish</Button>
             </Tooltip>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>

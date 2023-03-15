@@ -154,8 +154,7 @@ export default class Util {
       })
       return obj
     } else if (schema.type === 'text') {
-      // HACK: The 'ensurePath' algorithm will try to create a directory for the last path element unless it contains a '.', which then breaks when it tries to write the file, so we make sure to add a spurious extension here.
-      return Util.createFilePath(rootPath) + '/' + v1() + '.text'
+      return Util.createFilePath(rootPath) + '/' + v1() + '.md'
     } else if (schema.type === 'image') {
       // HACK: The 'ensurePath' algorithm will try to create a directory for the last path element unless it contains a '.', which then breaks when it tries to write the file, so we make sure to add a spurious extension here.
       return Util.createFilePath(rootPath) + '/' + v1() + '.image'

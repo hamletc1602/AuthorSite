@@ -33,8 +33,14 @@
 			<span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
 		</div>
 	</header>
-	<div class="entry-content">
-		<p>{%noescape content%}</p>
+	<div class="entry {%#if image%}entry-with-image{%else%}entry-no-image{%/if%}">
+		{%#if image%}{%#if imageLeft%}
+		<div class="entry-image entry-image-left entry-image-{%id%}" title="{%imageAlt%}"></div>
+		{%/if%}{%/if%}
+		<div class="entry-content">{%noescape content%}</div>
+		{%#if image%}{%#if imageRight%}
+		<div class="entry-image entry-image-right entry-image-{%id%}" title="{%imageAlt%}"></div>
+		{%/if%}{%/if%}
 	</div>
 	<footer class="entry-footer">
 		<span class="wp-cat-links">Posted in {%#category%}<a href="{%@config.newsPath%}/cat-{%id%}" rel="category">{%name%}</a>{%#if @last%}.{%else%}, {%/if%}{%/category%}</span>

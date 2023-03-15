@@ -100,7 +100,7 @@ exports.generatePalette = async (contentPath, tempDir, config, skin) => {
 
         // Save a temp file, reun Vibrant and delete the temp (since Node-Vibrant only accepts a file path)
         const paletteImagePath = path.join(tempDir, skin._imageFileNameRoot + '_Palette_Source.png')
-        await ImageLib.save(img, sourceImagePath)
+        await ImageLib.save(img, paletteImagePath)
         let palette = await Vibrant.from(paletteImagePath).getPalette()
         Fs.unlinkSync(paletteImagePath)
 

@@ -43,10 +43,6 @@ npm run install-for-aws >/dev/null
 zip -qr $wdir/target/AutoSite/lambdas/authorsite.zip * -x "node_modules/*"
 cd $wdir
 
-echo Compile UI templates into admin UI source
-handlebars static/admin/templates/desktop/admin.handlebars -f static/adminui/desktop/admin/admin.handlebars-1.0.0.js
-#handlebars static/admin/templates/mobile/admin.handlebars -f static/adminui/mobile/admin/admin.handlebars-1.0.0.js
-
 echo Build and Package admin UI files
 rm -f target/AutoSite/provision/adminui.zip
 cd adminUi
