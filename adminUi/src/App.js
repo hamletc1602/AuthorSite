@@ -499,7 +499,7 @@ function App() {
                   >{editor.title}</Tab>
                 ))}
               </TabList>
-              <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)' overflowY='auto'>
+              <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)'>
                 {editors.current.map((editor) => (
                   <TabPanel p='0' key={'Tab_' + editor.id}>
                     <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='calc(100vh - 6.3em)'/>

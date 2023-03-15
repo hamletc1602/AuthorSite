@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import {
-  VStack, Flex, Text, Box, IconButton, Tooltip, Spacer,
+  VStack, Flex, Text, Box, IconButton, Tooltip,
   Breadcrumb, BreadcrumbItem, BreadcrumbLink
 } from '@chakra-ui/react'
 import { DeleteIcon, CloseIcon, AddIcon, ArrowLeftIcon, ArrowDownIcon, ArrowUpIcon } from '@chakra-ui/icons'
@@ -20,6 +20,7 @@ export default function Editor({
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
   const content = Util.getContentForPath(configs, path)
   const [inDelete, setInDelete] = useState(false)
+  const selectedItem = useRef(null)
 
   // This setPath call was triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)."
   // warning. Wrapping it in useEffect appears to resolve that warning, but I'm not sure I fully understand why, so this could
@@ -30,11 +31,16 @@ export default function Editor({
     if (path[0].name !== editor.id) {
       return
     }
-    if (hasList && rootPath.length === path.length) {
-      if (content.length > 0) {
-        setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
+    if (hasList) {
+      if (rootPath.length === path.length) {
+        // Select the first list item, if there's no current selection
+        if (content.length > 0) {
+          setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
+        }
+      } else {
+        // Scroll to the selected list item
+        selectedItem.current.scrollIntoView()
       }
-      return
     }
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
 
@@ -219,7 +225,7 @@ export default function Editor({
       {breadcrumbs()}
     </Breadcrumb> : null}
     <Flex w='100%' marginTop='0 !important'>
-      <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'}>
+      <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'} maxHeight='calc(100vh - 6.25em)' overflowY='auto' overflowX='clip'>
         {hasList ? <VStack
           spacing={0}
         >
@@ -239,6 +245,7 @@ export default function Editor({
               return <Box
                 key={'list' + index + '_' + editor.id}
                 size='sm'
+                ref={index === pathIndex ? selectedItem : null}
                 bg={index === pathIndex ? 'listSelected' : 'editorBg'}
                 width='10em'
                 padding='3px'
@@ -255,6 +262,8 @@ export default function Editor({
         padding='0.3em'
         color='editorText'
         bg='editorBg'
+        maxHeight='calc(100vh - 6.25em)'
+        overflowY='auto'
       >
         <SubEditor
           key={editor.id}
