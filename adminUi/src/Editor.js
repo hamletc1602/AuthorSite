@@ -50,7 +50,7 @@ export default function Editor({
   }
 
   const rootContent = Util.getContentForPath(configs, rootPath)
-  const hierarchyPath = Util.condensePath(rootPath).slice(1).reverse()
+  const hierarchyPath = Util.condensePath(rootPath).slice(1)
   const pathIndex = hasList ? Util.getCurrIndex(path) : 0
   const SubEditor = editorForType(hasList ? schema.elemType : schema.type)
 
@@ -186,8 +186,19 @@ export default function Editor({
     }
     const crumbs = []
     crumbs.push(<BreadcrumbItem key='root'>
-        <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, 1))}>
-          <ArrowLeftIcon margin='0 0 3px 3px'/><Text display='inline' marginLeft='0.25em'>{'Back'}</Text>
+        <BreadcrumbLink onClick={e => {
+          e.stopPropagation()
+          setPath(rootPath.slice(0, -1))
+        }}>
+          <ArrowLeftIcon margin='0 0 3px 3px'/>
+        </BreadcrumbLink>
+      </BreadcrumbItem>)
+    crumbs.push(<BreadcrumbItem key='root'>
+        <BreadcrumbLink onClick={e => {
+          e.stopPropagation()
+          setPath(rootPath.slice(0, 1))
+        }}>
+          <Text display='inline' marginLeft='0.25em'>{rootPath[0].name}</Text>
         </BreadcrumbLink>
       </BreadcrumbItem>)
     //WARN: Linter will say this nested block ({}) around the forEach is redundent, but if you remove it.
@@ -195,18 +206,20 @@ export default function Editor({
     /*eslint-disable no-lone-blocks */
     {(hierarchyPath.slice(0, -1)).forEach(elem => {
       crumbs.push(<BreadcrumbItem key={elem.origIndex}>
-          <BreadcrumbLink href='#' onClick={() => setPath(rootPath.slice(0, elem.origIndex))}>
+          <BreadcrumbLink onClick={e => {
+            e.stopPropagation()
+            setPath(rootPath.slice(0, elem.origIndex + 1)) // Add 1 to orig index because first elem (editor) is removed from hierachy path above.
+          }}>
             {elem.indexName ? '[' + elem.indexName + '] ' + elem.name : elem.name}
           </BreadcrumbLink>
         </BreadcrumbItem>)
     })}
     /*eslint-enable no-lone-blocks */
     const last = hierarchyPath[hierarchyPath.length - 1]
+    // A no-op Breadcrumb link ( Chakra forces this to be a BreadcrumbLink class, but we don't want it to be an active link )
     crumbs.push(<BreadcrumbItem key='current' isCurrentPage>
-        <BreadcrumbLink
-          href='#' onClick={() => setPath(rootPath.slice(0, last.origIndex))}
-          _hover={{textDecor: 'none', cursor: 'default'}}
-          marginBottom='3px'
+        <BreadcrumbLink onClick={e => e.stopPropagation() }
+          _hover={{textDecor: 'none', cursor: 'default'}} marginBottom='3px'
         >
           {last.indexName ? '[' + last.indexName + '] ' + last.name : last.name}
         </BreadcrumbLink>
