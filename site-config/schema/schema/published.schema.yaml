@@ -75,10 +75,12 @@ properties:
   catchup:
     disp: Catch-Up
     type: object
-    desc: Configuration for the catch-up page that will be linked to books 2 an up of each series.
+    desc: Configuration for the catch-up page that will be linked to books 2 and up of each series.
     properties:
-      content: text
-      desc: Text that will appear on the catchup page for this book.
+      content:
+        type: text
+        disp: Content
+        desc: Text that will appear on the catch-up page for this book.
   loglineColor:
     disp: Log Line Colour
     type: color

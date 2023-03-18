@@ -53,7 +53,9 @@ AwsUtils.prototype.pull = async function(bucket, keyPrefix, destDir) {
     await this.saveFiles(bucket, keyPrefix, batchedList, destDir)
 }
 
-/** Put all files from a disk dir to an S3 bucket */
+/** Put all files from a disk dir to an S3 bucket
+    keyPrefix should NOT have trailing slash, since dirlist files will have leading slash.
+*/
 AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
   console.log(`Start push of config from ${sourceDir} to ${bucket}:${keyPrefix}`)
   // This is likely more efficient, but use existing Files util call for now
@@ -67,6 +69,7 @@ AwsUtils.prototype.push = async function(sourceDir, bucket, keyPrefix) {
   const batchedList = this.batch(sourcePaths, 32)
   for (const list of batchedList) {
     await Promise.all(list.map(async file => {
+      console.log(`Push ${file} to S3:${keyPrefix + file}`)
       return this.put(bucket, keyPrefix + file, null, await this.files.loadFileBinary(sourceDir + file))
     }))
   }

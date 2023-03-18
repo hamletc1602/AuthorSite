@@ -82,9 +82,6 @@ const handler = async (event, context) => {
     addEnv(options, 'domainName')
     options = Object.assign(defaultOptions, options)
 
-    // Apply global options to libraries
-    Image.setSkip(options.skipImages);
-
     // load app config and Env. vars that control app state.
     let appConfig = null
     if (context) {
@@ -299,7 +296,7 @@ const handler = async (event, context) => {
 
     // Save current cache content back to S3 (if updated)
     if (context) {
-      Aws.push(cacheDir, options.adminBucket, `cache/${configName}/`)
+      Aws.push(cacheDir, options.adminBucket, `cache/${configName}`)
     }
 
     // Finish
@@ -380,21 +377,22 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
     console.info("Prepare headers and footers from page backgound images")
 
     // Split page background images into sectons for small to XL screens
-    await Image.prepare(contentDir, cacheDir, config.bkgndConfig, skin);
+    const updateCache = await Image.prepare(contentDir, cacheDir, config.bkgndConfig, skin);
 
     //
     console.info("Generate default color palettes for each page background")
     //   Note: must be executed syncronously, since Vibrant library is not thread-safe.
 
-    // Check for a saved palette file
-    let paletteFile = Path.join(cacheDir, `/${skin._imageFileNameRoot}-palette.json`)
+    const paletteFile = Path.join(cacheDir, `${skin._imageFileNameRoot}-palette.json`)
     let palette = null
-    try {
-      palette = await Files.loadJson(paletteFile, config)
-    } catch (err) {
-      // ignore
+    if ( ! updateCache) {
+      // Check for a saved palette file
+      try {
+        palette = await Files.loadJson(paletteFile, config)
+      } catch (err) {
+        // ignore
+      }
     }
-
     if ( ! palette) {
       // Generate a palette from the header and footer parts of each backgound image.
       let vibrantPalette = await Image.generatePalette(contentDir, tempDir, config.bkgndConfig, skin);

@@ -3,34 +3,50 @@ const ImageSharp = require('sharp')
 const Vibrant = require('node-vibrant')
 const path = require('path');
 const Handlebars = require('handlebars')
-const Fs = require('fs-extra')
+const Fs = require('fs-extra');
 
-let skip = false
-
-exports.setSkip = (value) => {
-    skip = value;
-}
-
+/** Split the site background image into multiple header and footer parts that can load progressively
+    depending on the browser width.
+    Caches the generated images to avoid re-doing this work on every site build.
+    Saves the name and (byte) size of the background image in the cache, and forces a replace of the cache if
+    different.
+    Returns true if the cache was replaced.
+ */
 exports.prepare = async (contentPath, cachePath, bkgndConfig, skin) => {
-    if (skip) { return }
     const sourceImagePath = path.join(contentPath, skin.background)
     const siteImage = await ImageLib.load(sourceImagePath)
-
+    let updateCache = true
+    try {
+        const cacheInfo = Fs.readJSONSync(path.join(cachePath, 'info.json'))
+        if (cacheInfo) {
+            const imgInfo = cacheInfo.backgroundImage
+            if (imgInfo.path === skin.background && imgInfo.size === siteImage.data.byteLength) {
+                updateCache = false
+            }
+        }
+    } catch (e) {
+        console.log('No cache info file found. Will update any existing header and footer images.')
+    }
+    if (updateCache) {
+        Fs.writeJSONSync(path.join(cachePath, 'info.json'), {
+            backgroundImage:  {
+                path: skin.background,
+                size: siteImage.data.byteLength
+            }
+        })
+    }
     // Generate output file name template
     const outNameTpl = Handlebars.compile(path.join(cachePath, 'headers', skin._imageFileNameRoot) + '{%type%}{%size%}.png')
-
     // Split the site image into header and footer parts and save them as separate files.
-    await prepareSm(bkgndConfig, outNameTpl, siteImage)
-    await prepareMd(bkgndConfig, outNameTpl, siteImage)
-    await prepareLg(bkgndConfig, outNameTpl, siteImage)
-    await prepareXl(bkgndConfig, outNameTpl, siteImage)
+    await prepareSm(bkgndConfig, outNameTpl, siteImage, updateCache)
+    await prepareMd(bkgndConfig, outNameTpl, siteImage, updateCache)
+    await prepareLg(bkgndConfig, outNameTpl, siteImage, updateCache)
+    await prepareXl(bkgndConfig, outNameTpl, siteImage, updateCache)
+    //
+    return updateCache
 }
 
 exports.resizeBookIcon = async (srcImagePath, newImagePath, newHeight) => {
-    if (skip) {
-        const destImg = await ImageLib.load(newImagePath)
-        return { height: destImg.height, width: destImg.width }
-    }
     const srcImg = await ImageLib.load(srcImagePath)
     if (srcImg) {
         let newWidth = (newHeight / srcImg.height) * srcImg.width
@@ -47,7 +63,6 @@ exports.resizeBookIcon = async (srcImagePath, newImagePath, newHeight) => {
 
 /** Apply a sticker and overwite the provided image file. */
 exports.applySticker = async (srcImagePath, stickerImagePath, vAlign, hAlign) => {
-    if (skip) { return; }
     const srcImg = await ImageLib.load(srcImagePath)
     if (srcImg) {
         const stickerImg = await ImageLib.load(stickerImagePath)
@@ -64,10 +79,6 @@ exports.applySticker = async (srcImagePath, stickerImagePath, vAlign, hAlign) =>
 
 /** Apply cover image on top of the background and save to a new path. */
 exports.createPromo = async (srcImagePath, bkgrndImagePath, outImagePath) => {
-    if (skip) {
-        const bkgrndImg = await ImageLib.load(bkgrndImagePath)
-        return { width: bkgrndImg.width, height: bkgrndImg.height }
-    }
     const srcImg = await ImageLib.load(srcImagePath)
     if (srcImg) {
         const bkgrndImg = await ImageLib.load(bkgrndImagePath)
@@ -116,50 +127,68 @@ exports.generatePalette = async (contentPath, tempDir, config, skin) => {
     in CSS.
 */
 exports.extractVibrantPaletteColors = palette => {
-      //
-      function addColorProps(dest, name, color) {
-        let rgb = color.getRgb();
+    //
+    function getTextColor(baseColor) {
+        const hsl = baseColor.getHsl()
+        if (hsl[2] >= 0.5) {
+            return '#000'
+        } else {
+            return '#FFF'
+        }
+    }
 
+    //
+    function addColorProps(dest, name, color) {
+        let rgb = color.getRgb();
         dest.bkgnd[name] = color.getHex();
         [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(index => {
-          dest.bkgnd[name + '0' + index] = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.${index})`
+            dest.bkgnd[name + '0' + index] = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.${index})`
         });
+        let titleText =  color.getTitleTextColor()
+        let bodyText = color.getBodyTextColor()
+        // If the Palette does not have a text colour for some reason. Make a guess from the lightness value
+        // of the base colour
+        if ( ! titleText) {
+            titleText = getTextColor(color)
+        }
+        if ( ! bodyText) {
+            bodyText = getTextColor(color)
+        }
+        dest.fgnd[name + 'TitleText'] = titleText
+        dest.fgnd[name + 'BodyText'] = bodyText
+    }
 
-        dest.fgnd[name + 'TitleText'] = color.getTitleTextColor()
-        dest.fgnd[name + 'BodyText'] = color.getBodyTextColor()
-      }
+    //
+    let p = { bkgnd: {}, fgnd: {} }
 
-      //
-      let p = { bkgnd: {}, fgnd: {} }
-
-      // Vibrant can sometimes be missing colors. Attempt to adjust by substituting a nearby color.
-      if ( ! palette.Vibrant) {
+    // Vibrant can sometimes be missing colors. Attempt to adjust by substituting a nearby color.
+    if ( ! palette.Vibrant) {
         palette.Vibrant = palette.LightVibrant
-      }
-      if ( ! palette.DarkVibrant) {
+    }
+    if ( ! palette.DarkVibrant) {
         palette.DarkVibrant = palette.Vibrant
-      }
-      if ( ! palette.LightVibrant) {
+    }
+    if ( ! palette.LightVibrant) {
         palette.LightVibrant = palette.Vibrant
-      }
-      if ( ! palette.Muted) {
+    }
+    if ( ! palette.Muted) {
         palette.Muted = palette.LightMuted
-      }
-      if ( ! palette.DarkMuted) {
+    }
+    if ( ! palette.DarkMuted) {
         palette.DarkMuted = palette.Muted
-      }
-      if ( ! palette.LightMuted) {
+    }
+    if ( ! palette.LightMuted) {
         palette.LightMuted = palette.Muted
-      }
+    }
 
-      addColorProps(p, 'vibrant', palette.Vibrant)
-      addColorProps(p, 'lightMuted', palette.LightMuted)
-      addColorProps(p, 'darkMuted', palette.DarkMuted)
-      addColorProps(p, 'muted', palette.Muted)
-      addColorProps(p, 'lightVibrant', palette.LightVibrant)
-      addColorProps(p, 'darkVibrant', palette.DarkVibrant)
+    addColorProps(p, 'vibrant', palette.Vibrant)
+    addColorProps(p, 'lightMuted', palette.LightMuted)
+    addColorProps(p, 'darkMuted', palette.DarkMuted)
+    addColorProps(p, 'muted', palette.Muted)
+    addColorProps(p, 'lightVibrant', palette.LightVibrant)
+    addColorProps(p, 'darkVibrant', palette.DarkVibrant)
 
-      return p
+    return p
 }
 
 exports.prepStyleFromPalette = (skin, palette) => {
@@ -224,7 +253,7 @@ exports.prepStyleFromPalette = (skin, palette) => {
     setProp('featureLoglineColor', palette.bkgnd.darkVibrant)
 }
 
-const prepareSm = async function(config, outNameTpl, origImage) {
+const prepareSm = async function(config, outNameTpl, origImage, updateCache) {
     const origHeight = origImage.height
     const origWidth = origImage.width
     const origCenter = origWidth / 2
@@ -233,7 +262,7 @@ const prepareSm = async function(config, outNameTpl, origImage) {
     const x1 = origCenter - halfWidth
 
     let outName = outNameTpl({ type: '', size: 'SM' })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         try {
             console.log(`Create ${outName}`)
             let img = await ImageLib.create(origWidth, config.heightSm)
@@ -246,7 +275,7 @@ const prepareSm = async function(config, outNameTpl, origImage) {
     }
 
     outName = outNameTpl({ type: 'Footer', size: 'SM' })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         try {
             console.log(`Create ${outName}`)
             let img = await ImageLib.create(origWidth, config.footerHeight)
@@ -259,7 +288,7 @@ const prepareSm = async function(config, outNameTpl, origImage) {
     }
 }
 
-const prepareMd = async function(config, outNameTpl, origImage) {
+const prepareMd = async function(config, outNameTpl, origImage, updateCache) {
     const origHeight = origImage.height
     const origWidth = origImage.width
     const origCenter = origWidth / 2
@@ -271,7 +300,7 @@ const prepareMd = async function(config, outNameTpl, origImage) {
     const x2 = origCenter + halfWidthSm
 
     let outName = outNameTpl({ type: '', size: 'MD' })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         console.log(`Create ${outName}`)
         try {
             let img = await ImageLib.create(origWidth, config.height)
@@ -286,7 +315,7 @@ const prepareMd = async function(config, outNameTpl, origImage) {
     }
 
     outName = outNameTpl({ type: 'Footer', size: 'MD' })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         console.log(`Create ${outName}`)
         try {
             let img = await ImageLib.create(origWidth, config.footerHeight)
@@ -300,7 +329,7 @@ const prepareMd = async function(config, outNameTpl, origImage) {
     }
 }
 
-const prepareLg = async function(config, outNameTpl, origImage) {
+const prepareLg = async function(config, outNameTpl, origImage, updateCache) {
     const origWidth = origImage.width
     const origCenter = origWidth / 2
     const halfWidthMd = config.widthMd / 2
@@ -310,10 +339,10 @@ const prepareLg = async function(config, outNameTpl, origImage) {
     const x1 = origCenter - halfWidthLg
     const x2 = origCenter + halfWidthMd
 
-    await prepareSides(config, outNameTpl, 'LG', origImage, x1, x2, partWidth)
+    await prepareSides(config, outNameTpl, 'LG', origImage, x1, x2, partWidth, updateCache)
 }
 
-const prepareXl = async function(config, outNameTpl, origImage) {
+const prepareXl = async function(config, outNameTpl, origImage, updateCache) {
     const origWidth = origImage.width
     const origCenter = origWidth / 2
     const halfWidthLg = config.widthLg / 2
@@ -322,15 +351,15 @@ const prepareXl = async function(config, outNameTpl, origImage) {
     const x1 = 0
     const x2 = origCenter + halfWidthLg
 
-    await prepareSides(config, outNameTpl, 'XL', origImage, x1, x2, partWidth)
+    await prepareSides(config, outNameTpl, 'XL', origImage, x1, x2, partWidth, updateCache)
 }
 
-const prepareSides = async function(config, outNameTpl, size, origImage, x1, x2, partWidth) {
+const prepareSides = async function(config, outNameTpl, size, origImage, x1, x2, partWidth, updateCache) {
     const origHeight = origImage.height
     const origWidth = origImage.width
 
     let outName = outNameTpl({ type: '', size: size })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         console.log(`Create ${outName}`)
         try {
             let img = await ImageLib.create(origWidth, config.height)
@@ -344,7 +373,7 @@ const prepareSides = async function(config, outNameTpl, size, origImage, x1, x2,
     }
 
     outName = outNameTpl({ type: 'Footer', size: size })
-    if ( ! Fs.existsSync(outName)) {
+    if (updateCache || ! Fs.existsSync(outName)) {
         console.log(`Create ${outName}`)
         try {
             let img = await ImageLib.create(origWidth, config.footerHeight)
