@@ -1,15 +1,34 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Center
+  Center, Box, VStack, Tooltip, IconButton, Flex
 } from '@chakra-ui/react'
+import { DeleteIcon, CloseIcon } from '@chakra-ui/icons'
 import Util from './Util'
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({id, path, content, fileContent, setData, putContentComplete}) {
+export default function EditorImage({id, path, content, fileContent, setData, putContentComplete, locked}) {
 
   const [cooldown, setCooldown] = useState(false)
+  const [inDelete, setInDelete] = useState(false)
   const imageUrl = useRef(null)
+
+  // Indicate desire to delete an item from a list
+  const cancelDeleteItem = (ev) => {
+    setInDelete(false)
+  }
+
+  // Really Delete an item from a list
+  const deleteItem = (ev) => {
+    if (inDelete) {
+      setData('file', {
+          delete: true
+      })
+      setInDelete(false)
+    } else {
+      setInDelete(true)
+    }
+  }
 
   const setImage = useCallback(() => {
     const rec = fileContent.current[content]
@@ -107,29 +126,50 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
 
   return (
     <div {...getRootProps()} style={{ width: '100%'}}>
-      <input {...getInputProps()} disabled={cooldown}/>
-      {
-        <Center
-          key={'dropTarget_' + id}
-          w='95%'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
-          minH='15em'
-          margin='0.5em'
-          color='black'
-          textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
-          bg={ocolor}
-          bgImage={`url('${imageUrl.current}')`}
-          bgRepeat='no-repeat'
-          bgPosition='center top'
-          bgSize='contain'
-          border='2px dashed black'
-        >{
-          cooldown ?
-            <p>Uploading...</p> :
-            isDragActive ?
-              <p>Drop the image file here ...</p> :
-              <p>Drop an image file here or click to select files</p>
-        }</Center>
-      }
+      <Center>
+        <Flex>
+          <Box>
+            <input {...getInputProps()} disabled={cooldown}/>
+            {
+              <Box
+                key={'dropTarget_' + id}
+                w='95%'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
+                minH='15em'
+                margin='0.5em'
+                color='black'
+                textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
+                bg={ocolor}
+                bgImage={`url('${imageUrl.current}')`}
+                bgRepeat='no-repeat'
+                bgPosition='center top'
+                bgSize='contain'
+                border='2px dashed black'
+              >{
+                cooldown ?
+                  <p>Uploading...</p> :
+                  isDragActive ?
+                    <p>Drop the image file here ...</p> :
+                    <p>Drop an image file here or click to select files</p>
+              }</Box>
+            }
+          </Box>
+          <Flex key='ops' color='editorText' bg='editorBg'>
+            <VStack>
+              {inDelete ?
+                [<Tooltip openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
+                  <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
+                </Tooltip>,
+                <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
+                  <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
+                </Tooltip>]
+              :
+                <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
+                  <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
+                </Tooltip>}
+            </VStack>
+          </Flex>
+        </Flex>
+      </Center>
     </div>
  )
 }
