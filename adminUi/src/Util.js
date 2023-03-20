@@ -106,6 +106,10 @@ export default class Util {
     }
     config = config.content
     for (let i = 1; i < path.length; ++i) {
+      if (config === undefined) {
+        console.error(`Current path ${path} does not match content config`, configs.current)
+        break
+      }
       const p = path[i]
       if (p.index === undefined) {
         config = config[p.name]
@@ -113,11 +117,7 @@ export default class Util {
         config = config[p.index]
       }
     }
-    if (config !== undefined) {
-      return config
-    } else {
-      console.error(`Current path ${path} does not match content config`, configs.current)
-    }
+    return config
   }
 
   // Completely replace the content at the current path with this new content

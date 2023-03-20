@@ -19,13 +19,21 @@ properties:
   addLogoToSocialImages:
     disp: Add Logo to Social Images
     type: boolean
-    desc: Add site logo to social media shareables auto-generated from book covers. Uses the 'small' logo image.
+    desc: Add site logo to social media shareables auto-generated from book covers. Uses the 'small' logo image from the style config. Don't enable this unless you have at least one logo image defined.
   feedbackPageText:
     disp: Feedback Page Text
     type: string
     desc: Description displayed on the site feedback form page.
     path: feedback/description
-
+  showNewsSignup:
+    disp: Show Email List Signup
+    type: boolean
+    desc: Insert a signup element into the top of the 'News' page. If this is checked, then 'Email List Signup HTML' must be defined with a valid chunk of HTML code.
+  newsSignupHtml:
+    disp: Email List Signup HTML
+    type: text
+    desc: A chunk of HTML code that implements the signup UI and action. This code can usually be copied from the setup page of your email list provider.
+    textType: html
   copyrightShort:
     disp: Abbreviated Copyright
     type: string

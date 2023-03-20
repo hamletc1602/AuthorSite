@@ -27,12 +27,9 @@
 
     "feedback": {
         "description": "",
-        "subject": "Author Site Feedback",
+        "subject": "{%siteName%} Feedback",
         "email": "",
         "messages": [
         ]
-    },
-
-    "fbAdminCode": "",
-    "pintrestCode": ""
+    }
 }

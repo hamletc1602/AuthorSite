@@ -16,20 +16,9 @@
 #
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  BraeVitae Simple Static Website generator
+  BraeVitae Simple Static Website generator (https://github.com/hamletc1602/AuthorSite)
 
-  This template creates all the infrastructure necessary to host a mostly static website from an S3 bucket, with
-  the following enhancements:
-
-   - Cloaking of .html extensions on page urls.
-   - Custom 404 page (returns to index.html).
-   - Built-in target for feeback email forms.
-   - Built-in forwarder to the Amazon store for the user's country.
-   - Websites can be generated from eisting templates, or existing files uploaded to the site.
-   - Website files are generated to a test site first, automatically promoted to the live site with one button click.
-   - Creates a unique key pair for uploading files to only this website's test site bucket.
-
-   Copyright 2022 BraeVitae Inc. Apache License 2.0
+  Copyright 2022 BraeVitae Inc. Apache License 2.0
 
 Parameters:
   {{#if domain}}

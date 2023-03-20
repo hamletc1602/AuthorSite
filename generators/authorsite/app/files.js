@@ -17,6 +17,11 @@ exports.copy = (src, dest) => {
   return Fs.copyFile(src, dest)
 }
 
+/** Return true if the file path exists, False if it does not. */
+exports.exists = (filePath) => {
+  return Fs.existsSync(filePath)
+}
+
 /** Load and parse a config file, whether JSON or YAML. */
 exports.loadConfig = (filepath, config) => {
   const ext = Path.extname(filepath).toLowerCase()

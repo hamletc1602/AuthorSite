@@ -340,7 +340,7 @@ function App() {
 
   // Get content data from the server on start editing
   useEffect(() => {
-    if (contentToGet) {
+    if (contentToGet && contentToGet.path) {
       let toGet = fileContent.current[contentToGet.path]
       if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
         if ( ! toGet) {
@@ -512,7 +512,7 @@ function App() {
         </GridItem>
         <GridItem h='1.6em' bg='accent'>
           <Flex p='3px 5px'>
-              <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2022</Text>
+              <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
               <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
           </Flex>
         </GridItem>

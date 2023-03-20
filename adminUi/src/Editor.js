@@ -37,7 +37,7 @@ export default function Editor({
         if (content.length > 0) {
           setPath([...rootPath, { index: 0, name: content[0][schema.nameProp] }])
         }
-      } else {
+      } else if (selectedItem.current) {
         // Scroll to the selected list item
         selectedItem.current.scrollIntoView()
       }
@@ -55,14 +55,17 @@ export default function Editor({
   const SubEditor = editorForType(hasList ? schema.elemType : schema.type)
 
   // For types with associated file content, if the file content is not already in the
-  // content cach, start a get from the server.
+  // content cache, start a get from the server.
   if (schema.type === 'image' || schema.type === 'text') {
+    if ( ! content) {
+      // If there's no current file path, generate one from the current path and update the parent config
+      const parentContent = Util.getContentForPath(configs, path.slice(0, -1))
+      const name = path[path.length - 1].name
+      parentContent[name] = Util.createFilePath(path, (schema.type === 'text' ? '.md' : '.image'))
+    }
     if ( ! fileContent.current[content]) {
       getContent(content)
     }
-    // TODO: If there's multiple renders while the content is downloading, multiple gets could be started?
-    //   Perhaps add a 'pending' placeholder record here in the content cache that will be replaced when the
-    //   content download completes?
   }
 
   // Select a different item
@@ -75,13 +78,15 @@ export default function Editor({
     if (locked) { return }
     // Transform list schema into an item schema
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
-    const newIndex = rootContent.length
     const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties })
-    newObj[schema.nameProp] = 'item' + newIndex
+    newObj[schema.nameProp] = 'item' + rootContent.length
+    let newIndex = -1
     if (schema.addAtEnd) {
-      rootContent.unshift(newObj)
-    } else {
+      newIndex = rootContent.length
       rootContent.push(newObj)
+    } else {
+      newIndex = 0
+      rootContent.unshift(newObj)
     }
     pushContent(editor.data, configs.current, editor.id)
     itemSelected(null, newIndex)
@@ -136,28 +141,43 @@ export default function Editor({
     let currContent = content
     if (schema.type === 'image') {
       // Image File Content
-      // For image files, the value is an object with extra data.
-      // The subEditor will have already updated the fileContent cache in this case.
       const imageProps = value
-      pushContent(imageProps.name, fileContent.current, imageProps.name)
-      // Ensure the content file path is updated in config if the editor changed it
+      const parentSchema = Util.getSchemaForPath(configs, path.slice(0, -1))
       currContent = Util.getContentForPath(configs, path.slice(0, -1))
       name = path[path.length - 1].name
-      //
-      currContent[name] = imageProps.name
-      // Update the image path, and Set other image prop values if the relevant poperty names exist.
-      const parentSchema = Util.getSchemaForPath(configs, path.slice(0, -1))
-      const typeProp = name + 'Type'
-      if (parentSchema.properties[typeProp]) {
-        currContent[typeProp] = imageProps.type
-      }
-      const widthProp = name + 'Width'
-      if (parentSchema.properties[widthProp]) {
-        currContent[widthProp] = imageProps.width
-      }
-      const heightProp = name + 'Height'
-      if (parentSchema.properties[heightProp]) {
-        currContent[heightProp] = imageProps.height
+      if (imageProps.delete) {
+        currContent[name] = undefined
+        const typeProp = name + 'Type'
+        if (parentSchema.properties[typeProp]) {
+          currContent[typeProp] = undefined
+        }
+        const widthProp = name + 'Width'
+        if (parentSchema.properties[widthProp]) {
+          currContent[widthProp] = undefined
+        }
+        const heightProp = name + 'Height'
+        if (parentSchema.properties[heightProp]) {
+          currContent[heightProp] = undefined
+        }
+      } else {
+        // For image files, the value is an object with extra data.
+        // The subEditor will have already updated the fileContent cache in this case.
+        pushContent(imageProps.name, fileContent.current, imageProps.name)
+        // Ensure the content file path is updated in config if the editor changed it
+        currContent[name] = imageProps.name
+        // Update the image path, and Set other image prop values if the relevant poperty names exist.
+        const typeProp = name + 'Type'
+        if (parentSchema.properties[typeProp]) {
+          currContent[typeProp] = imageProps.type
+        }
+        const widthProp = name + 'Width'
+        if (parentSchema.properties[widthProp]) {
+          currContent[widthProp] = imageProps.width
+        }
+        const heightProp = name + 'Height'
+        if (parentSchema.properties[heightProp]) {
+          currContent[heightProp] = imageProps.height
+        }
       }
       pushContent(editor.data, configs.current, editor.id)
     } else if (schema.type === 'text') {
@@ -178,14 +198,16 @@ export default function Editor({
   }
 
   // Switch to editing a child item by updating the path with it's name (this will force a re-render)
-  const editItem = (name) => setPath([...path, { name: name }])
+  const editItem = (name) => {
+    setPath([...path, { name: name }])
+  }
 
   function breadcrumbs() {
     if (hierarchyPath.length === 0) {
       return []
     }
     const crumbs = []
-    crumbs.push(<BreadcrumbItem key='root'>
+    crumbs.push(<BreadcrumbItem key='rootIcon'>
         <BreadcrumbLink onClick={e => {
           e.stopPropagation()
           setPath(rootPath.slice(0, -1))
@@ -193,7 +215,7 @@ export default function Editor({
           <ArrowLeftIcon margin='0 0 3px 3px'/>
         </BreadcrumbLink>
       </BreadcrumbItem>)
-    crumbs.push(<BreadcrumbItem key='root'>
+    crumbs.push(<BreadcrumbItem key='rootName'>
         <BreadcrumbLink onClick={e => {
           e.stopPropagation()
           setPath(rootPath.slice(0, 1))

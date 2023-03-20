@@ -199,8 +199,19 @@ const handler = async (event, context) => {
       distributors: await Files.loadConfig(Path.join(confDir, confIndex.distributors.schema))
     }
 
+    // Remove properties that refer to files that don't exist, to prevent further builder code from attempting to
+    // load them and failing at an awkward spot.
+    const clearMissingFilesWorker  = async (value, schema, _config, parent, key) => {
+      if (schema.type === 'image' || schema.type === 'file') {
+        if (value && ! Files.exists(Path.join(contentDir, value))) {
+          console.log(`File ${value} for prop ${key} not found. Clearing property value for this run.`)
+          parent[key] = null
+        }
+      }
+    }
+
     // Load real content for any 'text' type elements and replace the file path
-    const resolveFileRefsWorker = async (value, parent, key) => {
+    const resolveFileRefsWorker= async (value, parent, key) => {
       // Replace key value with external text content (possibly also rendered from a template)
       if (typeof value === 'string' || value instanceof String) {
         parent[key] = await Files.loadLargeData(Path.join(contentDir, value), { props: parent, config: data.config });
@@ -214,6 +225,7 @@ const handler = async (event, context) => {
       const d = data[key]
       const s = schema[key]
       if (s) {
+        await visitProperties(d, s, config, clearMissingFilesWorker)
         await resolveFileRefs(d, s, config, resolveFileRefsWorker)
         await resolveGeneratorPaths(d, s, config)
         await ensureProtocolOnUrls(d, s, config)
@@ -271,9 +283,15 @@ const handler = async (event, context) => {
       await renderReactComponents(mergedConfig, outputDir, tempDir, options);
 
       // Copy favicon to root of site
-      await Files.copy(Path.join(contentDir, dataCopy.style.favicon), Path.join(outputDir, 'favicon.ico'))
+      if (dataCopy.style.favicon) {
+        await Files.copy(Path.join(contentDir, dataCopy.style.favicon), Path.join(outputDir, 'favicon.ico'))
+      }
       // Font files (These static fonr files are specific to BraeVitae, other sites should use webfonts for now)
-      await mergeToOutput(Path.join(contentDir, 'fonts'), Path.join(outputDir, 'fonts'))
+      try {
+        await mergeToOutput(Path.join(contentDir, 'fonts'), Path.join(outputDir, 'fonts'))
+      } catch (e) {
+        // Ignore
+      }
       // Copy selected cached content to output dir (TODO: make this a structure config option? )
       await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'image', 'headers'))
       //
@@ -867,13 +885,13 @@ const mergeToOutput = async (sourceDir, destDir) => {
 }
 
 /** Vist all schema elements, while resolving the properties object associated with that level of schema. */
-const visitProperties = async (rootDir, value, schema, config, actionFunc, parent, key) => {
+const visitProperties = async (value, schema, config, actionFunc, parent, key) => {
   if (schema.type === 'list' && (!schema.closed || schema.multi)) {
     // Check all items in multi-value lists
     if (value.map) {
       await Promise.all(value.map(async (item, index) => {
         // Each list item uses the same schema info from the parent
-        await visitProperties(rootDir, item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
+        await visitProperties(item, { type: schema.elemType, properties: schema.properties }, config, actionFunc, value, index)
       }))
     } else {
       console.log(`List type property ${key} does not have an array type value`)
@@ -885,7 +903,7 @@ const visitProperties = async (rootDir, value, schema, config, actionFunc, paren
       if (defn) {
         let item = value[itemKey];
         if (item) {
-          await visitProperties(rootDir, item, defn, config, actionFunc, value, itemKey)
+          await visitProperties(item, defn, config, actionFunc, value, itemKey)
         }
       } else {
         // TODO: It's largely generated props that don't have a schema. Could likely check this case and generate
@@ -896,13 +914,13 @@ const visitProperties = async (rootDir, value, schema, config, actionFunc, paren
       }
     }))
   } else {
-    await actionFunc(rootDir, value, schema, config, parent, key)
+    await actionFunc(value, schema, config, parent, key)
   }
 }
 
 /** Resolve external text elements in the given props object and all child objects */
 const resolveFileRefs = async (valueI, schemaI, configI, worker) => {
-  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, parent, key) => {
+  await visitProperties(valueI, schemaI, configI, async (value, schema, _config, parent, key) => {
     if (schema.type === 'text') {
       await worker(value, parent, key)
     }
@@ -911,7 +929,7 @@ const resolveFileRefs = async (valueI, schemaI, configI, worker) => {
 
 /** Ensure all URL type properties begin with the appropriate protocol. */
 const ensureProtocolOnUrls = async (valueI, schemaI, configI) => {
-  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, parent, key) => {
+  await visitProperties(valueI, schemaI, configI, async (value, schema, _config, parent, key) => {
     if (schema.type === 'url') {
       if (value.length <= 3) {
         // Don't try to much with any URL string 3 chars or less. this is likely an error.
@@ -938,7 +956,7 @@ const ensureProtocolOnUrls = async (valueI, schemaI, configI) => {
 
 /** Find schema elements that have altered generator paths, copy the value from it's current config path to the gnerator path. */
 const resolveGeneratorPaths = async (valueI, schemaI, configI) => {
-  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, _key) => {
+  await visitProperties(valueI, schemaI, configI, async (value, schema, _config, _parent, _key) => {
     if (schema.path) {
       const parts = schema.path.split('/')
       let currValue = valueI
@@ -952,7 +970,7 @@ const resolveGeneratorPaths = async (valueI, schemaI, configI) => {
 
 /** Resolve external text elements in the given props object and all child objects */
 const publishContent = async (valueI, schemaI, configI, worker) => {
-  await visitProperties(null, valueI, schemaI, configI, async (_rootDir, value, schema, _config, _parent, key) => {
+  await visitProperties(valueI, schemaI, configI, async (value, schema, _config, _parent, key) => {
     if (schema.publish) {
       if (schema.pubDir) {
         console.log(`Publish content ${key}:${value} to site at dir ${schema.pubDir}.`)
