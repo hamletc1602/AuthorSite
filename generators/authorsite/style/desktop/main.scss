@@ -854,7 +854,7 @@ a.themebtn {
 				background: url('/<%logo.small%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
-				background-size: 170px;
+				background-size: auto;
 			}
 
 			.page-header-logo-link {
@@ -1165,7 +1165,7 @@ a.themebtn:hover {
 				background: url('/<%logo.medium%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
-				background-size: 250px;
+				background-size: auto;
 			}
 
 			.page-header-logo-link {
@@ -1245,14 +1245,14 @@ a.themebtn:hover {
 				background: url('/<%logo.large%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
-				background-size: 500px 500px;
+				background-size: auto;
 			}
 
 			.page-header-logo-link {
 				display: block;
 				position: absolute;
 				height: 180px;
-				width: 250px;
+				width: 400px;
 			}
 		}
 	<%/style%>
@@ -1301,14 +1301,14 @@ a.themebtn:hover {
 			background: url('/<%logo.extraLarge%>');
 			background-repeat: no-repeat;
 			background-position: 0px 0px;
-			background-size: 1000px 500px;
+			background-size: auto;
 		}
 
 		.page-header-logo-link {
 			display: block;
 			position: absolute;
 			height: 180px;
-			width: 500px;
+			width: 800px;
 		}
 	<%/style%>
 
