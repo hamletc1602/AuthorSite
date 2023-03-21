@@ -1,0 +1,56 @@
+{%#> page altPage=true %}
+<div class="page-book content">
+<p>
+<div>
+  <div class="bookTitle {%#if book.series %}withSeries{%/if%}">
+    {%book.title%}
+  </div>
+  {%#book.series%}
+  <div class="bookSeries">
+    {%#if external %}
+      Book {%@root.book.seriesIndex%} of the <a href="{%url%}" target="blank">{%@root.book.seriesName%}</a> series
+    {%else%}
+      Book {%@root.book.seriesIndex%} of the <a href="/series/{%id%}">{%@root.book.seriesName%}</a> series
+    {%/if%}
+    {%#@root.book.catchup%}
+      <span> ( </span><a href="/series/{%@root.book.series.id%}-catchup-{%@root.book.seriesIndex%}" target="_blank">A refresher on the story so far...</a> )
+    {%/@root.book.catchup%}
+  </div>
+  {%/book.series%}
+</div>
+
+<div class="author">{%#if book.isAnthology %}Featuring: {%else%}By: {%/if%}
+  {%#book.author%}
+    {%#if external %}<a href="{%url%}" target="blank">{%name%}</a>{%else%}<a href="{%@config.authorPath%}/{%id%}">{%name%}</a>{%/if%}{%#if @last%}.{%else%},{%/if%}
+  {%/book.author%}
+</div>
+<p>
+
+<div class="bookblock">
+  <div class="cover ">
+    <div class="{%book.id%}CoverImage"></div>
+    <div class="isbns">
+      {%#if book.showPrintIsbn%}Print ISBN: {%book.printIsbnDisp%}<br>{%/if%}
+      {%#if book.showEBookIsbn%}Ebook ISBN: {%book.ebookIsbnDisp%}{%/if%}
+    </div>
+  </div>
+  <div class="summary">
+    <div class="logline">{%breaklines book.logline%}</div>
+    <div class="summaryText">{%noescape book.blurb%}</div>
+    <div class="linksWide">
+      <div class="linksBoxWide">
+        {%#book.distributors%}
+        <a href="{%url%}" target="_blank" aria-label="{%name%}">
+          <img src="{%icon%}" title="{%name%}" alt="{%name%}">
+        </a>
+        {%/book.distributors%}
+      </div>
+    </div>
+    <div class="summaryText downloadLinksHelpText">You can purchase or download a copy of {%book.title%} from the vendors listed above. If you enjoyed this story please consider leaving a review at your preferred vendor or sharing this page using the links below.</div>
+    {%> sharing book %}
+  </div>
+</div>
+</p>
+
+</div>
+{%/page%}

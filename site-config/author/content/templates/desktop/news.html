@@ -1,0 +1,38 @@
+{%#> page newsPage=true %}
+
+<div class="page-news content">
+
+{%#if showNewsSignup%}
+	{%noescape newsSignupHtml%}
+{%/if%}
+
+{%#if category%}
+<h1>Category: {%category.name%}</h1>
+{%/if%}
+
+{%#news%}
+<article id="post-{%id%}" class="post-{%id%} post type-{%type%} status-{%status%} format-{%format%} category-{%category.id%}">
+	<header class="entry-header">
+		<h2 class="entry-title">{%title%}</h2>
+		<div class="entry-meta">
+			<span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
+		</div>
+	</header>
+	<div class="entry {%#if image%}entry-with-image{%else%}entry-no-image{%/if%}">
+		{%#if image%}{%#if imageLeft%}
+		<div class="entry-image entry-image-left entry-image-{%id%}" title="{%imageAlt%}"></div>
+		{%/if%}{%/if%}
+		<div class="entry-content">{%noescape content%}</div>
+		{%#if image%}{%#if imageRight%}
+		<div class="entry-image entry-image-right entry-image-{%id%}" title="{%imageAlt%}"></div>
+		{%/if%}{%/if%}
+	</div>
+	<footer class="entry-footer">
+		<span class="wp-cat-links">Posted in {%#category%}<a href="{%@config.newsPath%}/cat-{%id%}" rel="category">{%name%}</a>{%#if @last%}.{%else%}, {%/if%}{%/category%}</span>
+	</footer>
+</article>
+{%/news%}
+
+</div>
+
+{%/page%}

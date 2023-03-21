@@ -1,0 +1,70 @@
+{%#> page mainPage=true %}
+
+<div class="page-home contentNoPanel">
+<p>
+
+<div class="bookfeature">
+<div class="bookFeatureBlock">
+  <div class="distributorList bookFeatureTop">
+    <div class="distributorLink">
+      <span class="title">Buy now at:</span>
+      {%#feature.distributors%}
+        <a href="{%url%}" target="_blank" aria-label="{%name%}">
+        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+        </a>
+      {%/feature.distributors%}
+    </div>
+    {%> sharing feature %}
+  </div>
+
+  <div class="bookCover"><img src="{%@config.imagePath%}/{%feature.featureCoverImage%}"></div>
+  <div class="bookBlurbWrapper">
+    <div class="bookTitle">{%feature.title%}</div>
+    {%#if feature.seriesIndex%}
+    <div class="bookSeriesTitle">Book {%feature.seriesIndex%} of the {%feature.seriesName%} series</div>
+    {%/if%}
+    <div class="bookLogline" style="color: {%feature.loglineColor%};">{%feature.logline%}</div>
+    <div class="bookBlurb">{%noescape feature.blurb%}</div>
+  </div>
+  <div class="distributorList bookFeatureBottom">
+    <div class="distributorLink">
+      <span class="title">Buy now at:</span>
+      {%#feature.distributors%}
+        <a href="{%url%}" target="_blank" aria-label="{%name%}">
+        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+        </a>
+      {%/feature.distributors%}
+    </div>
+    <div class="sharing">
+      {%> sharing feature %}
+    </div>
+  </div>
+</div>
+
+</div>
+
+{%#each group.pubs%}
+<h2 class="" id="{%typePlural%}">{%displayName%}</h2>
+<p>
+<div class="booklist">
+  <div class="booklist-display">
+    {%#list%}
+    <div class="booklist-item booklist-item{%@index%}">
+      <div class="bookCoverImage {%id%}CoverIcon">
+        <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+        {%#if published%}
+        <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
+        {%else%}
+        <div class="comingSoon">Coming Soon!</div>
+        {%/if%}
+      </div>
+    </div>
+    {%/list%}
+  </div>
+</div>
+</p>
+{%/each%}
+
+</div>
+
+{%/page%}

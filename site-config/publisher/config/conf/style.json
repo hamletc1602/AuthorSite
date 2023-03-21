@@ -1,0 +1,19 @@
+{
+    "theme": "dark",
+    "background": "backgrounds/author.jpg",
+
+    "logo": {
+        "small": null,
+        "medium": null,
+        "large": null,
+        "extraLarge": null
+    },
+
+    "coverPromoBackground": "promotion/near-black.png",
+
+    "defaultFont": "SansSerif",
+    "featureFont": "SansSerif",
+    "newsFont": "SansSerif",
+
+    "webFonts": []
+}

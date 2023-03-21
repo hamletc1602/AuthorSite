@@ -3,26 +3,20 @@
     "menu": {
         "main": {
             "name": "index",
-            "title": "BOOKS",
-            "desc": "All my books",
+            "title": "AUTHORS",
+            "desc": "Landing page!",
             "template": "grouped.html"
-        },
-        "about": {
-            "name": "about",
-            "title": "ABOUT",
-            "desc": "About the author",
-            "template": "group.html"
         },
         "alt": {
             "name": "social",
             "title": "SOCIAL",
-            "desc": "Social media hub",
+            "desc": "Social media hub!",
             "template": "social.html"
         },
         "news": {
             "name": "news",
             "title": "NEWS",
-            "desc": "The latest updates",
+            "desc": "The latest updates!",
             "template": "news.html"
         },
         "contact": {

@@ -273,6 +273,10 @@ const handler = async (event, context) => {
       // Merge core configuration files (Separate files make editing config easier, but this builder expects them as one)
       const mergedConfig = Object.assign({}, dataCopy.config, dataCopy.structure, dataCopy.style)
 
+      // Assign the first non-external author in the list as 'the author' for sites that are focussed on
+      // only one author, rather than a group of authors.
+      dataCopy.author = dataCopy.authors.find(p => ! p.external)
+
       //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
@@ -672,6 +676,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   const renderData = {
     items: data.published,
     groups: data.authors,
+    group: data.author,
     social: data.social,
     series: data.series,
     feature: data.published.find(p => p.featured === true),

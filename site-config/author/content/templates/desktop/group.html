@@ -1,0 +1,28 @@
+{%#> page mainPage=true %}
+
+<div class="authorPage content"><div class="authorsig">
+  <a href="{%group.imageLink%}" class="media"><img src="/{%group.image%}" class="mediaright {%group.imageExtraStyle%}" alt="{%group.imageAlt%}"/></a>
+</div>
+<p>
+
+<div class="sectDesc textSlider" sliderMinHeight="180">
+  <div style="max-height: 1000px; overflow: hidden;">
+    {%noescape group.content%}
+  </div>
+</div>
+
+</p>
+
+{%#if group.socialMediaLinks%}
+<h2 class="" id="contact">Contact</h2>
+<p>
+You can find me on
+{%#group.socialMediaLinks%}
+    <a href="{%url%}" class="urlextern" target="blank">{%name%}</a>{%#if @last%}.{%else%},{%/if%}
+{%/group.socialMediaLinks%}
+</p>
+{%/if%}
+
+</div>
+
+{%/page%}

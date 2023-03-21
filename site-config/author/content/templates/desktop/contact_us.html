@@ -1,0 +1,68 @@
+{%#> page contactPage=true %}
+
+<div class="page-contact content">
+
+<form id="feedback" class="feedback">
+  <p>{%noescape @config.feedback.description%}</p>
+  <p>You can provide a <label for="nameInput">name</label> if you like: <input id="nameInput" class="fb_include" type="text" name="name"> <span class="fade">(it does not need to be a real one!)</span>
+  </p>
+  <p class="inputSect">
+    <textarea id="feedbackInput" class="fb_include" name="feedback"></textarea>
+  </p>
+  <p>Remember, this is anonymous so please enter an <label for="emailInput">email address</label>: <input id="emailInput" class="fb_include" type=text name="replyto"> if you'd like a direct response.</p>
+  <p class="submitSect">
+      <div class="feedbackButton" classPrefix="fb_" successMessage="Thank you for your feedback!">Send</div>
+  </p>
+</form>
+<script>
+  // Handle URL arguments
+  var messages = [
+  {%#each @config.feedback.messages%}
+    "{%noescape this%}"
+  {%/each%}
+  ];
+  var message;
+  if (window.location.hash && window.location.hash.length > 1) {
+    var argsList = window.location.hash.substr(1).split(';');
+    argsList.forEach(arg => {
+      var parts = arg.split('=', 2)
+      if (parts.length > 1) {
+        var value = decodeURIComponent(parts[1]).replace(/[^0-9a-z_\- ]/gi, ''); // strip any special character that could lead to script injection from the URL value
+        // Tuple args
+        switch (parts[0]) {
+          case 'msgId':  // msgId must be the first defined in the fragment value
+            try {
+              var msgId = Number(value);
+              if (messages.length > msgId) {
+                message = messages[msgId];
+              }
+            } catch (ex) { /* Ignnore */ }
+            if ( ! message) {
+              console.log('Contact form msgId \'' + value + '\' is not a valid message ID.')
+            }
+            break;
+          case 'title':
+            if (message) {
+              message = message.replace(/@title@/ig, value)
+            }
+            break
+        }
+      } else {
+        // Single args
+      }
+    })
+  }
+  if (message) {
+    var feedbackInput = document.getElementById('feedbackInput');
+    feedbackInput.innerText = message;
+    var emailInput = document.getElementById('emailInput');
+    emailInput.setAttribute('class', 'important')
+  }
+
+  location.hash = '';
+</script>
+</p>
+
+</div>
+
+{%/page%}
