@@ -146,6 +146,8 @@ export default function Editor({
       currContent = Util.getContentForPath(configs, path.slice(0, -1))
       name = path[path.length - 1].name
       if (imageProps.delete) {
+        // Image should be deleted. Clear this property ( Generator will ignore any content )
+        //  TODO: tell the server to delete the related content file
         currContent[name] = undefined
         const typeProp = name + 'Type'
         if (parentSchema.properties[typeProp]) {
@@ -182,11 +184,18 @@ export default function Editor({
       pushContent(editor.data, configs.current, editor.id)
     } else if (schema.type === 'text') {
       // Text File Content
-      // The subEditor will have already updated the fileContent cache in this case.
-      pushContent(value, fileContent.current, value)
-      // Ensure the content file path is updated in config if the editor changed it
-      currContent = Util.getContentForPath(configs, path.slice(0, -1))
-      name = path[path.length - 1].name
+      const fileProps = value
+      if (fileProps.delete) {
+        // Empty value. Clear this propery value ( Generator will ignore any content )
+        //  TODO: tell the server to delete the related content file
+        currContent = Util.getContentForPath(configs, path.slice(0, -1))
+        name = path[path.length - 1].name
+        currContent[name] = undefined
+        pushContent(editor.data, configs.current, editor.id)
+      } else {
+        // The subEditor will have already updated the fileContent cache in this case.
+        pushContent(fileProps.name, fileContent.current, fileProps.name)
+      }
     } else {
       // Upate the server content if this property value has changed
       const oldValue = currContent[name]

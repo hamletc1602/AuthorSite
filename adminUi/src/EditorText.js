@@ -23,7 +23,10 @@ export default function EditorText({id, content, fileContent, setData}) {
           contentType: 'text/plain'
         }
         // Triggers content push, even if file path is unchanged
-        setData('file', content)
+        setData('file', {
+          name: content,
+          delete: ev.target.value === ''
+        })
       }}
     />
   </Skeleton>
