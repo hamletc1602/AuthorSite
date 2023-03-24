@@ -22,7 +22,8 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
   const deleteItem = (ev) => {
     if (inDelete) {
       setData('file', {
-          delete: true
+          delete: true,
+          name: content
       })
       setInDelete(false)
     } else {
@@ -33,6 +34,7 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
   const setImage = useCallback(() => {
     const rec = fileContent.current[content]
     if (rec && rec.state === 'complete') {
+      console.log(`Set image for ${content}`)
       const blob = new Blob([rec.content], { type: rec.contentType })
       imageUrl.current = URL.createObjectURL(blob)
     }
@@ -89,6 +91,7 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
         const image = new Image();
         image.addEventListener('load', () => {
           // Triggers content push, even if file path is unchanged
+          console.log(`Set data for ${newContent}`)
           setData('file', {
             name: newContent,
             type: mimeType,
@@ -102,7 +105,7 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
         setImage()
 
         // Disable the input while uploading
-        //     Provide a hard timeout here of 10 minutes, in case something goes wrong with
+        //     Provide a hard timeout here of 10 minutes, in case something goes wrong.
         setCooldown(true)
         setTimeout(() => {
           console.log(`Cancel upload cooldown for ${content} after 10 minutes.`)
@@ -114,62 +117,63 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
   const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
 
   useEffect(() => {
-    if (putContentComplete === content) {
+    console.log(`Check cooldown for ${content}. Complete: ${putContentComplete}`)
+    if (cooldown && putContentComplete === content) {
       console.log(`File upload complete for ${content}`)
       setCooldown(false)
     }
-  }, [putContentComplete, content, setCooldown])
+  }, [putContentComplete, content, cooldown, setCooldown])
 
   // Text outline props
   const ow = 1
   const ocolor = 'lightgray'
 
   return (
-    <div {...getRootProps()} style={{ width: '100%'}}>
-      <Center>
-        <Flex>
-          <Box>
-            <input {...getInputProps()} disabled={cooldown}/>
-            {
-              <Box
-                key={'dropTarget_' + id}
-                w='95%'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
-                minH='15em'
-                margin='0.5em'
-                color='black'
-                textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
-                bg={ocolor}
-                bgImage={`url('${imageUrl.current}')`}
-                bgRepeat='no-repeat'
-                bgPosition='center top'
-                bgSize='contain'
-                border='2px dashed black'
-              >{
+    <Flex w='100%'>
+      <Box flex='1' w='calc(100%-2em)'>
+        <div {...getRootProps()} style={{ width: '100%'}}>
+          <input {...getInputProps()} disabled={cooldown}/>
+          {
+            <Box
+              key={'dropTarget_' + id}
+              w='calc(100%-3px)'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
+              minH='15em'
+              margin='0.5em'
+              color='black'
+              textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
+              bg={ocolor}
+              bgImage={`url('${imageUrl.current}')`}
+              bgRepeat='no-repeat'
+              bgPosition='center 1.6em'
+              bgSize='contain'
+              border='2px dashed black'
+            >
+              <Center>{
                 cooldown ?
                   <p>Uploading...</p> :
                   isDragActive ?
                     <p>Drop the image file here ...</p> :
                     <p>Drop an image file here or click to select files</p>
-              }</Box>
-            }
-          </Box>
-          <Flex key='ops' color='editorText' bg='editorBg'>
-            <VStack>
-              {inDelete ?
-                [<Tooltip openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
-                  <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
-                </Tooltip>,
-                <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
-                  <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
-                </Tooltip>]
-              :
-                <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
-                  <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
-                </Tooltip>}
-            </VStack>
-          </Flex>
-        </Flex>
-      </Center>
-    </div>
+              }</Center>
+            </Box>
+          }
+        </div>
+      </Box>
+      <Flex key='ops' w='2em' color='editorText' bg='editorBg'>
+        <VStack>
+          {inDelete ?
+            [<Tooltip key='cancel' openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
+              <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
+            </Tooltip>,
+            <Tooltip key='delete' openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
+              <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
+            </Tooltip>]
+          :
+            <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete Image' hasArrow={true} aria-label='Delete List Item'>
+              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
+            </Tooltip>}
+        </VStack>
+      </Flex>
+    </Flex>
  )
 }

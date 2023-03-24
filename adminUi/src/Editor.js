@@ -11,14 +11,14 @@ import EditorImage from './EditorImage'
 
 /**  */
 export default function Editor({
-  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, advancedMode,
+  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, deleteContent, advancedMode,
   locked
 }) {
 
   const schema = Util.getSchemaForPath(configs, path)
   const hasList = schema.type === 'list'
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
-  const content = Util.getContentForPath(configs, path)
+  let content = Util.getContentForPath(configs, path)
   const [inDelete, setInDelete] = useState(false)
   const selectedItem = useRef(null)
 
@@ -142,12 +142,20 @@ export default function Editor({
     if (schema.type === 'image') {
       // Image File Content
       const imageProps = value
+      if (content !== imageProps.name) {
+        fileContent.current[content] = null
+        content = imageProps.name
+      }
       const parentSchema = Util.getSchemaForPath(configs, path.slice(0, -1))
       currContent = Util.getContentForPath(configs, path.slice(0, -1))
       name = path[path.length - 1].name
       if (imageProps.delete) {
-        // Image should be deleted. Clear this property ( Generator will ignore any content )
-        //  TODO: tell the server to delete the related content file
+        // Image should be deleted.
+        // Tell the server to delete the related content file
+        deleteContent(imageProps.name)
+        // Clear the file data cache
+        fileContent.current[imageProps.name] = null
+        // Clear this property ( Generator will ignore any content )
         currContent[name] = undefined
         const typeProp = name + 'Type'
         if (parentSchema.properties[typeProp]) {
@@ -186,8 +194,11 @@ export default function Editor({
       // Text File Content
       const fileProps = value
       if (fileProps.delete) {
-        // Empty value. Clear this propery value ( Generator will ignore any content )
-        //  TODO: tell the server to delete the related content file
+        // Empty value. Clear this propery value and delete content from the server
+        deleteContent(fileProps.name)
+        // Clear the file data cache
+        fileContent.current[fileProps.name] = null
+        //
         currContent = Util.getContentForPath(configs, path.slice(0, -1))
         name = path[path.length - 1].name
         currContent[name] = undefined

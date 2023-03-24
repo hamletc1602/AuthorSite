@@ -241,7 +241,9 @@ export default class Controller {
 
   /** Put various site content files for the given template. */
   async putSiteContent(templateId, contentPath, contentType, content) {
-    return this.putSiteContentInner('site-content', templateId, contentPath, contentType, content)
+    if (content && content.length > 0) {
+      return this.putSiteContentInner('site-content', templateId, contentPath, contentType, content)
+    }
   }
 
   /** Uplaod files to S3 via lambda@Edge Admin viewer func. */
@@ -272,6 +274,21 @@ export default class Controller {
     }).then(async (response) => {
       if (!response.ok) {
         throw new Error(`Failed to put site content. Status: ${response.status}`);
+      }
+      return response.text()
+    })
+  }
+
+  /** Delete site content */
+  async deleteContent(templateId, contentPath) {
+    return fetch(`/admin/site-content/${templateId}/${contentPath}`, {
+      method: 'DELETE',
+      headers: new Headers({
+        'Authorization': this.basicAuth()
+      })
+    }).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to delete site content. Status: ${response.status}`);
       }
       return response.text()
     })

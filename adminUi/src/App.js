@@ -265,6 +265,7 @@ function App() {
         }}
         pushContent={scheduleContentPush}
         putContentComplete={putContentComplete}
+        deleteContent={(path) => { controller.deleteContent(adminConfig.templateId, path) }}
         advancedMode={advancedMode}
         locked={locked}
       />

@@ -8,6 +8,8 @@ const lambda = new AWS.Lambda({ region: targetRegion });
 const AuthFailWindowMs = 5 * 60 * 1000
 const MaxAuthFailedAttempts = 10
 
+const CONTENT_ROOT_PATH = '/admin/site-content/'
+
 // When run in rapid succession, AWS may retain some state between executions so we defined some
 // globals where it would be useful to retain state.
 let stateCache = {}
@@ -55,11 +57,33 @@ exports.handler = async (event, context) => {
   })
 
   //
-  if (req.method === 'POST') {
+  if (req.method === 'DELETE') {
+    if (req.uri.indexOf(CONTENT_ROOT_PATH) === 0) {
+      const s3Path = 'content/' + req.uri.substring(CONTENT_ROOT_PATH.length)
+      try {
+        await aws.delete(adminUiBucket, s3Path)
+        console.log(`Deleted ${s3Path}`)
+        return {
+          status: '200',
+          statusDescription: 'Deleted'
+        }
+      } catch (e) {
+        console.log(`Failed to delete ${s3Path}`, e)
+        return {
+          status: '500',
+          statusDescription: 'Delete failed. See log for details.'
+        }
+      }
+    }
+    return {
+      status: '400',
+      statusDescription: 'Invalid path. Can only delete site content.'
+    }
+  } else if (req.method === 'POST') {
     if (req.uri.indexOf('/admin/command/') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return postCommand(aws, req, adminBucket, arnPrefix)
+        return postCommand(aws, req, adminBucket, adminUiBucket, arnPrefix)
       }
       return authResp
     } else if (req.uri.indexOf('/admin/site-config/') === 0) {
@@ -69,7 +93,7 @@ exports.handler = async (event, context) => {
         return siteContent(aws, req, true, adminBucket, adminUiBucket, arnPrefix)
       }
       return authResp
-    } else if (req.uri.indexOf('/admin/site-content/') === 0) {
+    } else if (req.uri.indexOf(CONTENT_ROOT_PATH) === 0) {
       // Content uploads to the adminUI bucket for direct GET access
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
@@ -170,7 +194,7 @@ const authenticate = async (aws, req, adminBucket) => {
 }
 
 /** Handle commands posted to the admin interface */
-const postCommand = async (aws, req, adminBucket, arnPrefix) => {
+const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
   const parts = req.uri.split('/')
   parts.shift() // /
   parts.shift() // admin
