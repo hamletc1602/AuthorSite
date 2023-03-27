@@ -238,6 +238,12 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
       case 'publish':
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
+      case 'updateTemplate':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
+      case 'updateAdminUi':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
       default:
         ret = {
           status: '404',

@@ -143,16 +143,18 @@ export default class Util {
   }
 
   // Create a new object of the type of the provided schema
-  static createNew(rootPath, schema) {
+  static createNew(rootPath, schema, newIndex) {
     if (schema.type === 'object') {
       const obj = {}
       Object.keys(schema.properties).forEach(key => {
         const prop = schema.properties[key]
         const path = [...rootPath]
         path.push({ name: key })
-        obj[key] = Util.createNew(path, prop)
+        obj[key] = Util.createNew(path, prop, newIndex)
       })
       return obj
+    } else if (schema.type === 'index') {
+      return newIndex
     } else if (schema.type === 'text') {
       return Util.createFilePath(rootPath) + '/' + v1() + '.md'
     } else if (schema.type === 'image') {

@@ -45,6 +45,21 @@ const customTheme = extendTheme({
       danger: mode('red', 'red')(props)
     }
   },
+  components: {
+    Tabs: {
+      variants: {
+        'line': {
+          tab: {
+            color: "accentText",
+            _selected: {
+              borderColor: 'accentActiveText',
+              color: "accentActiveText",
+            }
+          }
+        }
+      }
+    }
+  }
 })
 
 // fill in site links from current URL host (Or from the environment, if we're in local dev. mode)
@@ -75,6 +90,8 @@ const controller = new Controller()
 // Text
 const BUTTON_GENERATE_TOOLTIP = 'Generate a test site from your configuration.'
 const BUTTON_PUBLISH_TOOLTIP = 'Replate your current live site content with the test site content.'
+const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
+const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -171,6 +188,15 @@ function App() {
 
   const onLoadTemplate = () => {
     setShowSelectTemplate(true)
+  }
+
+  const onUpdateTemplate = () => {
+    console.log('OnUpdateTemplate')
+
+  }
+
+  const onUpdateAdminUi = () => {
+    console.log('OnUpdateAdminUi')
   }
 
   // const onSaveTemplate = () => {
@@ -431,9 +457,8 @@ function App() {
         <GridItem color='baseText' bg='accent' h='2.75em'>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <InfoIcon color='accentText' m='5px'/>
-            <Text color='accentText' m='2px'>Site Admin</Text>
+            <Text color='accentText' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
             <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
-            <Spacer/>
             {advancedMode ? [
               <Divider orientation='vertical' />,
               <Text color='accentText' m='2px 5px' >Template:</Text>,
@@ -450,6 +475,7 @@ function App() {
               <Divider orientation='vertical' />,
               ]
             : null}
+            <Spacer/>
             <Tooltip
               openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
               label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
@@ -495,9 +521,7 @@ function App() {
             <Tabs size='sm' h='1em' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList bg='accent'>
                 {editors.current.map((editor) => (
-                  <Tab color='accentText' _selected={{ color: 'gray.400' }} _hover={{ color: 'gray.400' }}
-                    key={editor.id} disabled={!authenticated}
-                  >{editor.title}</Tab>
+                  <Tab key={editor.id} disabled={!authenticated}>{editor.title}</Tab>
                 ))}
               </TabList>
               <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)'>
@@ -513,8 +537,35 @@ function App() {
         </GridItem>
         <GridItem h='1.6em' bg='accent'>
           <Flex p='3px 5px'>
-              <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
-              <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
+            <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
+            <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
+            <Spacer/>
+            <Flex>
+              <Tooltip
+                openDelay={650} closeDelay={250} hasArrow={true} placement='left-start'
+                label={adminDisplay.updateTemplateError ? adminDisplay.updateTemplateErrMsg : BUTTON_UPDATE_TEMPLATE_TOOLTIP}
+                aria-label={adminDisplay.updateTemplateError ? adminDisplay.updateTemplateErrMsg : BUTTON_UPDATE_TEMPLATE_TOOLTIP}
+              >
+                <Button
+                  size='xs' m='0 0.5em' onClick={onUpdateTemplate}
+                  disabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
+                  isLoading={(adminDisplay.updatingTemplate) && !advancedMode} loadingText='Updating...'
+                  color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.updateTemplateError ? 'danger' : 'accentText'}
+                >Update Template</Button>
+              </Tooltip>
+              <Tooltip
+                openDelay={650} closeDelay={250} hasArrow={true} placement='left-start'
+                label={adminDisplay.updateUiError ? adminDisplay.updateUiErrMsg : BUTTON_UPDATE_UI_TOOLTIP}
+                aria-label={adminDisplay.updateUiError ? adminDisplay.updateUiErrMsg : BUTTON_UPDATE_UI_TOOLTIP}
+              >
+                <Button
+                  size='xs' m='0 0.5em' onClick={onUpdateAdminUi}
+                  disabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
+                  isLoading={(adminDisplay.updatingUi) && !advancedMode} loadingText='Updating...'
+                  color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.updateUiError ? 'danger' : 'accentText'}
+                >Update Site Admin</Button>
+              </Tooltip>
+            </Flex>
           </Flex>
         </GridItem>
       </Grid>

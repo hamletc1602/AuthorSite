@@ -76,10 +76,13 @@ export default function Editor({
   // Create a new item for a list
   const newItem = (ev) => {
     if (locked) { return }
+    // New ID is one past the current list length + a two-digit random number to keep it unique even when
+    // there's been new adds and deletes in the list.
+    const newId = `${rootContent.length}${Math.floor(Math.random() * 100)}`
     // Transform list schema into an item schema
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
-    const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties })
-    newObj[schema.nameProp] = 'item' + rootContent.length
+    const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties }, newId)
+    newObj[schema.nameProp] = 'item' + newId
     let newIndex = -1
     if (schema.addAtEnd) {
       newIndex = rootContent.length

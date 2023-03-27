@@ -1,0 +1,127 @@
+type: object
+properties:
+  theme:
+    disp: Site Colour Profile
+    desc: Affects how the domniant colors extrapolted from the provided header image are used on the generated site.
+    type: list
+    elemType: string
+    closed: true
+    values:
+      - dark
+      - light
+      - darkmuted
+      - lightmuted
+      - muted
+  background:
+    disp: Site Background Image
+    desc: A background image that is used for both the header and footer of the site. It is also used as a source for background and highlight colours applied to the site, modified by the them value above.
+    type: image
+  favicon:
+    disp: Site Icon
+    desc: A small image (normally 64x64px) suitable for display on the browser window/tab title bar, or in the browser favourites list.
+    type: image
+    publish: true
+    pubDir: /
+  logo:
+    disp: Site Logo Images
+    desc: A logo images to be placed at the top right of the site page, and added to generated social mendia promo images.
+    type: object
+    properties:
+      small:
+        disp: Small
+        desc: Optional. Logo image for the smallest screens. Aim for about 150px a side.
+        type: image
+        publish: true
+      medium:
+        disp: Medium
+        desc: Optional. Logo image for smaller screens. Aim for about 250px a side.
+        type: image
+        publish: true
+      large:
+        disp: Large
+        desc: Optional. Logo image for desktop screens. Aim for about 500px a side.
+        type: image
+        publish: true
+      extraLarge:
+        disp: Extra large
+        desc: Optional. Logo image for the widest display. Go wild!
+        type: image
+        publish: true
+  coverPromoBackground:
+    disp: Cover Promo Background Image
+    desc: Background image used when generating social medai promo images from book covers.
+    type: image
+  headerMenuSelectedBkgnd:
+    disp: Menu Selected Background Colour
+    desc: Color of the background around menu items when viewing a page associated with that menu item.
+    type: color
+  headerMenuHoverColor:
+    disp: Menu Hover Text Colour
+    desc: Color of menu items when the user hovers over the menu name.
+    type: color
+  headerMenuHoverBkgnd:
+    disp: Menu Hover Background Colour
+    desc: Color of the backgorund around menu items when the user hovers over the menu name.
+    type: color
+  headerColor:
+    disp: Header Colour
+    desc: Override the site header colour.
+    type: color
+    hidden: true
+  footerColor:
+    disp: Footer Colour
+    desc: Override the site footer colour.
+    type: color
+    hidden: true
+  footerTextShadowColor:
+    disp: Footer Text Shadow Colour
+    desc: Override the site footer text shadow colour to make the footer text more visible on your selected background.
+    type: color
+    hidden: true
+  contentBkColor:
+    disp: Content Background Colour
+    desc: Background color for the content box on every site page. If set, Overrides the colour generated from the background image.
+    type: color
+    hidden: true
+  contentBoxShadowColor:
+    disp: Content Box Shadow Colour
+    desc: Color to use for the shadow around the edges of the site content box that appears on every site page. If set, Overrides the colour generated from the background image.
+    type: color
+    hidden: true
+  featureBkColor:
+    disp: Feature Background Colour
+    desc: A background color for the book log line in the featured book block in the landing page. If set, Overrides the colour generated from the background image.
+    type: color
+    hidden: true
+  featureLoglineColor:
+    disp: Feature Log Line Colour
+    desc: A default color for the book log line in the featured book block in the landing page.
+    type: color
+  defaultFont:
+    disp: Site Font
+    desc: A font family name to use for all text on the site that does not have a more specific font setting.
+    type: string
+  featureFont:
+    disp: Feature Font
+    desc: A font family name to use for text in the book feature panel on the site landing page.
+    type: string
+  newsFont:
+    disp: News Font
+    desc: A font family name to use for text on the 'News' page of the site.
+    type: string
+  webFonts:
+    disp: WebFonts
+    desc: Extra fonts to load for this website from external sources (ie. google fonts).
+    type: list
+    elemType: object
+    nameProp: name
+    addTitle: font
+    properties:
+      name:
+        disp: Name
+        desc: A name for the list entry. Not actually used.
+        type: string
+      url:
+        disp: URL
+        desc: URL to a webfont. This URL will normally include the font family name that can be used to reference the font in the default font settings above.
+        type: url

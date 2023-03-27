@@ -30,7 +30,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
             <NumberDecrementStepper />
           </NumberInputStepper>
         </NumberInput>
-      case 'boolean': return <Checkbox key={itemKey} size='sm'
+      case 'boolean': return <Checkbox key={itemKey} size='sm' verticalAlign='middle'
         defaultChecked={value} disabled={locked}
         onChange={ev => {
           setData(name, ev.target.checked)
