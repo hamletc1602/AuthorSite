@@ -83,7 +83,7 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Reurn true if this template is a public template (vs. private to this user's AWS tenant) */
-async function isPublicTemplate() {
+async function isPublicTemplate(templateName) {
   let isPublicTemplate = false
   const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
   if (adminConfigBuff) {
@@ -93,7 +93,7 @@ async function isPublicTemplate() {
       isPublicTemplate = templateProps.access === 'public'
     }
   }
-  return isPubicTemplate
+  return isPublicTemplate
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
@@ -104,9 +104,9 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     await aws.displayUpdate({
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
-    const isPublicTemplate = isPublicTemplate()
-    const sourceBucket = isPublicTemplate ? publicBucket : adminBucket
-    console.log(`Copy ${isPublicTemplate ? 'public' : 'private'} site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
+    const public = await isPublicTemplate(templateName)
+    const sourceBucket = public ? publicBucket : adminBucket
+    console.log(`Copy ${public ? 'public' : 'private'} site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
     const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
@@ -123,7 +123,7 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     //
     console.log('Convert YAML configuration files to JSON.')
     try {
-      await ensureSchemaJsonFiles(adminBucket, templateName)
+      success = await ensureSchemaJsonFiles(adminBucket, templateName)
     } catch (error) {
       success = false
       console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
@@ -157,9 +157,9 @@ async function upateTemplate(publicBucket, adminBucket, params) {
         updatingTemplate: true, updateTemplateError: false, stepMsg: 'Update Template'
       }, 'update', `Starting update with ${templateName} template.`)
     // Copy template archive to local FS.
-    const isPublicTemplate = isPublicTemplate()
-    const sourceBucket = isPublicTemplate ? publicBucket : adminBucket
-    console.log(`Copy ${isPublicTemplate ? 'public' : 'private'} site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
+    const public = await isPublicTemplate(templateName)
+    const sourceBucket = public ? publicBucket : adminBucket
+    console.log(`Copy ${public ? 'public' : 'private'} site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`
     const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
@@ -167,10 +167,10 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
       if (entry.type === 'File') {
-        if (/config\/schema/.test(file.path)
-          || /config\/template/.test(file.path))
+        if (/config\/schema/.test(entry.path)
+          || /config\/template/.test(entry.path))
         {
-          Fs.writeFileSync('/tmp/' + file.path, await file.buffer())
+          Fs.writeFileSync('/tmp/' + entry.path, await entry.buffer())
         }
       } else {
         entry.autodrain();
@@ -184,7 +184,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     //
     console.log('Convert YAML configuration files to JSON.')
     try {
-      await ensureSchemaJsonFiles(adminBucket, templateName)
+      success = await ensureSchemaJsonFiles(adminBucket, templateName)
     } catch (error) {
       success = false
       console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
@@ -214,6 +214,7 @@ async function ensureSchemaJsonFiles(adminBucket, templateName) {
     editors = Yaml.parse(yaml, {});
   }
   console.log('Editors: ', editors)
+  let success = true
   await Promise.all(editors.map(async editor => {
     try {
       console.log('Editor: ' + editor.id)
@@ -238,6 +239,7 @@ async function ensureSchemaJsonFiles(adminBucket, templateName) {
   }))
   console.log('rewrite editors as: ', JSON.stringify(editors))
   await aws.put(adminBucket, rootPath + 'editors.json', JsonContentType, JSON.stringify(editors))
+  return success
 }
 
 /** Return an appropriate content type for the file path. */
@@ -343,28 +345,21 @@ async function updateAdminUi(publicBucket, adminUiBucket, params) {
       if (params.updateRecoveryPath) {
         console.log(`Copy current admin UI to the backup recovery path`)
         await aws.mergeBuckets(adminUiBucket, mode + '/admin', adminUiBucket, mode + '/recovery', {
-          push: async event => {
-          }
+          //push: async event => {}
         })
       }
       // Copy latest AdminUI from BraeVitae
       console.log(`Copy admin UI files from braevitae-pub to ${adminUiBucket}`)
-      const adminUiDir = await Unzipper.Open.s3(s3,{ Bucket: publicBucket, Key: 'AutoSite/provision/adminui.zip' });
+      const adminUiDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: 'AutoSite/provision/adminui.zip' });
       await Promise.all(adminUiDir.files.map(async file => {
         console.log(`Copying ${file.path}`)
-        await s3.putObject({
-          Bucket: adminUiBucket,
-          Key: mode + '/admin/' + file.path,
-          Body: await file.buffer(),
-          CacheControl: `max-age=${maxAgeBrowser},s-maxage=${maxAgeCloudFront}`,
-          ContentType: Mime.getType(file.path) || 'text/html'
-        }).promise()
+        await aws.put(adminUiBucket, mode + '/admin/' + file.path, Mime.getType(file.path) || 'text/html',
+          await file.buffer(), maxAgeBrowser, maxAgeCloudFront)
       }))
     }))
   } catch (error) {
     console.log(`Failed Admin UI update.`, error)
     await aws.displayUpdate({ updatingUi: false, updateUiError: true }, 'update', `Failed update of Admin UI. Error: ${error.message}.`)
-    success = false
   } finally {
     console.log(`Successfull Admin UI update.`)
     await aws.displayUpdate({ updatingUi: false, updateUiError: false }, 'update', `Updated Admin UI.`)

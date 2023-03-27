@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
-  ChakraProvider, extendTheme, Text, Button, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
-  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Tooltip, Divider
+  ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Divider
 } from '@chakra-ui/react'
 import {
   InfoIcon, ExternalLinkIcon, InfoOutlineIcon
@@ -14,6 +14,7 @@ import SelectTemplate from './SelectTemplate'
 import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
 import Util from './Util'
+import ActionButton from './ActionButton'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -89,9 +90,12 @@ const controller = new Controller()
 
 // Text
 const BUTTON_GENERATE_TOOLTIP = 'Generate a test site from your configuration.'
+const BUTTON_GENERATE_DEBUG_TOOLTIP = 'Generate a test site from your configuration with site debug mode enabled (This is an advanced feaure mainly used for debugging the generator template code)'
 const BUTTON_PUBLISH_TOOLTIP = 'Replate your current live site content with the test site content.'
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
+const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
+//const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -191,12 +195,13 @@ function App() {
   }
 
   const onUpdateTemplate = () => {
-    console.log('OnUpdateTemplate')
-
+    controller.sendCommand('updateTemplate', { id: adminConfig.templateId })
   }
 
   const onUpdateAdminUi = () => {
-    console.log('OnUpdateAdminUi')
+    // Don't update the recovery path if we're currently running an update _from_ the recovery path!
+    const recoveryPath = /recovery/.test(window.location.path)
+    controller.sendCommand('updateAdminUi', { updateRecoveryPath: !recoveryPath })
   }
 
   // const onSaveTemplate = () => {
@@ -462,53 +467,34 @@ function App() {
             {advancedMode ? [
               <Divider orientation='vertical' />,
               <Text color='accentText' m='2px 5px' >Template:</Text>,
-              // <Button
-              //   size='sm' m='3px' onClick={onSaveTemplate}
-              //   disabled={!authenticated || locked}
-              //   color='accent' _hover={{ bg: 'gray.400' }}
-              // >Save</Button>,
-              <Button
-                size='sm' m='0 0.5em' onClick={onLoadTemplate}
-                disabled={!authenticated || locked}
-                color='accent' _hover={{ bg: 'gray.400' }}
-              >Load</Button>,
+              // <ActionButton text='Save' onClick={onSaveTemplate}
+              //   tooltip={{ text: BUTTON_SAVE_TEMPLATE, placement: 'right-end' }}
+              //   isDisabled={!authenticated || locked}/>,
+              <ActionButton text='Load' onClick={onLoadTemplate}
+                tooltip={{ text: BUTTON_LOAD_TEMPLATE, placement: 'right-end' }}
+                isDisabled={!authenticated || locked}/>,
               <Divider orientation='vertical' />,
               ]
             : null}
             <Spacer/>
-            <Tooltip
-              openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
-              label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
-              aria-label={adminDisplay.buildError ? adminDisplay.buildErrMsg : BUTTON_GENERATE_TOOLTIP}
-            >
-              <Button
-                size='sm' m='0 0.5em' onClick={onGenerate}
-                disabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
-                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating...'
-                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
-              >Generate</Button>
-            </Tooltip>
             {advancedMode ?
-              <Button
-                size='sm' m='0 0.5em' onClick={onGenerate}
-                disabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
-                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating Debug...'
-                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.buildError ? 'danger' : 'accentText'}
-              >Generate Debug</Button>
+              <ActionButton text='Generate Debug' onClick={onGenerate}
+                tooltip={{ text: BUTTON_GENERATE_DEBUG_TOOLTIP, placement: 'left-end' }}
+                errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
+                isDisabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
+                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating Debug...'/>
             : null}
+            <ActionButton text='Generate' onClick={onGenerate}
+                tooltip={{ text: BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
+                errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
+                isDisabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
+                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating...'/>
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <Tooltip
-              openDelay={650} closeDelay={250} hasArrow={true} placement='left-end'
-              label={adminDisplay.deployError ? adminDisplay.deployErrMsg : BUTTON_PUBLISH_TOOLTIP}
-              aria-label={adminDisplay.deployError ? adminDisplay.deployErrMsg : BUTTON_PUBLISH_TOOLTIP}
-            >
-              <Button
-                size='sm' m='0 0.5em' onClick={onPublish}
-                disabled={(!authenticated || locked || showPublishing || adminDisplay.deploying) && !advancedMode}
-                isLoading={(showPublishing || adminDisplay.deploying) && !advancedMode} loadingText='Publishing...'
-                color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.deployError ? 'danger' : 'accentText'}
-              >Publish</Button>
-            </Tooltip>
+            <ActionButton text='Publish' onClick={onPublish}
+                tooltip={{ text: BUTTON_PUBLISH_TOOLTIP, placement: 'left-end' }}
+                errorFlag={adminDisplay.publishError} errorText={adminDisplay.publishErrMsg}
+                isDisabled={(!authenticated || locked || showPublishing || adminDisplay.deploying) && !advancedMode}
+                isLoading={(showPublishing || adminDisplay.deploying) && !advancedMode} loadingText='Publishing...'/>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
@@ -541,30 +527,16 @@ function App() {
             <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
             <Spacer/>
             <Flex>
-              <Tooltip
-                openDelay={650} closeDelay={250} hasArrow={true} placement='left-start'
-                label={adminDisplay.updateTemplateError ? adminDisplay.updateTemplateErrMsg : BUTTON_UPDATE_TEMPLATE_TOOLTIP}
-                aria-label={adminDisplay.updateTemplateError ? adminDisplay.updateTemplateErrMsg : BUTTON_UPDATE_TEMPLATE_TOOLTIP}
-              >
-                <Button
-                  size='xs' m='0 0.5em' onClick={onUpdateTemplate}
-                  disabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
-                  isLoading={(adminDisplay.updatingTemplate) && !advancedMode} loadingText='Updating...'
-                  color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.updateTemplateError ? 'danger' : 'accentText'}
-                >Update Template</Button>
-              </Tooltip>
-              <Tooltip
-                openDelay={650} closeDelay={250} hasArrow={true} placement='left-start'
-                label={adminDisplay.updateUiError ? adminDisplay.updateUiErrMsg : BUTTON_UPDATE_UI_TOOLTIP}
-                aria-label={adminDisplay.updateUiError ? adminDisplay.updateUiErrMsg : BUTTON_UPDATE_UI_TOOLTIP}
-              >
-                <Button
-                  size='xs' m='0 0.5em' onClick={onUpdateAdminUi}
-                  disabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
-                  isLoading={(adminDisplay.updatingUi) && !advancedMode} loadingText='Updating...'
-                  color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.updateUiError ? 'danger' : 'accentText'}
-                >Update Site Admin</Button>
-              </Tooltip>
+              <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs', margin: '0 0.5em' }}
+                tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
+                errorFlag={adminDisplay.updateTemplateError} errorText={adminDisplay.updateTemplateErrMsg}
+                isDisabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
+                isLoading={(adminDisplay.updatingTemplate) && !advancedMode} loadingText='Updating...'/>
+              <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs', margin: '0 0.5em' }}
+                tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
+                errorFlag={adminDisplay.updateUiError} errorText={adminDisplay.updateUiErrMsg}
+                isDisabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
+                isLoading={(adminDisplay.updatingUi) && !advancedMode} loadingText='Updating...'/>
             </Flex>
           </Flex>
         </GridItem>
