@@ -189,7 +189,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     console.log('Copy all the non-user-editable site template files to the local buckets (And remove any files no longer in source)')
     const rootPath = `site-config/${templateName}/`
     await aws.put(adminBucket, rootPath + 'editors.yaml', 'text/yaml', Fs.readFileSync('/tmp/config/editors.yaml'), maxAgeBrowser, maxAgeCloudFront)
-    await aws.delete(adminBucket, rootPath + 'editors.yaml')
+    await aws.delete(adminBucket, rootPath + 'editors.json')
     const monitor = { push: async event => {} }
     aws.mergeToS3('/tmp/config/schema', adminBucket, rootPath + 'schema', maxAgeBrowser, maxAgeCloudFront, monitor)
     if (await Fs.exists('/tmp/config/templates')) {

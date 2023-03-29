@@ -44,11 +44,6 @@ export default class Controller {
       })
   }
 
-  /** Check all the 'busy' states */
-  isBusy() {
-    return this.config.display.deploying || this.config.display.building || this.config.display.preparing
-  }
-
   isLocked() {
     return this.isLocked
   }
@@ -93,13 +88,13 @@ export default class Controller {
     We generally don't expect any immediate feedback from commands, other than errors. Status is pushed
     into the server admin state JSON file.
   */
-  sendCommand(name, params) {
+  async sendCommand(name, params) {
     if (this.locked || !this.password) {
       // do not send commands when locked (buttons should be disabled) or when there's
       // no password defined.
       return
     }
-    return fetch('/admin/command/' + name, {
+    await fetch('/admin/command/' + name, {
       method: 'POST',
       cache: 'no-cache',
       headers: new Headers({

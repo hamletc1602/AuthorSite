@@ -111,6 +111,7 @@ let passwordChangingDebounce = null
 
 // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
 function startFastPolling() {
+  console.log('Start fast polling')
   maxPollingLoopCount = 1
   fastPollingTimeoutId = setTimeout(function() {
     endFastPolling()
@@ -120,6 +121,7 @@ function startFastPolling() {
 
 /** Return to slow refresh */
 function endFastPolling() {
+  console.log('End fast polling')
   maxPollingLoopCount = 30
   if (fastPollingTimeoutId) {
     clearTimeout(fastPollingTimeoutId)
@@ -133,8 +135,6 @@ function App() {
   const [showLogin, setShowLogin] = useState(true)
   const [showSelectTemplate, setShowSelectTemplate] = useState(false)
   const [showPreparingTemplate, setShowPreparingTemplate] = useState(false)
-  const [showGenerating, setShowGenerating] = useState(false)
-  const [showPublishing, setShowPublishing] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({ new: true })
@@ -195,13 +195,18 @@ function App() {
   }
 
   const onUpdateTemplate = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { updatingTemplate: true }))
+    console.log('Start update template: display state', adminDisplay)
     controller.sendCommand('updateTemplate', { id: adminConfig.templateId })
+    startFastPolling()
   }
 
   const onUpdateAdminUi = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { updatingUi: true }))
     // Don't update the recovery path if we're currently running an update _from_ the recovery path!
     const recoveryPath = /recovery/.test(window.location.path)
     controller.sendCommand('updateAdminUi', { updateRecoveryPath: !recoveryPath })
+    startFastPolling()
   }
 
   // const onSaveTemplate = () => {
@@ -209,21 +214,21 @@ function App() {
   // }
 
   const onGenerate = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { building: true }))
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
-    setShowGenerating(true)
     setTimeout(() => {
       console.log(`Cancel generating state after 15 minutes. Server-side generator timed out.`)
-      setShowGenerating(false)
+      setAdminDisplay(Object.assign({}, adminDisplay, { building: false }))
     }, 15 * 60 * 1000)
     startFastPolling()
   }
 
   const onPublish = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { deploying: true }))
     controller.sendCommand('publish')
-    setShowPublishing(true)
     setTimeout(() => {
       console.log(`Cancel publishing state after 5 minutes. Server-side generator timed out.`)
-      setShowPublishing(false)
+      setAdminDisplay(Object.assign({}, adminDisplay, { deploying: false }))
     }, 5 * 60 * 1000)
     startFastPolling()
   }
@@ -319,12 +324,12 @@ function App() {
         setAdminConfig(adminState.config)
       }
       if ( ! deepEqual(adminState.display, adminDisplay)) {
+        console.log('Update display state', adminState.display)
         setAdminDisplay(adminState.display)
-        if ( ! adminState.display.deploying) {
-          setShowPublishing(false)
-        }
-        if ( ! adminState.display.building) {
-          setShowGenerating(false)
+        if ( ! (adminState.display.deploying || adminState.display.building || adminState.display.preparing
+          || adminState.display.updatingTemplate || adminState.display.updatingUi)
+        ) {
+          endFastPolling()
         }
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
@@ -423,26 +428,13 @@ function App() {
     }
   }, [authState, setShowLogin, adminConfig.templateId, adminConfig.new, setShowSelectTemplate])
 
-  // Disable show generating when generating is complete
+  // Disable show preparing template when preparing is complete
   useEffect(() => {
     if ( ! adminDisplay.preparing) {
       setShowPreparingTemplate(false)
+      endFastPolling()
     }
   }, [adminDisplay.preparing, setShowPreparingTemplate])
-
-  // Disable show generating when generating is complete
-  useEffect(() => {
-    if ( ! adminDisplay.building) {
-      setShowGenerating(false)
-    }
-  }, [adminDisplay.building, setShowGenerating])
-
-  // Disable show publishing when publishing is complete
-  useEffect(() => {
-    if ( ! adminDisplay.deploying) {
-      setShowPublishing(false)
-    }
-  }, [adminDisplay.deploying, setShowPublishing])
 
   // UI
   return (
@@ -481,20 +473,20 @@ function App() {
               <ActionButton text='Generate Debug' onClick={onGenerate}
                 tooltip={{ text: BUTTON_GENERATE_DEBUG_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
-                isDisabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
-                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating Debug...'/>
+                isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
+                isLoading={adminDisplay.building && !advancedMode} loadingText='Generating Debug...'/>
             : null}
             <ActionButton text='Generate' onClick={onGenerate}
                 tooltip={{ text: BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
-                isDisabled={(!authenticated || locked || showGenerating || adminDisplay.building) && !advancedMode}
-                isLoading={(showGenerating || adminDisplay.building) && !advancedMode} loadingText='Generating...'/>
+                isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
+                isLoading={adminDisplay.building && !advancedMode} loadingText='Generating...'/>
             <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
             <ActionButton text='Publish' onClick={onPublish}
                 tooltip={{ text: BUTTON_PUBLISH_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.publishError} errorText={adminDisplay.publishErrMsg}
-                isDisabled={(!authenticated || locked || showPublishing || adminDisplay.deploying) && !advancedMode}
-                isLoading={(showPublishing || adminDisplay.deploying) && !advancedMode} loadingText='Publishing...'/>
+                isDisabled={(!authenticated || locked || adminDisplay.deploying) && !advancedMode}
+                isLoading={adminDisplay.deploying && !advancedMode} loadingText='Publishing...'/>
             <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
@@ -531,12 +523,12 @@ function App() {
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateTemplateError} errorText={adminDisplay.updateTemplateErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
-                isLoading={(adminDisplay.updatingTemplate) && !advancedMode} loadingText='Updating...'/>
+                isLoading={adminDisplay.updatingTemplate && !advancedMode} loadingText='Updating...'/>
               <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs', margin: '0 0.5em' }}
                 tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateUiError} errorText={adminDisplay.updateUiErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
-                isLoading={(adminDisplay.updatingUi) && !advancedMode} loadingText='Updating...'/>
+                isLoading={adminDisplay.updatingUi && !advancedMode} loadingText='Updating...'/>
             </Flex>
           </Flex>
         </GridItem>
@@ -563,9 +555,9 @@ function App() {
 /** Setup to get Admin state from the server */
 function useAdminStatePolling(adminLive, setAdminState) {
   if ( ! adminStatePoller) {
-    console.log(`First admin state poll`)
+    //console.log(`First admin state poll`)
     controller.checkState().then(async () => {
-      console.log(`First admin state`)
+      //console.log(`First admin state`)
       setAdminState(controller.getConfig())
     })
   }
@@ -574,13 +566,10 @@ function useAdminStatePolling(adminLive, setAdminState) {
       adminStatePoller = setInterval(async () => {
         if (pollLoopCount >= maxPollingLoopCount) {
           try {
-            console.log(`Scheduled admin state poll`)
+            //console.log(`Scheduled admin state poll. Max loop count: ${maxPollingLoopCount}`)
             if (await controller.checkState() || !adminLive) {
-              console.log(`Admin state changed`)
+              //console.log(`Admin state changed`)
               setAdminState(controller.getConfig())
-            }
-            if ( ! controller.isBusy()) {
-              endFastPolling()
             }
           } catch (error) {
             console.log('Failed to get state from server.', error)
