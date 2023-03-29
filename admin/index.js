@@ -190,7 +190,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     const rootPath = `site-config/${templateName}/`
     await aws.put(adminBucket, rootPath + 'editors.yaml', 'text/yaml', Fs.readFileSync('/tmp/config/editors.yaml'), maxAgeBrowser, maxAgeCloudFront)
     await aws.delete(adminBucket, rootPath + 'editors.json')
-    const monitor = { push: async event => {} }
+    const monitor = { push: async _event => {} }
     aws.mergeToS3('/tmp/config/schema', adminBucket, rootPath + 'schema', maxAgeBrowser, maxAgeCloudFront, monitor)
     if (await Fs.exists('/tmp/config/templates')) {
       aws.mergeToS3('/tmp/config/templates', adminBucket, rootPath + 'templates', maxAgeBrowser, maxAgeCloudFront, monitor)
@@ -359,7 +359,7 @@ async function updateAdminUi(publicBucket, adminUiBucket, params) {
       if (params.updateRecoveryPath) {
         console.log(`Copy current admin UI to the backup recovery path`)
         await aws.mergeBuckets(adminUiBucket, mode + '/admin', adminUiBucket, mode + '/recovery', {
-          push: async event => {}
+          push: async _event => {}
         })
       }
       // Copy latest AdminUI from BraeVitae

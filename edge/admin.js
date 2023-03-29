@@ -112,10 +112,14 @@ exports.handler = async (event, context) => {
       }
     }
     else if (req.uri.indexOf('/admin/lock') === 0) {
-      const queryObject = new URLSearchParams(req.querystring)
-      const newLockId = queryObject.get('lockId')
-      //console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
-      return aws.takeLockIfFree(newLockId, adminUiBucket)
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        const queryObject = new URLSearchParams(req.querystring)
+        const newLockId = queryObject.get('lockId')
+        //console.log(`Lock handler. LockId: ${newLockId} params: ${req.querystring}`)
+        return aws.takeLockIfFree(newLockId, adminUiBucket)
+      }
+      return authResp
     }
     else if (req.uri.indexOf('/admin/site-config/') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)

@@ -14,7 +14,7 @@ root=/tmp/authorsite/template/publisher
 mkdir -p $root
 cp -R site-config/publisher/ $root
 cp site-config/schema/editors.yaml $root/config
-cp -R site-config/schema/schema $root/config/conf/schema
+cp -R site-config/schema/schema $root/config/schema
 cd $root
 zip -qr $wdir/target/AutoSite/site-config/publisher.zip *
 cd $wdir

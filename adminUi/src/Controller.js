@@ -30,7 +30,12 @@ export default class Controller {
 
   /** Lock state polling */
   async getLockState() {
-    return fetch(`/admin/lock?lockId=${Controller.lockId}`)
+    if (this.password) {
+      return fetch(`/admin/lock?lockId=${Controller.lockId}`, {
+        headers: new Headers({
+          'Authorization': this.basicAuth()
+        })
+      })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -42,6 +47,8 @@ export default class Controller {
         }
         return this.locked
       })
+    }
+    return false // assume not locked, if there's no auth yet.
   }
 
   isLocked() {
