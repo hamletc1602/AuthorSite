@@ -25,8 +25,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.190.0",
+    "fs-extra": "^11.1.1",
     "handlebars": "^4.7.7",
+    "md5-file": "^5.0.0",
     "mime": "^3.0.0",
+    "path": "^0.12.7",
     "s3-sync-client": "^3.0.3",
     "textile-js": "^0.1.11",
     "unzipper": "^0.10.11",
@@ -34,8 +37,11 @@
   },
   "bundleDependencies": [
     "@aws-sdk/client-s3",
+    "fs-extra",
     "handlebars",
+    "md5-file",
     "mime",
+    "path",
     "s3-sync-client",
     "unzipper",
     "yaml"

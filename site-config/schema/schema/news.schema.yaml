@@ -52,8 +52,8 @@ properties:
     elemType: string
     closed: true
     values:
-      - hidden
       - publish
+      - hidden
   publishedDateIso:
     disp: ISO Date
     desc: ISO format published date. Used for ordering posts in descending date order.

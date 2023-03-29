@@ -167,7 +167,15 @@ AwsUtils.prototype.put = async function(bucket, key, type, content, maxAgeBrowse
 }
 
 AwsUtils.prototype.delete = async function(bucket, key) {
-  return this.s3.deleteObject({ Bucket: bucket, Key: key }).promise()
+  try {
+    await this.s3.deleteObject({ Bucket: bucket, Key: key }).promise()
+  } catch (e) {
+    if (e.code === 'NoSuchKey') {
+      console.log(`Delete of ${bucket}:${key} not needed. Key does not exist.`)
+    } else {
+      throw e
+    }
+  }
 }
 
 /** Merge all temp files to the output dir, only replacing output files if the hashes differ. */
@@ -226,7 +234,7 @@ AwsUtils.prototype.mergeToS3 = async function(sourceDir, destBucket, destPrefix,
       if ( !sourceFile) {
         await this.delete(destBucket, destFile.path)
         monitor.push({
-          deleted: false,
+          deleted: true,
           destFile: destFile.path
         })
       }

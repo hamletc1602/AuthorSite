@@ -12,7 +12,9 @@ export default function EditorProperties({id, content, schema, setData, editItem
   function editField(schema, name, value) {
     const itemKey = id + '-' + name + '-edit-ctrl'
     switch (schema.type) {
-      case 'string': return <Input key={itemKey} size='sm'
+      case 'string':
+      case 'index':
+        return <Input key={itemKey} size='sm'
           defaultValue={value} disabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
         />

@@ -82,7 +82,7 @@ export default function Editor({
     // Transform list schema into an item schema
     //  TODO: Should this be done here, or in Util? Makes the Util cleaner, but seems odd here?
     const newObj = Util.createNew(rootPath, { type: schema.elemType, properties: schema.properties }, newId)
-    newObj[schema.nameProp] = 'item' + newId
+    newObj[schema.nameProp] = 'item_' + rootContent.length
     let newIndex = -1
     if (schema.addAtEnd) {
       newIndex = rootContent.length
