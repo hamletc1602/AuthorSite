@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "homepage": ".",
-  "proxy": "http://author3.braevitae.com:80",
+  "proxy": "http://easton3.braevitae.com:80",
   "jest": {
     "transformIgnorePatterns": [
       "node_modules/(?!strip-json-comments)"
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.11",
-    "@chakra-ui/react": "^2.3.7",
+    "@chakra-ui/react": "^2.5.4",
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
     "@testing-library/jest-dom": "^5.16.5",

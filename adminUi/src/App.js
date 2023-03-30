@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
-  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Divider
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody,
+  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea
 } from '@chakra-ui/react'
 import {
   InfoIcon, ExternalLinkIcon, InfoOutlineIcon
@@ -91,11 +92,12 @@ const controller = new Controller()
 // Text
 const BUTTON_GENERATE_TOOLTIP = 'Generate a test site from your configuration.'
 const BUTTON_GENERATE_DEBUG_TOOLTIP = 'Generate a test site from your configuration with site debug mode enabled (This is an advanced feaure mainly used for debugging the generator template code)'
-const BUTTON_PUBLISH_TOOLTIP = 'Replate your current live site content with the test site content.'
+const BUTTON_PUBLISH_TOOLTIP = 'Replace your current live site content with the test site content.'
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
-//const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
+const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
+const BUTTON_SET_PASSWORD = 'Change the site admin password'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -129,6 +131,16 @@ function endFastPolling() {
   }
 }
 
+/** React to document visibilty changes (whether page is visible to the user or not) */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === 'visible') {
+    // Poll on the next tick
+    pollLoopCount = maxPollingLoopCount
+  } else {
+    endFastPolling()
+  }
+});
+
 //
 function App() {
   // State
@@ -158,6 +170,9 @@ function App() {
   const contentToPut = useRef({})
   const fileContent = useRef({})
   const currTemplate = useRef({})
+  const saveTemplateName = useRef({})
+  const saveTemplateDesc = useRef({})
+  const newPassword = useRef({})
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id) => {
@@ -209,9 +224,21 @@ function App() {
     startFastPolling()
   }
 
-  // const onSaveTemplate = () => {
-  //   throw Error('NYI')
-  // }
+  const doSaveTemplate = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { savingTemplate: true }))
+    controller.sendCommand('saveTemplate', {
+      id: adminConfig.templateId,
+      name: saveTemplateName.current.value,
+      desc: saveTemplateDesc.current.value || `A custom template derived from ${adminConfig.templateId}`
+    })
+    startFastPolling()
+  }
+
+  const doSetPassword = () => {
+    setAdminDisplay(Object.assign({}, adminDisplay, { settingPwd: true }))
+    controller.sendCommand('setPassword', { newPassword: newPassword.current.value })
+    startFastPolling()
+  }
 
   const onGenerate = () => {
     setAdminDisplay(Object.assign({}, adminDisplay, { building: true }))
@@ -456,18 +483,6 @@ function App() {
             <InfoIcon color='accentText' m='5px'/>
             <Text color='accentText' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
             <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
-            {advancedMode ? [
-              <Divider orientation='vertical' />,
-              <Text color='accentText' m='2px 5px' >Template:</Text>,
-              // <ActionButton text='Save' onClick={onSaveTemplate}
-              //   tooltip={{ text: BUTTON_SAVE_TEMPLATE, placement: 'right-end' }}
-              //   isDisabled={!authenticated || locked}/>,
-              <ActionButton text='Load' onClick={onLoadTemplate}
-                tooltip={{ text: BUTTON_LOAD_TEMPLATE, placement: 'right-end' }}
-                isDisabled={!authenticated || locked}/>,
-              <Divider orientation='vertical' />,
-              ]
-            : null}
             <Spacer/>
             {advancedMode ?
               <ActionButton text='Generate Debug' onClick={onGenerate}
@@ -518,18 +533,91 @@ function App() {
             <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
             <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
             <Spacer/>
-            <Flex>
-              <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs', margin: '0 0.5em' }}
+            {advancedMode ? [
+              <ActionButton text='Load Template' onClick={onLoadTemplate} buttonStyle={{ size: 'xs' }}
+                tooltip={{ text: BUTTON_LOAD_TEMPLATE, placement: 'right-end' }}
+                isDisabled={!authenticated || locked}/>,
+              ]
+            : null}
+            <Popover placement='top-end' initialFocusRef={newPassword} gutter={20}>
+              {({ onClose }) => {
+                return <><PopoverTrigger>
+                  <Button size='xs' h='1.5em' m='0 0.5em'
+                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.setPwdError ? 'danger' : 'accentText'}
+                    disabled={!authenticated || locked}
+                    isLoading={adminDisplay.settingPwd && !advancedMode} loadingText='Changing...'
+                  >Change Password...</Button>
+                </PopoverTrigger>
+                <Portal>
+                  <PopoverContent>
+                    <PopoverArrow />
+                    <PopoverBody>
+                      <Text>{adminDisplay.setPwdError ? BUTTON_SET_PASSWORD + '\n\n' + adminDisplay.setPwdErrMsg : BUTTON_SET_PASSWORD}</Text>
+                      <HStack margin='0.5em 0'>
+                        <Text>New Password:</Text><Input ref={newPassword} size='xs'></Input>
+                      </HStack>
+                      <HStack>
+                        <Spacer/>
+                        <Button size='xs' onClick={onClose}>Cancel</Button>
+                        <Button size='xs' onClick={doSetPassword}>Set</Button>
+                      </HStack>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Portal></>
+              }}
+            </Popover>
+            <Popover placement='top-end' initialFocusRef={saveTemplateName} gutter={20}>
+              {({ onClose }) => {
+                return <><PopoverTrigger>
+                  <Button size='xs' h='1.5em' m='0 0.5em'
+                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.saveTemplateError ? 'danger' : 'accentText'}
+                    disabled={!authenticated || locked}
+                    isLoading={adminDisplay.savingTemplate && !advancedMode} loadingText='Saving...'
+                  >Save Template...</Button>
+                  {/* TODO: I would like to use my custom ActionButton here, but that needs 'forwardRef', and I can't get
+                    it working (React complains that PopoverTrigger requires exactly one component)
+                    I also can't get Chakra ToolTip working within Popover trigger, as a workaround. Error suggests
+                    'forwardRef' is also needed :(
+                    {forwardRef<ButtonProps, 'button'>((props, ref) => {
+                    return <ActionButton as='button' text='Save Template' buttonStyle={{ size: 'xs' }}
+                      tooltip={{ text: BUTTON_SAVE_TEMPLATE, placement: 'right-end' }}
+                      isDisabled={!authenticated || locked} ref={ref} {...props}/>
+                  })} */}
+                </PopoverTrigger>
+                <Portal>
+                  <PopoverContent>
+                    <PopoverArrow />
+                    <PopoverBody>
+                      <Text>{adminDisplay.saveTplError ? BUTTON_SAVE_TEMPLATE + '\n\n' + adminDisplay.saveTplErrMsg : BUTTON_SAVE_TEMPLATE}</Text>
+                      <HStack margin='0.5em 0'>
+                        <Text>Name:</Text><Input ref={saveTemplateName} size='xs'></Input>
+                      </HStack>
+                      <VStack margin='0.5em 0' align='start'>
+                        <Text>Description:</Text>
+                        <Textarea ref={saveTemplateDesc} size='xs'/>
+                      </VStack>
+                      <HStack>
+                        <Spacer/>
+                        <Button size='xs' onClick={onClose}>Cancel</Button>
+                        <Button size='xs' onClick={doSaveTemplate}>Save</Button>
+                      </HStack>
+                    </PopoverBody>
+                  </PopoverContent>
+                </Portal></>
+              }}
+            </Popover>
+            {advancedMode ? [
+              <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateTemplateError} errorText={adminDisplay.updateTemplateErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
-                isLoading={adminDisplay.updatingTemplate && !advancedMode} loadingText='Updating...'/>
-              <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs', margin: '0 0.5em' }}
+                isLoading={adminDisplay.updatingTemplate && !advancedMode} loadingText='Updating...'/>,
+              <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateUiError} errorText={adminDisplay.updateUiErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
                 isLoading={adminDisplay.updatingUi && !advancedMode} loadingText='Updating...'/>
-            </Flex>
+            ] : null}
           </Flex>
         </GridItem>
       </Grid>
@@ -564,6 +652,12 @@ function useAdminStatePolling(adminLive, setAdminState) {
   useEffect(() => {
     if ( ! adminStatePoller) {
       adminStatePoller = setInterval(async () => {
+        if (Document.visibilityState !== "visible") {
+          if (maxPollingLoopCount === 1) {
+            endFastPolling()
+          }
+          return
+        }
         if (pollLoopCount >= maxPollingLoopCount) {
           try {
             //console.log(`Scheduled admin state poll. Max loop count: ${maxPollingLoopCount}`)
@@ -596,6 +690,9 @@ function useLockStatePolling(setLocked) {
   useEffect(() => {
     if ( ! lockStatePoller) {
       lockStatePoller = setInterval(async () => {
+        if (Document.visibilityState !== "visible") {
+          return
+        }
         setLocked(await controller.getLockState())
       }, 4 * 60 * 1000)
     }

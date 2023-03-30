@@ -45,8 +45,32 @@ Parameters:
   PrivateTemplates:
     Type: String
     Description: (OPTIONAL) A comma-separated list of names of private templates that will be uploaded to the adminUi bucket after site creation.
+  CreateSharedStorage:
+    Description: For your first site, create a shared storage area that can be used by all sites to share saved template data.
+    Default: No
+    Type: String
+    AllowedValues:
+      - Yes, this is my first site in this account
+      - No, I am creating an additional site in the same account
+
+Conditions:
+  SharedBucket: !Equals [!Ref EnvType, 'Yes, this is my first site in this account']
 
 Resources:
+  SharedData:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:  !Join ['-',[!Ref AWS::StackName,'shared']]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
   WebData:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -729,6 +753,7 @@ Resources:
       Environment:
         Variables:
           publicBucket: 'braevitae-pub'
+          SharedBucket: !Ref SharedData
           adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
@@ -840,6 +865,7 @@ Resources:
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
     DependsOn:
+      - SharedData
       - WebData
       - TestWebData
       - AdminData
@@ -985,6 +1011,19 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+        - PolicyName: SharedDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt SharedData.Arn, '*']]
         - PolicyName: AdminDataReadWrite
           PolicyDocument:
             Version: 2012-10-17

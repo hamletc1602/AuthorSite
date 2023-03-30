@@ -356,6 +356,24 @@ AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
   }
 }
 
+/** Send an update to the site SQS queue. */
+AwsUtils.prototype.addTemplate = async function(newTemplate) {
+  try {
+    const msg = {
+      time: Date.now(),
+      addTemplates: [newTemplate]
+    }
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send templates update: ${JSON.stringify(error)}`)
+  }
+}
+
 /** Before returning the admin.json state file from S3, check the state queue for any messages and merge them into the
     state before returning it.
 
@@ -507,6 +525,18 @@ const _mergeState = (state, logs, message) => {
     console.log(`Merge new display ${JSON.stringify(message.display)} into state display ${JSON.stringify(state.display)}`)
     Object.assign(state.display, message.display)
   }
+  // Add templates
+  if (message.addTemplates) {
+    stateUpdated = true
+    console.log(`Merge new templates ${JSON.stringify(message.addTemplates)} into templates ${JSON.stringify(state.templates)}`)
+    state.templates.push(...message.addTemplates)
+  }
+  // delete templates
+  if (message.deleteTemplates) {
+    stateUpdated = true
+    console.log(`Delete templates ${JSON.stringify(message.deleteTemplates)} from templates ${JSON.stringify(state.templates)}`)
+    state.templates = state.templates.filter(t => message.deleteTemplates[t.id] ? false : true)
+  }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }
 }
@@ -559,6 +589,16 @@ AwsUtils.prototype.getCurrentLock = async function(adminUiBucket) {
     }
   } catch (e) {
     console.log('Failed to get admin lock file:', e)
+  }
+  return null
+}
+
+AwsUtils.prototype.bucketExists = async function(bucketName) {
+  try {
+    const data = await this.s3.listBuckets().promise()
+    return data.Buckets.find(p => p.name === bucketName)
+  } catch (e) {
+    console.log('Failed to get list of buckets:', e)
   }
   return null
 }

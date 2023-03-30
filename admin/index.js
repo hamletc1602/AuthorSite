@@ -6,10 +6,12 @@ const Fs = require('fs-extra')
 const Files = require('./files')
 const Path = require('path')
 const Mime = require('mime');
+const Zip = require('zip-a-folder')
 
 const JsonContentType = 'application/json'
 
 const publicBucket = process.env.publicBucket
+const sharedBucket = process.env.sharedBucket
 const adminBucket = process.env.adminBucket
 const adminUiBucket = process.env.adminUiBucket
 const siteBucket = process.env.siteBucket
@@ -43,6 +45,10 @@ exports.handler = async (event, _context) => {
       return upateTemplate(publicBucket, adminBucket, event.body)
     case 'updateAdminUi':
       return updateAdminUi(publicBucket, adminUiBucket, event.body)
+    case 'saveTemplate':
+      return saveTemplate(sharedBucket, adminBucket, event.body)
+    case 'setPassword':
+      return setPassword(adminBucket, event.body)
     default:
       return {
         status: '404',
@@ -84,17 +90,18 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Reurn true if this template is a public template (vs. private to this user's AWS tenant) */
-async function isPublicTemplate(templateName) {
-  let isPublicTemplate = false
+async function getBucketForTemplate(templateName) {
   const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
   if (adminConfigBuff) {
     const adminConfig = JSON.parse(adminConfigBuff.toString())
     const templateProps = adminConfig.templates.find(p => p.id === templateName)
     if (templateProps) {
-      isPublicTemplate = templateProps.access === 'public'
+      if (templateProps.access === 'public') { return publicBucket }
+      if (templateProps.access === 'shared') { return sharedBucket }
+      return adminBucket
     }
   }
-  return isPublicTemplate
+  return adminBucket
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
@@ -105,9 +112,8 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     await aws.displayUpdate({
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
-    const public = await isPublicTemplate(templateName)
-    const sourceBucket = public ? publicBucket : adminBucket
-    console.log(`Copy ${public ? 'public' : 'private'} site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
+    const sourceBucket = await getBucketForTemplate(templateName)
+    console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
     const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
@@ -158,9 +164,8 @@ async function upateTemplate(publicBucket, adminBucket, params) {
         updatingTemplate: true, updateTemplateError: false, stepMsg: 'Update Template'
       }, 'update', `Starting update with ${templateName} template.`)
     // Copy template archive to local FS.
-    const public = await isPublicTemplate(templateName)
-    const sourceBucket = public ? publicBucket : adminBucket
-    console.log(`Copy ${public ? 'public' : 'private'} site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
+    const sourceBucket = await getBucketForTemplate(templateName)
+    console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`
     const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
@@ -400,5 +405,92 @@ async function completeFileUpload(adminBucket, adminUiBucket, params) {
     const msg = `Failed upload for ${params.basePath}. Error: ${JSON.stringify(error)}.`
     console.log(msg)
     await aws.displayUpdate({}, 'upload', msg)
+  }
+}
+
+/** Compress all site static, config, and content data into an archive for use when re-preparing a site, or
+    creating new site stacks.
+ */
+async function saveTemplate(sharedBucket, adminBucket, params) {
+  //
+  await aws.displayUpdate({ savingTpl: true, saveTplError: false, saveTplErrMsg: '' }, 'saveTemplate', `Start save template: ${params.name}`)
+
+  // Local dirs
+  const confDir = '/tmp/' + params.name + '/config'
+  const contentDir = '/tmp/' + params.name + '/content'
+  Files.ensurePath(confDir)
+  Files.ensurePath(contentDir)
+
+  // Pull all site config and content down to the local machine
+  await aws.pull(adminBucket, `site-config/${params.name}/`, confDir)
+  await aws.pull(adminUiBucket, `content/${params.name}/`, contentDir)
+
+  // Compress the site data into an archive
+  const archiveLocalPath = '/tmp/' + params.name + '.zip'
+  await Zip.zip('/tmp/' + params.name, archiveLocalPath);
+
+  // Put the archive back to an S3 bucket (Either local admin bucket, or shared bucket if it exists)
+  const bucketPath = 'AutoSite/site-config/' + params.name + '.zip'
+  let success = false
+  let nameExists = false
+  let shared = false
+  if (aws.bucketExist(sharedBucket)) {
+    shared = true
+    const exist = aws.get(sharedBucket, archiveLocalPath)
+    if ( ! exist) {
+      aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
+      success = true
+    } else {
+      nameExists = true
+    }
+  } else {
+    const exist = aws.get(adminBucket, archiveLocalPath)
+    if ( ! exist) {
+      aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
+      success = true
+    } else {
+      nameExists = true
+    }
+  }
+  if (nameExists) {
+    // Put error into display state
+    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name}` }, 'saveTemplate', `Skip save template. Name ${params.name} already exists`)
+  }
+  if (success) {
+    // Add this template to the admin state
+    try {
+      const template = {
+        id: params.id,
+        name: params.name,
+        access: shared ? 'shared' : 'private',
+        description: params.desc
+      }
+      aws.addTemplate(template)
+      // Add any shared templates to the shared bucket metadata
+      if (shared) {
+        const metadataStr = aws.get(sharedBucket, 'AutoSite/site-config/metadata.json')
+        const metadata = JSON.parse(metadataStr)
+        metadata.push(template)
+        aws.put(sharedBucket,  'AutoSite/site-config/metadata.json', null, JSON.stringify(metadata))
+      }
+      await aws.displayUpdate({ savingTpl: false, saveTplError: false, saveTplErrMsg: '' }, 'saveTemplate', `Saved new template: ${params.name}`)
+    } catch (e) {
+      await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Failed to update templates list ${e.message}` }, 'saveTemplate', `Failed to update templates list ${e.message}`)
+    }
+  }
+}
+
+/** */
+async function setPassword(adminBucket, params) {
+  // {"password":"****","lastFailTs":1680198297459,"failedCount":0}
+  try {
+    await aws.displayUpdate({ savingTpl: true, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Start change password`)
+    const metadataStr = aws.get(adminBucket, 'admin_secret')
+    const metadata = JSON.parse(metadataStr)
+    metadata.password = params.newPassword
+    aws.put(adminBucket, 'admin_secret', null, JSON.stringify(metadata))
+    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Saved new template: ${params.name}`)
+  } catch (e) {
+    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `Failed to change password ${e.message}`)
   }
 }

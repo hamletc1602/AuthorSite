@@ -27,14 +27,29 @@ const cfnCreateHandler = async (params) => {
     }).promise()
 
     // Get the site templates metadata:
-    let templates = null
-    const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
-    if (templateMetadataObj) {
-      const templatesStr = templateMetadataObj.Body.toString()
-      if (templatesStr) {
-        templates = JSON.parse(templatesStr)
+    let sharedTemplates = null
+    try {
+      const templateMetadataObj = await s3.getObject({ Bucket: params.SharedBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
+      if (templateMetadataObj) {
+        const templatesStr = templateMetadataObj.Body.toString()
+        if (templatesStr) {
+          sharedTemplates = JSON.parse(templatesStr)
+        }
+      }
+    } catch (e) {
+      console.log(`Get templates metadata from shared bucket. ${e.message}`)
+    }
+    let publicTemplates= null
+    {
+      const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
+      if (templateMetadataObj) {
+        const templatesStr = templateMetadataObj.Body.toString()
+        if (templatesStr) {
+          publicTemplates = JSON.parse(templatesStr)
+        }
       }
     }
+    const templates = Object.assign(publicTemplates, sharedTemplates)
     if (params.PrivateTemplates) {
       const list = params.PrivateTemplates.split(',')
       list.forEach(name => {
