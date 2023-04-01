@@ -31,7 +31,12 @@ const aws = new AwsUtils({
  - Publish: Sync all site files from the test site to the public site.
 */
 exports.handler = async (event, _context) => {
-  console.log('Event: ' + JSON.stringify(event))
+  //
+  if (event.command === 'setPassword') {
+    console.log('Event: setPassword')
+  } else {
+    console.log('Event: ' + JSON.stringify(event))
+  }
 
   // Handle action requests
   switch (event.command) {
@@ -498,12 +503,13 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
 async function setPassword(adminBucket, params) {
   try {
     await aws.displayUpdate({ savingTpl: true, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Start change password`)
-    const metadataStr = aws.get(adminBucket, 'admin_secret')
-    const metadata = JSON.parse(metadataStr)
+    const metadataStr = (await aws.get(adminBucket, 'admin_secret')).Body
+    const metadata = JSON.parse(metadataStr.toString())
     metadata.password = params.newPassword
-    aws.put(adminBucket, 'admin_secret', null, JSON.stringify(metadata))
-    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Saved new template: ${params.name}`)
+    await aws.put(adminBucket, 'admin_secret', null, JSON.stringify(metadata))
+    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `End change password. Success.`)
   } catch (e) {
-    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `Failed to change password ${e.message}`)
+    console.log(`Failed to set new password.`, e)
+    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `End change password. Failed: ${e.message}`)
   }
 }
