@@ -422,8 +422,8 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
   Files.ensurePath(contentDir)
 
   // Pull all site config and content down to the local machine
-  await aws.pull(adminBucket, `site-config/${params.name}/`, confDir)
-  await aws.pull(adminUiBucket, `content/${params.name}/`, contentDir)
+  await aws.pull(adminBucket, `site-config/${params.id}/`, confDir)
+  await aws.pull(adminUiBucket, `content/${params.id}/`, contentDir)
 
   // Compress the site data into an archive
   const archiveLocalPath = '/tmp/' + params.name + '.zip'
@@ -434,30 +434,43 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
   let success = false
   let nameExists = false
   let shared = false
-  if (aws.bucketExist(sharedBucket)) {
+  if (await aws.bucketExists(sharedBucket)) {
     shared = true
-    const exist = aws.get(sharedBucket, archiveLocalPath)
+    let exist = false
+    try {
+      if (await aws.get(sharedBucket, bucketPath)) {
+        exist = true
+      }
+    } catch (e) {}
     if ( ! exist) {
-      aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
+      console.log(`Save bundle to shared bucket: ${sharedBucket}:${bucketPath}`)
+      await aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
       success = true
     } else {
       nameExists = true
     }
   } else {
-    const exist = aws.get(adminBucket, archiveLocalPath)
+    let exist = false
+    try {
+      if (await aws.get(adminBucket, bucketPath)) {
+        exist = true
+      }
+    } catch (e) {}
     if ( ! exist) {
-      aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
+      console.log(`Save bundle to admin bucket: ${adminBucket}:${bucketPath}`)
+      await aws.put(adminBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
       success = true
     } else {
       nameExists = true
     }
   }
   if (nameExists) {
+    const msg = `Skip save template. Name ${params.name} already exists`
+    console.error(msg)
     // Put error into display state
-    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name}` }, 'saveTemplate', `Skip save template. Name ${params.name} already exists`)
+    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name}` }, 'saveTemplate', msg)
   }
   if (success) {
-    // Add this template to the admin state
     try {
       const template = {
         id: params.id,
@@ -465,9 +478,10 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
         access: shared ? 'shared' : 'private',
         description: params.desc
       }
+      console.log(`Add new template ${template.name} to the admin state`, template)
       aws.addTemplate(template)
-      // Add any shared templates to the shared bucket metadata
       if (shared) {
+        console.log(`Add templates to the shared bucket metadata`)
         const metadataStr = aws.get(sharedBucket, 'AutoSite/site-config/metadata.json')
         const metadata = JSON.parse(metadataStr)
         metadata.push(template)
@@ -482,7 +496,6 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
 
 /** */
 async function setPassword(adminBucket, params) {
-  // {"password":"****","lastFailTs":1680198297459,"failedCount":0}
   try {
     await aws.displayUpdate({ savingTpl: true, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Start change password`)
     const metadataStr = aws.get(adminBucket, 'admin_secret')

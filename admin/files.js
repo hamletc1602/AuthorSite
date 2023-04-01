@@ -54,3 +54,20 @@ exports.ensurePath = (filePath) => {
     Fs.ensureDirSync(dirPath)
   }
 }
+
+/** Save file content to output */
+exports.saveFile = (filepath, content) => {
+  return new Promise((resolve, reject) => {
+    Fs.writeFile(filepath, content, 'utf8', (err) => {
+      if (err) {
+        reject(err)
+      } else {
+        try {
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    })
+  })
+}

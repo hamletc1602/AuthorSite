@@ -42,16 +42,16 @@ Parameters:
     Type: String
     Default: 'braevitae-pub:AutoSite/lambdas/authorsite.zip'
     Description: The site generator app to use for this site, from the list of publshed generators.
-  PrivateTemplates:
-    Type: String
-    Description: (OPTIONAL) A comma-separated list of names of private templates that will be uploaded to the adminUi bucket after site creation.
-  CreateSharedStorage:
-    Description: For your first site, create a shared storage area that can be used by all sites to share saved template data.
+  SharedStorage:
+    Description: (OPTIONAL) For your first site, create a shared storage area that can be used by all sites to share saved template data.
     Default: No
     Type: String
     AllowedValues:
       - Yes, this is my first site in this account
       - No, I am creating an additional site in the same account
+  SharedStorageName:
+    Type: String
+    Description: (OPTIONAL) Name of a previously created shared storage bucket to link to this stack.
 
 Conditions:
   SharedBucket: !Equals [!Ref EnvType, 'Yes, this is my first site in this account']
@@ -59,6 +59,7 @@ Conditions:
 Resources:
   SharedData:
     Type: 'AWS::S3::Bucket'
+    Condition: SharedBucket
     Properties:
       BucketName:  !Join ['-',[!Ref AWS::StackName,'shared']]
       AccessControl: Private
@@ -110,19 +111,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      # TODO: This notification config is failing, with S3 responding 'invalid parameter' ?? Need to fix so site build can be automatic on config data change
-      #     but for now, can be invoked manually from admin UI.
-      # NotificationConfiguration:
-      #   LambdaConfigurations:
-      #     - Event: 's3:ObjectCreated:*'
-      #       Function: !GetAtt BuildSite.Arn
-      #     - Event: 's3:ObjectRemoved:*'
-      #       Function: !GetAtt BuildSite.Arn
-      #       # Filter:
-      #       #   S3Key:
-      #       #     Rules:
-      #       #       - Name: prefix
-      #       #         Value: 'config/'
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -753,7 +741,7 @@ Resources:
       Environment:
         Variables:
           publicBucket: 'braevitae-pub'
-          SharedBucket: !Ref SharedData
+          SharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
           adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
@@ -851,8 +839,8 @@ Resources:
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
       SiteGenerator: !Ref SiteGenerator
-      PrivateTemplates: !Ref PrivateTemplates
       PublicBucket: 'braevitae-pub'
+      SharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
       WebDataBucket: !Ref WebData
@@ -1011,6 +999,17 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+        - PolicyName: ListS3Resources
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - s3:Get*
+                 - s3:List*
+                 - s3-object-lambda:Get*
+                 - s3-object-lambda:List*
+                Resource: *
         - PolicyName: SharedDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -1023,7 +1022,7 @@ Resources:
                  - 's3:DeleteObject'
                  - 's3:GetObjectTagging'
                  - 's3:PutObjectTagging'
-                Resource: !Join ['', [!GetAtt SharedData.Arn, '*']]
+                Resource: !Join ['', ['arn:aws:s3:::', !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName], '*']]
         - PolicyName: AdminDataReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -1319,6 +1318,9 @@ Resources:
       UserName: !Ref UploadUser
 
 Outputs:
+  SharedStorageName:
+    Description: Name of the shared bucket. Supply this name as the 'SharedStorageName' parameter when creating other stacks.
+    Value: !If [SharedBucket, !Ref SharedData, '']
   TestSiteBucket:
     Description: S3 bucket for test site files
     Value: !Ref TestWebData

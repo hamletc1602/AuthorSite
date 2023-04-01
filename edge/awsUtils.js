@@ -600,7 +600,7 @@ AwsUtils.prototype.bucketExists = async function(bucketName) {
   } catch (e) {
     console.log('Failed to get list of buckets:', e)
   }
-  return null
+  return false
 }
 
 //
