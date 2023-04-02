@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
-  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody,
+  Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
   PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea
 } from '@chakra-ui/react'
-import {
-  InfoIcon, ExternalLinkIcon, InfoOutlineIcon
-} from '@chakra-ui/icons'
+import { ExternalLinkIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import Editor from './Editor'
@@ -237,6 +235,7 @@ function App() {
   const doSetPassword = () => {
     setAdminDisplay(Object.assign({}, adminDisplay, { settingPwd: true }))
     controller.sendCommand('setPassword', { newPassword: newPassword.current.value })
+    newPassword.current.value = ''
     startFastPolling()
   }
 
@@ -480,7 +479,7 @@ function App() {
       >
         <GridItem color='baseText' bg='accent' h='2.75em'>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
-            <InfoIcon color='accentText' m='5px'/>
+            <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
             <Text color='accentText' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
             <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer/>
@@ -559,7 +558,7 @@ function App() {
                       <HStack>
                         <Spacer/>
                         <Button size='xs' onClick={onClose}>Cancel</Button>
-                        <Button size='xs' onClick={doSetPassword}>Set</Button>
+                        <Button size='xs' onClick={() => {doSetPassword(); onClose()}}>Set</Button>
                       </HStack>
                     </PopoverBody>
                   </PopoverContent>
@@ -588,7 +587,7 @@ function App() {
                   <PopoverContent>
                     <PopoverArrow />
                     <PopoverBody>
-                      <Text>{adminDisplay.saveTplError ? BUTTON_SAVE_TEMPLATE + '\n\n' + adminDisplay.saveTplErrMsg : BUTTON_SAVE_TEMPLATE}</Text>
+                      <Text>{adminDisplay.saveTplError ? BUTTON_SAVE_TEMPLATE + '<br><br>' + adminDisplay.saveTplErrMsg : BUTTON_SAVE_TEMPLATE}</Text>
                       <HStack margin='0.5em 0'>
                         <Text>Name:</Text><Input ref={saveTemplateName} size='xs'></Input>
                       </HStack>
@@ -599,7 +598,7 @@ function App() {
                       <HStack>
                         <Spacer/>
                         <Button size='xs' onClick={onClose}>Cancel</Button>
-                        <Button size='xs' onClick={doSaveTemplate}>Save</Button>
+                        <Button size='xs' onClick={() => {doSaveTemplate(); onClose()}}>Save</Button>
                       </HStack>
                     </PopoverBody>
                   </PopoverContent>
@@ -652,7 +651,8 @@ function useAdminStatePolling(adminLive, setAdminState) {
   useEffect(() => {
     if ( ! adminStatePoller) {
       adminStatePoller = setInterval(async () => {
-        if (Document.visibilityState !== "visible") {
+        //console.log(`In poll loop. Visible state: ${document.visibilityState}`)
+        if (document.visibilityState !== "visible") {
           if (maxPollingLoopCount === 1) {
             endFastPolling()
           }
@@ -690,7 +690,7 @@ function useLockStatePolling(setLocked) {
   useEffect(() => {
     if ( ! lockStatePoller) {
       lockStatePoller = setInterval(async () => {
-        if (Document.visibilityState !== "visible") {
+        if (document.visibilityState !== "visible") {
           return
         }
         setLocked(await controller.getLockState())

@@ -2,30 +2,36 @@
   "generator": "braevitae-pub:AutoSite/lambdas/authorsite.zip",
   "templates": [
     {
-      "id": "author",
+      "id": "Publisher",
+      "name": "Publisher",
+      "description": "Site for publishers to showcase books from multiple authors.",
+      "access": "public"
+    },
+    {
+      "id": "Author",
       "name": "Author",
       "description": "Site for writers to showcase books.",
       "access": "public"
     },
     {
-      "id": "artist",
+      "id": "Artist",
       "name": "Artist",
       "description": "Site for visual artists to showcase paintings and other art.",
       "access": "public"
     },
     {
-      "id": "Easton",
-      "name": "Easton",
+      "id": "EastonTales",
+      "name": "EastonTales",
       "display": "Easton",
       "description": "A private, user provided template.",
-      "access": "private"
+      "access": "shared"
     },
     {
       "id": "BraeVitae",
       "name": "BraeVitae",
       "display": "BraeVitae",
       "description": "A private, user provided template.",
-      "access": "private"
+      "access": "shared"
     }
   ],
   "config": { },

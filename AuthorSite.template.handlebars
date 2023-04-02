@@ -47,6 +47,7 @@ Parameters:
     Default: No
     Type: String
     AllowedValues:
+      - No
       - Yes, this is my first site in this account
       - No, I am creating an additional site in the same account
   SharedStorageName:
@@ -54,7 +55,7 @@ Parameters:
     Description: (OPTIONAL) Name of a previously created shared storage bucket to link to this stack.
 
 Conditions:
-  SharedBucket: !Equals [!Ref EnvType, 'Yes, this is my first site in this account']
+  SharedBucket: !Equals [!Ref SharedStorage, 'Yes, this is my first site in this account']
 
 Resources:
   SharedData:
@@ -741,7 +742,7 @@ Resources:
       Environment:
         Variables:
           publicBucket: 'braevitae-pub'
-          SharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
+          sharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
           adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
           testSiteBucket: !Ref TestWebData
@@ -1009,7 +1010,7 @@ Resources:
                  - s3:List*
                  - s3-object-lambda:Get*
                  - s3-object-lambda:List*
-                Resource: *
+                Resource: '*'
         - PolicyName: SharedDataReadWrite
           PolicyDocument:
             Version: 2012-10-17

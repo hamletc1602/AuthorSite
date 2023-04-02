@@ -86,11 +86,11 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   } catch (e) {
       const msg = `Deploy ${deployId} failed: ${e.message}`
       console.error(msg)
-      await aws.displayUpdate(Object.assign(counts, { deploying: false, deployError: true, stepMsg: msg }), 'publish', msg)
+      await aws.displayUpdate({ deploying: false, deployError: true, stepMsg: msg }, 'publish', msg)
   } finally {
     const msg = `Deploy ${deployId} complete: Updated: ${counts.updated}, Added: ${counts.added}, Deleted: ${counts.deleted}, Unchanged: ${counts.unchanged}`
     console.log(msg)
-    await aws.displayUpdate(Object.assign(counts, { deploying: false, stepMsg: msg }), 'publish', msg)
+    await aws.displayUpdate({ deploying: false, stepMsg: msg }, 'publish', msg)
   }
 }
 
@@ -110,7 +110,7 @@ async function getBucketForTemplate(templateName) {
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
-async function applyTemplate(publicBucket, adminBucket, params) {
+async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
   let success = true
   const templateName = params.id
   try {
@@ -121,7 +121,7 @@ async function applyTemplate(publicBucket, adminBucket, params) {
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
+    const archive = await aws.get(sourceBucket, `AutoSite/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     // Copy all the site template files to the local buckets
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
@@ -298,7 +298,11 @@ async function pushTemplateFile(aws, templateName, file, opts) {
     if (pathParts.length > 0) {
       const pathRoot = pathParts.shift()
       const filePath = pathParts.join('/')
-      const pathSubRoot = pathParts.shift()
+      let pathSubRoot = pathParts.shift()
+      if (pathParts.length === 0) {
+        // This is a file, not another directory, don't filter the same way
+        pathSubRoot = 'FILE'
+      }
       const type = getContentType(file.path)
       const body = await file.buffer()
       if (opts.verbose) {
@@ -320,6 +324,9 @@ async function pushTemplateFile(aws, templateName, file, opts) {
               await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
               break
             case 'template':
+              await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
+            break
+            case 'FILE':
               await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
             break
             default:
@@ -473,7 +480,7 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
     const msg = `Skip save template. Name ${params.name} already exists`
     console.error(msg)
     // Put error into display state
-    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name}` }, 'saveTemplate', msg)
+    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name} already exists.` }, 'saveTemplate', msg)
   }
   if (success) {
     try {
@@ -502,14 +509,14 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
 /** */
 async function setPassword(adminBucket, params) {
   try {
-    await aws.displayUpdate({ savingTpl: true, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Start change password`)
+    await aws.displayUpdate({ settingPwd: true, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `Start change password`)
     const metadataStr = (await aws.get(adminBucket, 'admin_secret')).Body
     const metadata = JSON.parse(metadataStr.toString())
     metadata.password = params.newPassword
     await aws.put(adminBucket, 'admin_secret', null, JSON.stringify(metadata))
-    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `End change password. Success.`)
+    await aws.displayUpdate({ settingPwd: false, setPwdError: false, setPwdErrMsg: '' }, 'changePassword', `End change password. Success.`)
   } catch (e) {
     console.log(`Failed to set new password.`, e)
-    await aws.displayUpdate({ settingPwdTpl: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `End change password. Failed: ${e.message}`)
+    await aws.displayUpdate({ settingPwd: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `End change password. Failed: ${e.message}`)
   }
 }
