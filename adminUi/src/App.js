@@ -156,7 +156,7 @@ function App() {
   const [editorsEnabled, setEditorsEnabled] = useState(false)
   const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
-  const [putContentComplete, setPutContentComplete] = useState(null)
+  const [uploadError, setUploadError] = useState(null)
 
   // Calculated State
   const authenticated = authState === 'success'
@@ -166,6 +166,7 @@ function App() {
   const configs = useRef({})
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
+  const putContentComplete = useRef({})
   const fileContent = useRef({})
   const currTemplate = useRef({})
   const saveTemplateName = useRef({})
@@ -173,10 +174,12 @@ function App() {
   const newPassword = useRef({})
 
   // Indicate there's new content to put on this path
-  const scheduleContentPush = (path, source, id) => {
+  const scheduleContentPush = (path, source, id, editorId) => {
+    putContentComplete.current[path] = null
     contentToPut.current[path] = {
       source: source,
       id: id,
+      editorId: editorId,
       state: 'new'
     }
   }
@@ -367,7 +370,7 @@ function App() {
   //
   useAdminStatePolling(adminLive, setAdminState)
   useLockStatePolling(setLocked)
-  usePutContentWorker(controller, adminConfig, contentToPut, setPutContentComplete)
+  usePutContentWorker(controller, adminConfig, contentToPut, putContentComplete, setUploadError)
 
   // Get config data from the server
   useEffect(() => {
@@ -512,9 +515,12 @@ function App() {
           >
             <Tabs size='sm' h='1em' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList bg='accent'>
-                {editors.current.map((editor) => (
-                  <Tab key={editor.id} disabled={!authenticated}>{editor.title}</Tab>
-                ))}
+                {editors.current.map((editor) => {
+                  const inError = uploadError === editor.id
+                  return <Tab key={editor.id}
+                      disabled={!authenticated} bg={inError ? 'danger' : null}
+                    >{editor.title}</Tab>
+                })}
               </TabList>
               <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)'>
                 {editors.current.map((editor) => (
@@ -610,12 +616,12 @@ function App() {
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateTemplateError} errorText={adminDisplay.updateTemplateErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingTemplate) && !advancedMode}
-                isLoading={adminDisplay.updatingTemplate && !advancedMode} loadingText='Updating...'/>,
+                isLoading={adminDisplay.updatingTemplate} loadingText='Updating...'/>,
               <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.updateUiError} errorText={adminDisplay.updateUiErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.updatingUi) && !advancedMode}
-                isLoading={adminDisplay.updatingUi && !advancedMode} loadingText='Updating...'/>
+                isLoading={adminDisplay.updatingUi} loadingText='Updating...'/>
             ] : null}
           </Flex>
         </GridItem>
@@ -704,7 +710,7 @@ function useLockStatePolling(setLocked) {
 }
 
 // Periodically push updated content to the server
-function usePutContentWorker(controller, adminConfig, contentToPut, setPutContentComplete) {
+function usePutContentWorker(controller, adminConfig, contentToPut, putContentComplete, setUploadError) {
   useEffect(() => {
     if ( ! putContentWorker) {
       putContentWorker = setInterval(async () => {
@@ -715,28 +721,35 @@ function usePutContentWorker(controller, adminConfig, contentToPut, setPutConten
             toPut.state = 'working'
             const sourceRec = toPut.source[toPut.id]
             if (sourceRec) {
-              if (sourceRec.isConfig) {
-                await controller.putSiteConfig(
-                  adminConfig.templateId,
-                  toPutId,
-                  toPut.contentType || sourceRec.contentType,
-                  sourceRec.content
-                )
-              } else {
-                await controller.putSiteContent(
-                  adminConfig.templateId,
-                  toPutId,
-                  toPut.contentType || sourceRec.contentType,
-                  sourceRec.content
-                )
-                // HACK: The Image editor is the only component that needs to change in response to the
-                // putContent complete (at least for now), so only chnage this for non-text content, so
-                // it does not push a re-render of the text editor and cause it to lose focus.
-                if (sourceRec.contentType !== 'text/plain') {
-                  setPutContentComplete(toPutId)
+              try {
+                if (sourceRec.isConfig) {
+                  await controller.putSiteConfig(
+                    adminConfig.templateId,
+                    toPutId,
+                    toPut.contentType || sourceRec.contentType,
+                    sourceRec.content
+                  )
+                } else {
+                  await controller.putSiteContent(
+                    adminConfig.templateId,
+                    toPutId,
+                    toPut.contentType || sourceRec.contentType,
+                    sourceRec.content
+                  )
                 }
+                toPut.state = 'done'
+                setUploadError(null)
+                const update = Object.assign({}, putContentComplete.current)
+                update[toPutId] = { succeeded: true }
+                putContentComplete.current = update
+              } catch (e) {
+                console.error(`Upload failed for ${toPutId}`, toPut)
+                toPut.state = 'failed'
+                setUploadError(toPut.editorId)
+                const update = Object.assign({}, putContentComplete.current)
+                update[toPutId] = { succeeded: false }
+                putContentComplete.current = update
               }
-              toPut.state = 'done'
             }
           }
         }))
@@ -746,7 +759,7 @@ function usePutContentWorker(controller, adminConfig, contentToPut, setPutConten
       clearInterval(putContentWorker)
       putContentWorker = null
     }
-  }, [adminConfig, contentToPut, controller, setPutContentComplete])
+  }, [adminConfig, contentToPut, controller, putContentComplete, setUploadError])
 }
 
 export default App

@@ -117,10 +117,18 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
   const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
 
   useEffect(() => {
-    console.log(`Check cooldown for ${content}. Complete: ${putContentComplete}`)
-    if (cooldown && putContentComplete === content) {
-      console.log(`File upload complete for ${content}`)
-      setCooldown(false)
+    if (cooldown) {
+      const completionRec = putContentComplete.current[content]
+      console.log(`Check cooldown for ${content}. Complete: ${JSON.stringify(putContentComplete.current)}`)
+      if (completionRec) {
+        if (completionRec.success) {
+          console.log(`File upload complete for ${content}`)
+          setCooldown(false)
+        } else {
+          console.error(`File upload failed for ${content}`)
+          setCooldown(false)
+        }
+      }
     }
   }, [putContentComplete, content, cooldown, setCooldown])
 

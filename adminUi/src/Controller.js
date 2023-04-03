@@ -9,6 +9,7 @@ export default class Controller {
   static lockId = ''
 
   constructor() {
+    console.log(`Creating new Controller`)
     this.lastETag = null
     this.locked = false
     this.password = null
