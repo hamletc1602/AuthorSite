@@ -386,7 +386,7 @@ export default function Editor({
           getContentForPath={getContentForPath}
           advancedMode={advancedMode}
           locked={locked}
-        ></SubEditor>
+        />
       </Flex>
       <Flex key='ops' color='editorText' bg='editorBg'>
         {hasList ?

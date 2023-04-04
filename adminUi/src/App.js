@@ -15,6 +15,7 @@ import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
 import Util from './Util'
 import ActionButton from './ActionButton'
+import EditorText from './EditorText'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -501,10 +502,18 @@ function App() {
               if (editorsData) {
                 const editorId = editorsData[0].id
                 // Init local editor data values
-                editorsData = editorsData.map(editor => {
-                  editor.lastEditPath = [{ name: editor.id }]
-                  return editor
-                })
+                //    Drop any editors with no schema
+                editorsData = editorsData
+                  .filter(p => !!p.schema)
+                  .map(editor => {
+                    editor.lastEditPath = [{ name: editor.id }]
+                    editor.type = 'properties'
+                    return editor
+                  })
+                  .concat({
+                    type: 'notes',
+                    data: 'conf/notes.json'
+                  })
                 const raw = await controller.getSiteConfig(adminConfig.templateId, editorId)
                 raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
                 raw.content.isConfig = true // Add config flag, for use later in uploading.
@@ -662,18 +671,30 @@ function App() {
               <TabList bg='accent'>
                 {editors.current.map((editor) => {
                   const inError = uploadError === editor.id
+                  if ( ! editor.schema) { return null}
                   return <Tab key={editor.id}
                       disabled={!authenticated} bg={inError ? 'danger' : null}
                     >{editor.title}</Tab>
-                })}
+                }).concat(
+                  <Tab key='notes'
+                    disabled={!authenticated} bg={(uploadError === 'notes') ? 'danger' : null}
+                  >Notes</Tab>
+                )}
               </TabList>
               <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)'>
-                {editors.current.map((editor) => (
-                  <TabPanel p='0' key={'Tab_' + editor.id}>
+                {editors.current.map((editor) => {
+                  if ( ! editor.schema) { return null}
+                  return <TabPanel p='0' key={'Tab_' + editor.id}>
                     <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='calc(100vh - 6.3em)'/>
                     <EditorTab key={'EditorTab_' + editor.id} editor={editor}/>
                   </TabPanel>
-                ))}
+                }).concat(
+                  <TabPanel p='0' key='notes'>
+                    <Skeleton isLoaded={true} height='calc(100vh - 6.3em)'/>
+                    <Textarea
+                    />
+                  </TabPanel>
+                )}
               </TabPanels>
             </Tabs>
           </Skeleton>
