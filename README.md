@@ -4,7 +4,7 @@ If you're looking to build a static website with worldwide reach for very low ho
 
 The primary goal of this project is to allow authors to create low-cost, low-maintenance author websites to showcase your work, and provide a basic point of contact with readers. Some technical experience is required in the intial setup, mainly in creating a domain in AWS, and editing/uploading configuration files for the site.
 
-If you have more experience with website development, this template can provide a base for you to customize with your own static HTML code or code generator.
+If you have more experience with website development, this template can also provide a base for you to customize with your own static HTML code or code generator.
 
 ## Overview
 
@@ -14,14 +14,16 @@ This template creates all the infrastructure necessary to host a mostly static w
 - Cloaking of .html extensions on page urls.
 - Email feedback form with truly hidden email address.
 - Websites can be generated from eisting templates, or existing files uploaded to the site.
-- Website files are generated to a test site first, automatically promoted to the live site with one button click.
+- An editor UI is provided, that works with built-in templates, or provide your own template files (advanced)
+- Use the built-in site generator, or provide your own lambda function (advanced)
+- Website files are first generated to a test site first, then promoted to the live site with one click.
 - Creates a unique key pair for uploading files to only this website's test site bucket.
 - Built-in forwarder to the Amazon store for the user's country for book links.
 - Custom 404 (not found) page (returns to index.html).
 
 ## AWS Amplify
 
-This static site service fills a simillar role to using AWS Amplify, but with less $/GB for data transfer. there's also less chance of obscelescence and maintenance due to shifting AWS priorities since it works directly with AWS core building blocks. If you are planning to use your own website/generator code (Not the default author or artist site templates provided), and are comfortable with git and build pipelines, then you may want to check out AWS Amplify instead of this service.
+This static site service fills a simillar role as using AWS Amplify, but with less $/GB for data transfer. there's also less chance of obscelescence and maintenance due to shifting AWS priorities since it works directly with AWS core building blocks. If you are planning to use your own website/generator code (Not the default site templates provided), and are comfortable with git and build pipelines, then you may want to check out AWS Amplify instead of this service.
 
 ## Requirements
 
@@ -65,49 +67,17 @@ This should open a page in the AWS Cloud Formation service showing the BraeVitae
 
 ## Administration UI
 
-Once the AWS Cloud Formation stack has been sucessfully build, open: https://{your domain}/admin/index
+Once the AWS Cloud Formation stack has been sucessfully generated, enter the domain name you provided to the stack, and you will be redirected to the Site Admin UI. To log in, enter the password you provided to the stack.
 
-This page allows you to perform some simple administration functions for your website:
+You will then be prompted to select a default template. For now, there is only one template available (author).
 
-### Choose a site template:
+The Site Admin UI allows you to edit all template properties, and upload images to appear on your site. Tooltips are available on most action buttons and property names to better explain their function.
 
-This dropdown allows you to select the default set of inital configuration files that will be loaded into your site. This selection is usually made just once for a stack, since changing it will delete all your existing configuration files.
+Your best guide will likely be to generate a test site (Click the Generate button) to see the results of your changes as you go. Once you are happy with the test site, click on the 'Publish' button to update your main domain site.
 
-To see an example site, based on the default configuration values, you can click generate now, but you may want to skip to the 'editing your site config' section below.
+![Diagram](vizualization/adminUi.png)
 
-### Generate:
-
-Click this button to generate content to your test site: https://test.{your domain}/
-
-You can visit this 'test site' path to verify what was generated.
-
-You can re-generate as often as you like (though be aware that there is some cost - generally a fraction of a cent, but it can add up.)
-
-### Publish:
-
-Click this button to replicate your test side to the public site: https://{your domain}/
-
-Warning: This will _replace_ all files on your current public site, and there is currently no way to roll back (undo) the operation, so please review your test site carefully!
-
-## Editing Your Site Config
-
-For now, the admin UI will not help you with editing your website configuration (It's a work in progress).
-
-To change your site configuration, go to the S3 service in your AWS Account console. Open the '{your domain}-admin' bucket, and click on the 'site-config' folder, then the folder with the same name as the template you applied from the admin UI.
-
-Here you will find a collection of configuration files that feed the generator applicaton that you selected when creating this website stack. These files are customized based on the template you applied from the admin UI, or may be entirely absent if you have not prepared a template.
-
-### Author Site Template Configuration
-
-**conf.json:** Core site configuration. Default text that appears on the site. Author names that may be referenced by books, distributors where books might be sold, etc.
-
-**published.json:** Configuration that defines the books that show up on the site (Can include published and not-yet-published books)
-
-**news.json:** Content that appears on the 'news' (blog) page of the site.
-
-**structure.json:** Advanced configuration with low level details that control the way the site renders - Fonts, colours, reflow, etc. Generally you won't want to edit this configuration unless you want to dive in to changing the look of the site.
-
-## Features
+## Author Template Features
 
 ### Email Feeback Form
 
