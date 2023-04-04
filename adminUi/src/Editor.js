@@ -20,6 +20,7 @@ export default function Editor({
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
   let content = Util.getContentForPath(configs, path)
   const [inDelete, setInDelete] = useState(false)
+  const listContainer = useRef(null)
   const selectedItem = useRef(null)
 
   // This setPath call was triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)."
@@ -32,6 +33,9 @@ export default function Editor({
       return
     }
     if (hasList) {
+      if (editor.scrollTop) {
+        listContainer.current.scrollTop = editor.scrollTop
+      }
       if (rootPath.length === path.length) {
         // Select the first list item, if there's no current selection
         if (content.length > 0) {
@@ -39,7 +43,16 @@ export default function Editor({
         }
       } else if (selectedItem.current) {
         // Scroll to the selected list item
-        selectedItem.current.scrollIntoView()
+        //   Check if this item is already in view before scrolling to it, to avoid jitter
+        //   NOTE: Assumes the grandparent elem has the scrollbar. This would need to be updated if the page
+        //         structure changes.
+        const elem = selectedItem.current
+        const parent = elem.parentNode.parentNode
+        const scrollOffset = (elem.offsetTop - parent.offsetTop) - parent.scrollTop
+        //console.log(`ScrollTop: ${parent.scrollTop}, ScrollOffset: ${scrollOffset}, Height: ${parent.offsetHeight}`)
+        if (scrollOffset < 0 || scrollOffset > parent.offsetHeight) {
+          selectedItem.current.scrollIntoView({ behavior: "instant", block: "nearest" })
+        }
       }
     }
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
@@ -283,37 +296,52 @@ export default function Editor({
       {breadcrumbs()}
     </Breadcrumb> : null}
     <Flex w='100%' marginTop='0 !important'>
-      <Flex color='editorText' bg='editorBg' w={(hasList ? 10 : 0) + 'em'} maxHeight='calc(100vh - 6.25em)' overflowY='auto' overflowX='clip'>
-        {hasList ? <VStack
-          spacing={0}
-        >
-          [
-            <Box
-              key={'listNew_' + editor.id}
-              width='10em'
-              padding='3px'
-              bg='listNew'
-              color={locked ? 'gray.400' : 'inherit'}
-              cursor={locked ? 'not-allowed' : 'pointer'}
-              onClick={ev => newItem(ev)}
-            >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
-            ,
-            {rootContent.map((item, index) => {
-              const name = item[schema.nameProp] || 'item' + index
-              return <Box
-                key={'list' + index + '_' + editor.id}
-                size='sm'
-                ref={index === pathIndex ? selectedItem : null}
-                bg={index === pathIndex ? 'listSelected' : 'editorBg'}
-                width='10em'
-                padding='3px'
-                cursor='pointer'
-                onClick={ev => itemSelected(ev, index, name)}
-              >{name}</Box>
-              })}
-          ]
-        </VStack> : null }
-      </Flex>
+      {hasList ?
+        <Flex w="10em" direction='column'>
+          <Box
+            key={'listNew_' + editor.id}
+            padding='3px'
+            bg='listNew'
+            color={locked ? 'gray.400' : 'inherit'}
+            cursor={locked ? 'not-allowed' : 'pointer'}
+            onClick={ev => newItem(ev)}
+          >{[<AddIcon key='newItemIcon'/>, ' ', 'Add ' + schema.addTitle]}</Box>
+          <Flex
+            ref={listContainer}
+            color='editorText'
+            bg='editorBg'
+            w={(hasList ? 10 : 0) + 'em'}
+            maxHeight='calc(100vh - 8.25em)'
+            m='3px 0'
+            overflowY='auto'
+            overflowX='clip'
+            onScroll={(ev) => {
+              editor.scrollTop = ev.target.scrollTop
+            }}
+          >
+            <VStack
+              spacing={0}
+            >
+              [
+                {rootContent.map((item, index) => {
+                  const name = item[schema.nameProp] || 'item' + index
+                  return <Box
+                    key={'list' + index + '_' + editor.id}
+                    size='sm'
+                    ref={index === pathIndex ? selectedItem : null}
+                    bg={index === pathIndex ? 'listSelected' : 'editorBg'}
+                    width='10em'
+                    padding='3px'
+                    borderTop='1px solid #E0E0E0'
+                    cursor='pointer'
+                    onClick={ev => itemSelected(ev, index, name)}
+                  >{name}</Box>
+                  })}
+              ]
+            </VStack>
+          </Flex>
+        </Flex>
+      : null }
       <Flex
         flex='1'
         minH='calc(100vh - 8em)'
