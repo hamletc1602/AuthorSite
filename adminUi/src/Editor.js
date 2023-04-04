@@ -316,7 +316,7 @@ export default function Editor({
       </Flex>
       <Flex
         flex='1'
-        minH='10em'
+        minH='calc(100vh - 8em)'
         padding='0.3em'
         color='editorText'
         bg='editorBg'

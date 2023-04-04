@@ -10,12 +10,13 @@ export default function EditorText({id, content, fileContent, setData}) {
     <Textarea
       key={'TextEdit_' + id}
       w='100%'
-      h='15em'
+      h='100%'
       bg='white'
       color='editorText'
       defaultValue={contentRec ? contentRec.content : null}
       disabled={ ! contentRec}
       placeholder={contentRec ? null : 'Loading...'}
+      resize='none'
       onChangeCapture={ev => {
         fileContent.current[content] = {
           state: 'complete',

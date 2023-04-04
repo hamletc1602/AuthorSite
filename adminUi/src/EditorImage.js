@@ -138,14 +138,13 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
 
   return (
     <Flex w='100%'>
-      <Box flex='1' w='calc(100%-2em)'>
+      <Box flex='1' w='calc(100%-2em)' h='100%'>
         <div {...getRootProps()} style={{ width: '100%'}}>
           <input {...getInputProps()} disabled={cooldown}/>
           {
             <Box
               key={'dropTarget_' + id}
-              w='calc(100%-3px)'  // This is a hack to keep right border from being clipped - Real problem is likely with the surrounding grid??
-              minH='15em'
+              minH='calc(100vh - 9em)'
               margin='0.5em'
               color='black'
               textShadow={`${ow}px 0px 1px ${ocolor}, -${ow}px -0px 1px ${ocolor}, 0px ${ow}px 1px ${ocolor}, 0px -${ow}px 1px ${ocolor}`}
