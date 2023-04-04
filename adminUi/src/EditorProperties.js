@@ -113,9 +113,9 @@ export default function EditorProperties({id, content, schema, setData, editItem
     key={'PropsEdit' + id}
     w='100%'
     maxHeight={(names.length * 2) + 'em'}
-    templateAreas={`"edit edit"`}
-    templateColumns={'12em 1fr'}
-    rowGap={0}
+    templateColumns='12em 1fr'
+    templateRows={'repeat(' + names.length + ',min-content)'}
+    rowGap={1}
     color='editorText'
     bg='editor'
   >
@@ -129,7 +129,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
       }
       const value = content[name]
       return [
-        <GridItem key={`${id}-${name}-label`} >
+        <GridItem key={`${id}-${name}-label`}>
           <Tooltip openDelay={450} closeDelay={250} label={itemSchema.desc} hasArrow={true} aria-label={itemSchema.desc}>
             {itemSchema.disp || name}
           </Tooltip>
