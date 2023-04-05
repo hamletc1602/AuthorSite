@@ -99,15 +99,21 @@ const cfnCreateHandler = async (params) => {
     }))
 
     // Add default index.html to site buckets with redirect to the admin site
+    let siteUrl = null
+    if (params.DomainName) {
+      siteUrl = `https://${params.DomainName}/admin/index`
+    } else {
+      siteUrl = '/admin/index'
+    }
     const indexPage = `
       <!DOCTYPE html>
       <html>
         <head>
-          <meta http-equiv="refresh" content="4; URL='https://${params.DomainName}/admin/index'" />
+          <meta http-equiv="refresh" content="4; URL='${siteUrl}'" />
         </head>
         <body>
           <h1>Under Construction!</h1>
-          <p>Redirecting to admin UI,,,,</p>
+          <p>Redirecting to admin UI...</p>
         </body>
       </html>
     `

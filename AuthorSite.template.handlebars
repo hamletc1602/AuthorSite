@@ -34,7 +34,7 @@ Parameters:
   UploaderPassword:
     Type: String
     NoEcho: true
-    Description: Enter a password for the website admin app. Please use at least 8 characters.
+    Description: Enter an initial password for the website admin app. You must enter at least 8 characters.
   FeedbackEmail:
     Type: String
     Description: Recipient address for feedback emails.
@@ -44,10 +44,9 @@ Parameters:
     Description: The site generator app to use for this site, from the list of publshed generators.
   SharedStorage:
     Description: (OPTIONAL) For your first site, create a shared storage area that can be used by all sites to share saved template data.
-    Default: No
+    Default: Yes, this is my first site in this account
     Type: String
     AllowedValues:
-      - No
       - Yes, this is my first site in this account
       - No, I am creating an additional site in the same account
   SharedStorageName:
@@ -689,7 +688,9 @@ Resources:
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue
+          {{#Domain}}
           domainName: !Ref DomainName
+          {{/Domain}}
       Code:
         S3Bucket: !Select [0, !Split [':', !Ref SiteGenerator]]
         S3Key: !Select [1, !Split [':', !Ref SiteGenerator]]
@@ -850,7 +851,9 @@ Resources:
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
+      {{#Domain}}
       DomainName: !Ref DomainName
+      {{/Domain}}
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
     DependsOn:

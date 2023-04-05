@@ -41,7 +41,7 @@ If you see a huge amount of traffic, or are storing a large amoount of data in t
 
 There are three different options for building your site, depending on what you may already have set up, and what you want to create.
 
-Log in to your AWS Console account, then click on this link from the same browser:
+Log in to your AWS Console account, then click on the link that best suits your needs from the same browser:
 
 1) I want to create a site with no personalized domain, for a trial to see what it looks like, or because I want to link it with a domain hosted in another service: [**Build site with no domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite/AuthorSite.template)
 
@@ -49,9 +49,7 @@ Log in to your AWS Console account, then click on this link from the same browse
 
 3) I want to create a site as a subdommain of a domain I already host in AWS: [**Build site with sub-domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite/AuthorSite-subdomain.template)
 
-Log in to your AWS Console account, then click on this link from the same browser: [BraeVitae Static Website Template](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite/AuthorSite.template)
-
-This should open a page in the AWS Cloud Formation service showing the BraeVitae Static Website Template configuration.
+This will open a page in the AWS Cloud Formation service showing the BraeVitae Static Website Template configuration.
 
 ### Parameters
 
@@ -63,7 +61,15 @@ This should open a page in the AWS Cloud Formation service showing the BraeVitae
 
 **FeedbackEmail**: The email address where you would like to receive feedback emails from this site. When you build the stack this address will recieve a registration confirmation email that you will need to respond to in order for feedback emails to be sent.
 
-**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. If you want to upload your own raw content to the site (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)), just enter the default value above and directly upload your own content to the test bucket.
+**SharedStorage**: Select Yes if this is your first site for this AWS account. Even if you're not sure you'll ever have another site stack, there's no down-side to creating the shared S3 bucket.
+
+**SharedStorageName**: If SharedStorage is 'No' above, here's where you can enter the name of a previously created stack's shared storage (See the 'Outputs' associted with that stack for the name).
+
+**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. (Use //Stackname-admin:// or //Stack name-shared) as the bucket name, if you want to upload a generator to one of the site private buckets after creation).
+
+If you want to upload your own raw content to the site (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)), just enter the default value above and directly upload your own content to the test bucket.
+
+**UploaderPassword**: The initial password for the AdminUI. You can change this later.
 
 ## Administration UI
 
