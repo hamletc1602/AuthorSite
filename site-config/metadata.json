@@ -1,16 +1,6 @@
 [{
-    "id": "author",
-    "name": "Author",
-    "description": "Site for writers to showcase books.",
-    "access": "public"
-},{
     "id": "publisher",
     "name": "Publisher",
     "description": "Site for publishers to showcase books from multiple authors.",
-    "access": "public"
-},{
-    "id": "artist",
-    "name": "Artist",
-    "description": "Site for visual artists to showcase visual art.",
     "access": "public"
 }]

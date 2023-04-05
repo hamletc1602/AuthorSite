@@ -75,7 +75,7 @@ If you want to upload your own raw content to the site (perhaps created with too
 
 Once the AWS Cloud Formation stack has been sucessfully generated, enter the domain name you provided to the stack, and you will be redirected to the Site Admin UI. To log in, enter the password you provided to the stack.
 
-You will then be prompted to select a default template. For now, there is only one template available (author).
+You will then be prompted to select a default template. For now, there is only one template available (Publisher).
 
 The Site Admin UI allows you to edit all template properties, and upload images to appear on your site. Tooltips are available on most action buttons and property names to better explain their function.
 

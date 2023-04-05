@@ -32,5 +32,5 @@ root=/tmp/authorsite/template/artist
 mkdir -p $root
 cp -R site-config/artist/ $root
 cd $root
-zip -qr $wdir/target/AutoSite/site-config/author.zip *
+zip -qr $wdir/target/AutoSite/site-config/artist.zip *
 cd $wdir
