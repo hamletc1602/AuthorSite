@@ -6,7 +6,10 @@
         "small": null,
         "medium": null,
         "large": null,
-        "extraLarge": null
+        "extraLarge": null,
+        "text": "Rebecca Brae",
+        "fontFamily": "Brush Script MT",
+        "letterSpacing": "5px"
     },
 
     "coverPromoBackground": "promotion/near-black.png",

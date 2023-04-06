@@ -47,6 +47,38 @@ properties:
         desc: Optional. Logo image for the widest display. Go wild!
         type: image
         publish: true
+      text:
+        disp: Text
+        desc: Optional. Text to include over the logo image (or on it's own)
+        type: string
+      fontFamily:
+        disp: Font Family
+        desc: Optional. Font famly to use for the logo text. May be a default family, or one defined by a web font entry.
+        type: string
+      fontColor:
+        disp: Font Color
+        desc: Optional. Font color to use for the logo text. Any CSS size value can be used here.
+        type: string
+      letterSpacing:
+        disp: Letter Spacing
+        desc: Optional.
+        type: string
+      fontSizeSmall:
+        disp: Font Size Small
+        desc: Optional. Size of the logo text at small widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      fontSizeMedium:
+        disp: Font Size Medium
+        desc: Optional. Size of the logo text at medium widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      fontSizeLarge:
+        disp: Font Size Large
+        desc: Optional. Size of the logo text at large widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      fontSizeExtraLarge:
+        disp: Font Size Extra Large
+        desc: Optional. Size of the logo text at extra large widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
   coverPromoBackground:
     disp: Cover Promo Background Image
     desc: Background image used when generating social medai promo images from book covers.

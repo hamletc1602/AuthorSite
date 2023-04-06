@@ -36,21 +36,21 @@
         "height": 400,
         "widthXSm": 320,
         "widthSm": 480,
-        "widthMd": 768,
-        "widthLg": 1024,
-        "widthXl": 1536,
+        "widthMd": 1024,
+        "widthLg": 1536,
+        "widthXl": 2048,
         "widthXXl": 2655,
         "footerHeight": 200
     },
 
     "headerHeight": {
         "sm": "30px",
-        "md": "90px",
-        "lg": "100px",
+        "md": "60px",
+        "lg": "70px",
         "noPanel": {
             "sm": "30px",
-            "md": "90px",
-            "lg": "100px"
+            "md": "60px",
+            "lg": "70px"
         }
     },
 

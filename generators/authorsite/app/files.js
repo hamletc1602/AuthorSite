@@ -101,16 +101,33 @@ exports.loadLargeData = (filepath, config) => {
 */
 exports.loadTemplate = (dirPath, type, fileName) => {
   return new Promise((resolve, reject) => {
-    // If the custom path (dirPath) file exists, use it. Otherwise load from the detault templates dir.
-
-    let filepath = (type ? Path.join('templates', type, fileName) : Path.join('templates', fileName))
+    // Create a list of all possible template locations, in priority order.
+    const paths = []
     if (dirPath) {
-      let customPath = (type ? Path.join(dirPath, type, fileName) : Path.join(dirPath, fileName))
-      if (Fs.existsSync(customPath)) {
-        filepath = customPath
+      if (type) {
+        paths.push(Path.join(dirPath, type, fileName))
+      }
+      paths.push(Path.join(dirPath, 'default', fileName))
+      paths.push(Path.join(dirPath, fileName))
+    }
+    if (type) {
+      paths.push(Path.join('templates', type, fileName))
+    }
+    paths.push(Path.join('templates/default', fileName))
+    paths.push(Path.join('templates', fileName))
+    // Check each path in priority order and stop at the first one found to exist
+    let filepath = null
+    for (const path of paths) {
+      if (Fs.existsSync(path)) {
+        filepath = path
+        //console.log(`Found template: ${path}`, paths)
+        break
       }
     }
-    //
+    if (filepath === null) {
+      throw new Error(`Unable to find template for file: ${fileName}, type: ${type}, override dir: ${dirPath}`, paths)
+    }
+    // Load and process the template
     Fs.readFile(filepath, 'utf8', (err, content) => {
       if (err) {
         reject(err)

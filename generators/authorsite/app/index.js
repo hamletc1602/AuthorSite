@@ -630,6 +630,20 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   // For adding global config data to template resolution.
   const tplData = { data: { config: Object.assign({}, config, options) }}
 
+  // If a custom templates dir is defined, and exists, use it.
+  // If a default template-specfic templates dir exists, use that.
+  // Otherwise, clear the templates dir setting (don't try to use a bogus setting if the dir does not exist)
+  const templatesDirs = []
+  if (config.templatesDir) {
+    templatesDirs.push(config.templatesDir)
+  }
+  templatesDirs.push(Path.join(confDir, 'templates'))
+  config.templatesDir = null
+  for (const dir of templatesDirs) {
+    if (Files.exists(dir)) {
+      config.templatesDir = dir
+    }
+  }
   if (config.templatesDir) {
     console.log(`Loading page templates from custom: ${config.templatesDir}.`)
   } else {

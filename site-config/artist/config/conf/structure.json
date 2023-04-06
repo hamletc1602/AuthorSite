@@ -26,8 +26,6 @@
         }
     },
 
-    "templatesDir": "../config/artist/templates",
-
     "paths": {
         "rootPath": "",
         "imagePath": "/image",
