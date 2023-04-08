@@ -14,7 +14,6 @@ const defaultOptions = {
   skipImages: false
 }
 const memCache = {}
-const MIN_PUBS_FOR_CAROUSEL = 3
 
 // Template processing helpers
 
@@ -46,6 +45,14 @@ Handlebars.registerHelper('versionUrl', (options) => {
     // hash in the right directory.
     return new Handlebars.SafeString(ret + sepChar + Files.getMd5ForFile(ret))
 })
+
+Handlebars.registerHelper("equal", function(value1, value2, options) {
+  if (value1 === value2) {
+    return options.fn(this);
+  } else {
+    return options.inverse(this);
+  }
+});
 
 /** Main Entry Point */
 const handler = async (event, context) => {
@@ -177,14 +184,18 @@ const handler = async (event, context) => {
       distributors: await Files.loadConfig(confDir + '/' + confIndex.distributors.data, config)
     }
 
-    // Added 'skin' config adjustments
+    // Various small config enhancements
     {
+      // Added 'skin' config adjustments
       const skin = data.style
       skin._imageFileNameRoot = Path.basename(skin.background, Path.extname(skin.background))
       // Shift paths vars up to root of structure config where the code expects them.
       Object.assign(data.structure, data.structure.paths)
       // Ensure all logo sizes are defined, borrowing oher logo sizes if needed.
       fillInMissingLogoEntries(data.style.logo)
+      // Add flags to adjust page rendering based on the number of books available
+      config.useBookLists = data.published.length >= Number(config.minBooksForList)
+      config.useBookCategories = data.published.length >= Number(config.minBooksForCategories)
     }
 
     // Load all schema
@@ -210,6 +221,13 @@ const handler = async (event, context) => {
       }
     }
 
+    // Remove properties that are empty strings
+    const clearMissingValuesWorker  = async (value, _schema, _config, parent, key) => {
+      if (value === '') {
+        parent[key] = null
+      }
+    }
+
     // Load real content for any 'text' type elements and replace the file path
     const resolveFileRefsWorker= async (value, parent, key) => {
       // Replace key value with external text content (possibly also rendered from a template)
@@ -226,6 +244,7 @@ const handler = async (event, context) => {
       const s = schema[key]
       if (s) {
         await visitProperties(d, s, config, clearMissingFilesWorker)
+        await visitProperties(d, s, config, clearMissingValuesWorker)
         await resolveFileRefs(d, s, config, resolveFileRefsWorker)
         await resolveGeneratorPaths(d, s, config)
         await ensureProtocolOnUrls(d, s, config)
@@ -385,12 +404,16 @@ const mergeEventToString = (event) => {
   }
 }
 
-/** If one of the logo sizes is missing, fill it in from the nearest available size. */
+/** If one of the logo sizes or logo text font sizes is missing, fill it in from the nearest available size. */
 const fillInMissingLogoEntries = (logo) => {
   if ( ! logo.small) { logo.small = logo.medium || logo.large || logo.extraLarge }
   if ( ! logo.medium) { logo.medium = logo.small || logo.large || logo.extraLarge }
   if ( ! logo.large) { logo.large = logo.medium || logo.small || logo.extraLarge }
   if ( ! logo.extraLarge) { logo.extraLarge = logo.large || logo.medium || logo.small }
+  if ( ! logo.fontSizeSmall) { logo.fontSizeSmall = logo.fontSizeMedium || logo.fontSizeLarge || logo.fontSizeExtraLarge }
+  if ( ! logo.fontSizeMedium) { logo.fontSizeMedium = logo.fontSizeSmall || logo.fontSizeLarge || logo.fontSizeExtraLarge }
+  if ( ! logo.fontSizeLarge) { logo.fontSizeLarge = logo.fontSizeMedium || logo.fontSizeSmall || logo.fontSizeExtraLarge }
+  if ( ! logo.fontSizeExtraLarge) { logo.extraLarge = logo.fontSizeLarge || logo.fontSizeMedium || logo.fontSizeSmall }
 }
 
 /** Prepare data used when rendering page templates */
@@ -655,12 +678,18 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   Handlebars.registerPartial("page", pageTpl)
   const sharingTpl = await Files.loadTemplate(config.templatesDir, templateType, 'sharing.html')
   Handlebars.registerPartial("sharing", sharingTpl)
+  const bookFeatureTpl = await Files.loadTemplate(config.templatesDir, templateType, 'bookFeature.html')
+  Handlebars.registerPartial("bookFeature", bookFeatureTpl)
 
   // Templates for the main site pages
-  const mainTpl = await Files.loadTemplate(config.templatesDir, templateType, config.menu.main.template)
-  const altTpl = await Files.loadTemplate(config.templatesDir, templateType, config.menu.alt.template)
-  const newsTpl = await Files.loadTemplate(config.templatesDir, templateType, config.menu.news.template)
-  const contactUsTpl = await Files.loadTemplate(config.templatesDir, templateType, config.menu.contact.template)
+  const menuTemplates = await Promise.all(config.menu.map(async m => {
+    return {
+      name: m.name,
+      pageId: m.pageId,
+      bin: await Files.loadTemplate(config.templatesDir, templateType, m.template)
+    }
+  }))
+
   // Template for each book page
   const itemTpl = await Files.loadTemplate(config.templatesDir, templateType, 'item.html')
   const catchupTpl = await Files.loadTemplate(config.templatesDir, templateType, 'catchup.html')
@@ -699,6 +728,9 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     style: data.style
   }
 
+  //
+  renderData.items.useCarousel = renderData.items.length >= Number(config.minBooksForCarousel)
+
   // Write custom content pages defined in Config:
   if (config.customPages) {
     Promise.all(Object.keys(config.customPages).map(async pageId => {
@@ -731,11 +763,11 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     // Write book pages
     const bookShare = bookToShare(Object.assign(autoPromo, elem));
     bookShare.url = `/p/fb/${elem.id}-${autoPromo.name}`
-    let content = itemTpl({ book: elem, share: bookShare, style: data.style }, tplData);
+    let content = itemTpl({ pageId: 'books', book: elem, share: bookShare, style: data.style }, tplData);
     await Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
     if (elem.catchup && elem.series) {
-      content = catchupTpl({ book: elem, share: bookShare, style: data.style }, tplData);
+      content = catchupTpl({ pageId: 'books', book: elem, share: bookShare, style: data.style }, tplData);
       await Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
     }
   }))
@@ -778,7 +810,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
   await Promise.all(data.authors.map(async function(elem) {
-    let content = groupTpl({ group: elem, share: groupToShare(elem, 'author', 'books.author'), style: data.style }, tplData)
+    let content = groupTpl({ pageId: 'author', group: elem, share: groupToShare(elem, 'author', 'books.author'), style: data.style }, tplData)
     await Files.savePage(outputDir + '/author/' + elem.id + '.html', content)
     if (elem.image) {
       Files.ensurePath(Path.join(outputDir, elem.image))
@@ -788,19 +820,22 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each series, render a new series page based on the series template
   await Promise.all(data.series.map(async function(elem) {
-    let content = groupTpl({ group: elem, share: groupToShare(elem, 'series', 'books'), style: data.style }, tplData)
+    let content = groupTpl({ pageId: 'books', group: elem, share: groupToShare(elem, 'series', 'books'), style: data.style }, tplData)
     await Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
   }))
 
   // Render main pages
-  await Files.savePage(`${outputDir}/${config.menu.main.name}.html`, mainTpl(renderData, tplData))
-  await Files.savePage(`${outputDir}/${config.menu.alt.name}.html`, altTpl(renderData, tplData))
-  await Files.savePage(`${outputDir}/${config.menu.news.name}.html`, newsTpl(renderData, tplData))
+  await Promise.all(menuTemplates.map(async tpl => {
+    renderData.pageId = tpl.pageId
+    return await Files.savePage(`${outputDir}/${tpl.name}.html`, tpl.bin(renderData, tplData))
+  }))
+
+  // News category pages
+  const newsTpl = menuTemplates.find(p => p.name === 'news').bin
   await Promise.all(Object.keys(data.postsByCat).map(async catId => {
     let category = data.postsByCat[catId];
-    await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { news: category.posts, category: category }), tplData))
+    await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { pageId: 'news', news: category.posts, category: category }), tplData))
   }))
-  await Files.savePage(`${outputDir}/${config.menu.contact.name}.html`, contactUsTpl(renderData, tplData))
 
   // Render stylesheets
   console.log("Rendering stylsheets.")
@@ -1049,12 +1084,14 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
   // TODO: Externalize these lists into config.
   var typePluralMap = {
     book: "books",
+    novella: "novellas",
     short: "shorts",
     anthology: "anthologies"
   };
 
   var displayNameMap = {
     books: "Novels",
+    novellas: "Novellas",
     shorts: "Short Stories",
     anthologies: "Anthologies"
   };
@@ -1103,11 +1140,11 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     if (author.pubs) {
       Object.keys(author.pubs).forEach(pubKey => {
         const pub = author.pubs[pubKey]
-        pub.useCarousel = pub.list.length > MIN_PUBS_FOR_CAROUSEL
+        pub.useCarousel = pub.list.length >= Number(config.minBooksForCarousel)
         pubCount += pub.list.length
       })
     }
-    author.useCarousel = pubCount > MIN_PUBS_FOR_CAROUSEL
+    author.useCarousel = pubCount >= Number(config.minBooksForCarousel)
   })
 }
 

@@ -1,30 +1,30 @@
 
 {
-    "menu": {
-        "main": {
-            "name": "index",
-            "title": "AUTHORS",
-            "desc": "Landing page!",
-            "template": "grouped.html"
-        },
-        "alt": {
-            "name": "social",
-            "title": "SOCIAL",
-            "desc": "Social media hub!",
-            "template": "social.html"
-        },
-        "news": {
-            "name": "news",
-            "title": "NEWS",
-            "desc": "The latest updates!",
-            "template": "news.html"
-        },
-        "contact": {
-            "name": "contact_us",
-            "title": "CONTACT",
-            "template": "contact_us.html"
-        }
-    },
+    "menu": [{
+        "name": "index",
+        "pageId": "books",
+        "title": "BOOKS",
+        "desc": "All my books",
+        "template": "grouped.html"
+      },{
+        "name": "social",
+        "pageId": "social",
+        "title": "SOCIAL",
+        "desc": "Social media hub",
+        "template": "social.html"
+      },{
+        "name": "news",
+        "pageId": "news",
+        "title": "NEWS",
+        "desc": "The latest updates",
+        "template": "news.html"
+      },{
+        "name": "contact",
+        "pageId": "contact",
+        "title": "CONTACT",
+        "template": "contact_us.html"
+      }
+    ],
 
     "fonts": [],
 

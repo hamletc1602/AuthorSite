@@ -9,7 +9,14 @@
         "extraLarge": null,
         "text": "Rebecca Brae",
         "fontFamily": "Brush Script MT",
-        "letterSpacing": "5px"
+        "letterSpacing": "5px",
+        "fontSizeSmall": "30pt",
+        "fontSizeMedium": "60pt",
+        "fontSizeLarge": "60pt",
+        "fontSizeExtraLarge": "60pt",
+        "textOffsetMedium": "5%",
+        "textOffsetLarge": "6%",
+        "textOffsetExtraLarge": "10%"
     },
 
     "coverPromoBackground": "promotion/near-black.png",

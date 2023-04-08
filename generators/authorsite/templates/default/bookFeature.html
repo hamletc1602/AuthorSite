@@ -1,0 +1,38 @@
+<div class="bookfeature">
+    <div class="bookFeatureBlock">
+      <div class="distributorList bookFeatureTop">
+        <div class="distributorLink">
+          <span class="title">Buy now at:</span>
+          {%#distributors%}
+            <a href="{%url%}" target="_blank" aria-label="{%name%}">
+            <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+            </a>
+          {%/distributors%}
+        </div>
+        {%> sharing . %}
+      </div>
+
+      <div class="bookCover"><img src="{%@config.imagePath%}/{%featureCoverImage%}"></div>
+      <div class="bookBlurbWrapper">
+        <div class="bookTitle">{%title%}</div>
+        {%#if seriesIndex%}
+        <div class="bookSeriesTitle">Book {%seriesIndex%} of the {%seriesName%} series</div>
+        {%/if%}
+        <div class="bookLogline" style="color: {%loglineColor%};">{%logline%}</div>
+        <div class="bookBlurb">{%noescape blurb%}</div>
+      </div>
+      <div class="distributorList bookFeatureBottom">
+        <div class="distributorLink">
+          <span class="title">Buy now at:</span>
+          {%#distributors%}
+            <a href="{%url%}" target="_blank" aria-label="{%name%}">
+            <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+            </a>
+          {%/distributors%}
+        </div>
+        <div class="sharing">
+          {%> sharing . %}
+        </div>
+      </div>
+    </div>
+</div>

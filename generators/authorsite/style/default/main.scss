@@ -61,6 +61,10 @@ html {
 	font-size: 100%;
 }
 
+.header-menu-container {
+	justify-content: flex-end;
+}
+
 .header-menu {
 	min-height: 90px;
 	text-align: right;
@@ -874,7 +878,6 @@ a.themebtn {
 
 			.page-header-logo-text-defaults {
 				display: inline-block;
-				font-size: 30pt;
 				white-space: nowrap;
 			}
 
@@ -891,6 +894,9 @@ a.themebtn {
 				<%#logo.letterSpacing%>
 				letter-spacing: <%.%>
 				<%/logo.letterSpacing%>
+				<%#logo.textOffsetSmall%>
+				margin-left: <%.%>;
+				<%/logo.textOffsetSmall%>
 			}
 
 			<%#if textColor %>
@@ -1203,14 +1209,15 @@ a.themebtn:hover {
 			}
 
 			.page-header-logo-text-defaults {
-				font-size: 50pt;
-				margin-left: 5%;
 			}
 
 			.page-header-logo-text {
 				<%#logo.fontSizeMedium%>
 				font-size: <%.%>;
 				<%/logo.fontSizeMedium%>
+				<%#logo.textOffsetMedium%>
+				margin-left: <%.%>;
+				<%/logo.textOffsetMedium%>
 			}
 
 			.bookFeatureBlock {
@@ -1290,14 +1297,15 @@ a.themebtn:hover {
 			}
 
 			.page-header-logo-text-defaults {
-				font-size: 70pt;
-				margin-left: 6%;
 			}
 
 			.page-header-logo-text {
 				<%#logo.fontSizeLarge%>
 				font-size: <%.%>;
 				<%/logo.fontSizeLarge%>
+				<%#logo.textOffsetLarge%>
+				margin-left: <%.%>;
+				<%/logo.textOffsetLarge%>
 			}
 		}
 	<%/style%>
@@ -1362,6 +1370,9 @@ a.themebtn:hover {
 			<%#logo.fontSizeExtraLarge%>
 			font-size: <%.%>;
 			<%/logo.fontSizeExtraLarge%>
+			<%#logo.textOffsetExtraLarge%>
+			margin-left: <%.%>;
+			<%/logo.textOffsetExtraLarge%>
 		}
 	<%/style%>
 

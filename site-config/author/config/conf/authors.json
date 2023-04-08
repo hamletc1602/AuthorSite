@@ -1,17 +1,4 @@
 [{
-    "name": "Adriaan Brae",
-    "socialMediaLinks": [{
-            "name": "Facebook", "url": "www.facebook.com/pages/..."
-        },{
-            "name": "Twitter", "url": "twitter.com/..."
-        },{
-            "name": "Amazon", "url": "amazon.com/author/..."
-        }],
-    "image": "bios/adriaan.png",
-    "imageLink": "",
-    "content": "bios/adriaan.md"
-},
-{
     "name": "Rebecca Brae",
     "socialMediaLinks": [{
             "name": "Facebook", "url": "www.facebook.com/pages/..."
@@ -25,7 +12,7 @@
     "content": "bios/rebecca.md"
 },
 {
-    "name": "Linked Author Name",
+    "name": "Adriaan Brae",
     "external": true,
-    "url": ""
+    "url": "www.braevitae.com/author/AdriaanBrae"
 }]

@@ -8,6 +8,10 @@
     "copyrightShort": "&copy; {%yyyy%} {%siteName%}",
     "copyright": "Copyright &copy; {%yyyy%} {%siteName%}",
 
+    "minBooksForList": 5,
+    "minBooksForCategories": 10,
+    "minBooksForCarousel": 4,
+
     "license": {
         "display": true,
         "url": "creativecommons.org/licenses/by-nd/2.5/ca/",

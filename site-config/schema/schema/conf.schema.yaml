@@ -111,6 +111,22 @@ properties:
         desc: Height in pixels for the default site image.
         hidden: true
 
+  minBooksForList:
+    disp: Min Books for List
+    type: number
+    desc: The minimum number of total books for when a list will show on the main page under one featured block, instead of showing only featured blocks.
+    hidden: true
+  minBooksForCategories:
+    disp: Min Books for Categories
+    type: number
+    desc: The minimum number of total books for when the list of books will be broken out into categories by type, instead of shown as a single list.
+    hidden: true
+  minBooksForCarousel:
+    disp: Min Books for Carousel
+    type: number
+    desc: The minimum number of books in a list for when a scrolling carousel will be used, instead of a static list.
+    hidden: true
+
   fbAdminCode:
     disp: Facebook Admin Code
     type: string

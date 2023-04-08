@@ -65,17 +65,16 @@
   <div class="pure-g">
 
   <div class="pure-u-1 page-header">
-    <div class="pure-g">
+    <div class="pure-g header-menu-container">
       <div class="pure-u-6-24 pure-u-md-2-24 pure-u-lg-4-24">
         <div class="page-header-logo"></div>
         <a class="page-header-logo-link" href="{%@config.rootPath%}/index" aria-label="Home"></a>
       </div>
       <div class="pure-u-18-24 pure-u-md-20-24 pure-u-lg-19-24 page-header-inner">
         <ul class="pure-menu pure-menu-open pure-menu-list pure-menu-horizontal header-menu">
-          <li class="pure-menu-item"><a class='{%#if mainPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.main.name%}' alt='{%@config.menu.main.desc%}'>{%@config.menu.main.title%}</a></li>
-          <li class="pure-menu-item"><a class='{%#if altPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.alt.name%}' alt='{%@config.menu.alt.desc%}'>{%@config.menu.alt.title%}</a></li>
-          <li class="pure-menu-item"><a class='{%#if newsPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.news.name%}' alt='{%@config.menu.news.desc%}'>{%@config.menu.news.title%}</a></li>
-          <li class="pure-menu-item"><a class='{%#if contactPage%}selected{%/if%}' href='{%@config.rootPath%}/{%@config.menu.contact.name%}' alt='Contact {%siteName%}!'>{%@config.menu.contact.title%}</a></li>
+          {%#@config.menu%}
+            <li class="pure-menu-item"><a class='{%#equal ../id pageId %}selected{%/equal%}' href='{%@config.rootPath%}/{%name%}' alt='{%desc%}'>{%title%}</a></li>
+          {%/@config.menu%}
         </ul>
       </div>
     </div>

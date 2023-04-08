@@ -79,6 +79,22 @@ properties:
         disp: Font Size Extra Large
         desc: Optional. Size of the logo text at extra large widths. Any CSS size value can be used here, but note that it will override the default values.
         type: string
+      textOffsetSmall:
+        disp: Text Offset Small
+        desc: Optional. Text offset from the left edge at  small widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      textOffsetMedium:
+        disp: Text Offset Medium
+        desc: Optional. Text offset from the left edge at  medium widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      textOffsetLarge:
+        disp: Text Offset Large
+        desc: Optional. Text offset from the left edge at  large widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
+      textOffsetExtraLarge:
+        disp: Text Offset Extra Large
+        desc: Optional. Text offset from the left edge at  extra large widths. Any CSS size value can be used here, but note that it will override the default values.
+        type: string
   coverPromoBackground:
     disp: Cover Promo Background Image
     desc: Background image used when generating social medai promo images from book covers.
