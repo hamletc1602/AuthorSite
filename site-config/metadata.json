@@ -1,5 +1,10 @@
 [{
-    "id": "publisher",
+    "id": "Author",
+    "name": "Author",
+    "description": "Site for authors to showcase their books.",
+    "access": "public"
+},{
+    "id": "Publisher",
     "name": "Publisher",
     "description": "Site for publishers to showcase books from multiple authors.",
     "access": "public"

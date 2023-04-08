@@ -596,7 +596,7 @@ AwsUtils.prototype.getCurrentLock = async function(adminUiBucket) {
 AwsUtils.prototype.bucketExists = async function(bucketName) {
   try {
     const data = await this.s3.listBuckets().promise()
-    return data.Buckets.find(p => p.name === bucketName)
+    return data.Buckets.find(p => p.Name === bucketName)
   } catch (e) {
     console.log('Failed to get list of buckets:', e)
   }

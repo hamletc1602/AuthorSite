@@ -51,6 +51,11 @@ exports.handler = async (event, _context) => {
     case 'updateAdminUi':
       return updateAdminUi(publicBucket, adminUiBucket, event.body)
     case 'saveTemplate':
+      // Args:
+      // id: ID of the template with the data to save
+      // name: New name, and ID, for the saved template
+      // description: A text descripton of the new template.
+      // overwrite: A flag that allows template overwrite
       return saveTemplate(sharedBucket, adminBucket, event.body)
     case 'setPassword':
       return setPassword(adminBucket, event.body)
@@ -180,6 +185,12 @@ async function upateTemplate(publicBucket, adminBucket, params) {
         if (/config\/schema/.test(entry.path)
           || /config\/template/.test(entry.path)
           || /config\/editors\.yaml/.test(entry.path)
+          // This one config file is also non-editable.
+          //       TODO: Should look in editors.yaml for data files with no schema, instead of hard-coding (this would also
+          //       allow new non-editable data files to be added)
+          || /config\/conf\/structure.json/.test(entry.path)
+          // TODO: This process will not allow new editable data files to be added. Maybe we need to try to write all files, and
+          // just prevent overwrite for certain paths.
         ) {
           const path = '/tmp/' + entry.path
           console.log(`Write file: ${path}`)
@@ -214,6 +225,51 @@ async function upateTemplate(publicBucket, adminBucket, params) {
       console.log(`Broken template. Missing editors.yaml. Error: ${JSON.stringify(error)}`)
       await aws.displayUpdate({}, 'update', 'Broken template. Missing editors.yaml')
     }
+    // Update this site's list of templates, merging any new templates added to the template metadata list
+    // in the public or shared buckets.
+    let sharedTemplates = []
+    try {
+      const templateMetadataObj = await aws.get(sharedBucket, 'AutoSite/site-config/metadata.json')
+      if (templateMetadataObj) {
+        const templatesStr = templateMetadataObj.Body.toString()
+        if (templatesStr) {
+          sharedTemplates = JSON.parse(templatesStr)
+        }
+      }
+    } catch (e) {
+      console.log(`Get templates metadata from shared bucket. ${e.message}`, e)
+    }
+    let publicTemplates = []
+    {
+      const templateMetadataObj = await aws.get(publicBucket, 'AutoSite/site-config/metadata.json')
+      if (templateMetadataObj) {
+        const templatesStr = templateMetadataObj.Body.toString()
+        if (templatesStr) {
+          publicTemplates = JSON.parse(templatesStr)
+        }
+      }
+    }
+    const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
+    if (adminConfigBuff) {
+      const adminConfig = JSON.parse(adminConfigBuff.toString())
+      for (const tpl of sharedTemplates) {
+        const exists = adminConfig.templates.find(p => p.id === tpl.id)
+        if ( ! exists) {
+          console.log(`Add shared template ${tpl.name} to site admin state.`)
+          adminConfig.templates.push(tpl)
+        }
+      }
+      for (const tpl of publicTemplates) {
+        const exists = adminConfig.templates.find(p => p.id === tpl.id)
+        if ( ! exists) {
+          console.log(`Add public template ${tpl.name} to site admin state.`)
+          adminConfig.templates.push(tpl)
+        }
+      }
+      // Update site config
+      await aws.put(adminBucket, 'admin/admin.json', 'application/json', JSON.stringify(adminConfig), 0, 0)
+      console.log(`Completed updating templates list.`)
+   }
   } catch (error) {
     console.log(`Failed update with ${templateName} template.`, error)
     await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true }, 'update', `Failed update of ${templateName} template. Error: ${error.message}.`)
@@ -453,7 +509,9 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
       if (await aws.get(sharedBucket, bucketPath)) {
         exist = true
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore
+    }
     if ( ! exist) {
       console.log(`Save bundle to shared bucket: ${sharedBucket}:${bucketPath}`)
       await aws.put(sharedBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
@@ -467,7 +525,9 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
       if (await aws.get(adminBucket, bucketPath)) {
         exist = true
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore
+    }
     if ( ! exist) {
       console.log(`Save bundle to admin bucket: ${adminBucket}:${bucketPath}`)
       await aws.put(adminBucket, bucketPath, null, Fs.readFileSync(archiveLocalPath))
@@ -476,7 +536,7 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
       nameExists = true
     }
   }
-  if (nameExists) {
+  if (nameExists && ( ! params.overwrite)) {
     const msg = `Skip save template. Name ${params.name} already exists`
     console.error(msg)
     // Put error into display state
@@ -485,23 +545,27 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
   if (success) {
     try {
       const template = {
-        id: params.id,
+        //id: params.id,  // Keep Name and ID the same for now, since ID is how the templates are found in the list.
+        id: params.name,
         name: params.name,
         access: shared ? 'shared' : 'private',
         description: params.desc
       }
-      console.log(`Add new template ${template.name} to the admin state`, template)
-      aws.addTemplate(template)
+      console.log(`Add new template ${template.name} to the admin state (async)`, template)
+      await aws.addTemplate(template)
       if (shared) {
-        console.log(`Add templates to the shared bucket metadata`)
-        const metadataStr = aws.get(sharedBucket, 'AutoSite/site-config/metadata.json')
+        console.log(`Add template to the shared bucket metadata`)
+        const metadataStr = (await aws.get(sharedBucket, 'AutoSite/site-config/metadata.json')).Body.toString()
         const metadata = JSON.parse(metadataStr)
         metadata.push(template)
-        aws.put(sharedBucket,  'AutoSite/site-config/metadata.json', null, JSON.stringify(metadata))
+        await aws.put(sharedBucket,  'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
       }
+      console.log(`Signal Add template complete`)
       await aws.displayUpdate({ savingTpl: false, saveTplError: false, saveTplErrMsg: '' }, 'saveTemplate', `Saved new template: ${params.name}`)
     } catch (e) {
-      await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Failed to update templates list ${e.message}` }, 'saveTemplate', `Failed to update templates list ${e.message}`)
+      const msg = `Failed to update templates list ${e.message}`
+      console.log(msg, e)
+      await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: msg }, 'saveTemplate', `Failed to update templates list ${e.message}`)
     }
   }
 }
