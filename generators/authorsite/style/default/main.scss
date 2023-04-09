@@ -347,6 +347,7 @@ html {
 .booklistStatic {
 	display: flex;
 	justify-content: center;
+	flex-wrap: nowrap;
 }
 
 .booklist-nav {
@@ -385,7 +386,8 @@ html {
 
 .booklist-display {
 	position: relative;
-	/* white-space: nowrap;   Disable this until the book list scrolling is fixed. */
+    flex-wrap: nowrap;
+    display: flex;
 }
 
 .booklist-item {
