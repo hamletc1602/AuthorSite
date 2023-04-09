@@ -54,8 +54,10 @@
   <link href='{%@config.stylePath%}/pure-min.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
   <link href='{%@config.stylePath%}/grid-min.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
 {%/if%}
-<link href='{%@config.stylePath%}/slick.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
-<link href='{%@config.stylePath%}/slick-theme.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
+{%#if uiApp%}
+  <link href='{%@config.stylePath%}/slick.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
+  <link href='{%@config.stylePath%}/slick-theme.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
+{%/if%}
 <link href='{%@config.stylePath%}/images.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
 <link href='{%@config.stylePath%}/main.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
 
@@ -157,10 +159,12 @@
   </div>
 
   <!-- Script -->
-  {%#if @config.debug %}
-    <script src="{%@config.scriptPath%}/app.js?v={%@config.buildId%}"></script>
-  {%else%}
-    <script src="{%@config.scriptPath%}/app.min.js?v={%@config.buildId%}"></script>
+  {%#if uiApp%}
+    {%#if @config.debug %}
+      <script src="{%@config.scriptPath%}/app.js?v={%@config.buildId%}"></script>
+    {%else%}
+      <script src="{%@config.scriptPath%}/app.min.js?v={%@config.buildId%}"></script>
+    {%/if%}
   {%/if%}
 
   {%#if @config.debug %}

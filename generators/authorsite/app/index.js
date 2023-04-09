@@ -31,6 +31,14 @@ Handlebars.registerHelper('urlEncode', (text) => {
   return encodeURIComponent(text);
 });
 
+Handlebars.registerHelper("equal", function(value1, value2, options) {
+  if (value1 === value2) {
+    return options.fn(this);
+  } else {
+    return options.inverse(this);
+  }
+});
+
 Handlebars.registerHelper('versionUrl', (options) => {
     let ret = options.fn(this);
     let sepChar = '?'
@@ -45,14 +53,6 @@ Handlebars.registerHelper('versionUrl', (options) => {
     // hash in the right directory.
     return new Handlebars.SafeString(ret + sepChar + Files.getMd5ForFile(ret))
 })
-
-Handlebars.registerHelper("equal", function(value1, value2, options) {
-  if (value1 === value2) {
-    return options.fn(this);
-  } else {
-    return options.inverse(this);
-  }
-});
 
 /** Main Entry Point */
 const handler = async (event, context) => {

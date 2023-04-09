@@ -1,4 +1,4 @@
-{%#> page id=pageId %}
+{%#> page id=pageId uiApp=@config.useBookLists %}
 
 <div class="page-home contentNoPanel">
 
@@ -61,6 +61,7 @@
 
 </div>
 
+{%#if @config.useBookLists%}
 <script>
   const breakPoints = [{
     minStaticWidth: ({%items.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
@@ -74,14 +75,6 @@
   {%/each%}
   }]
   let resizeDebounce = null
-
-  function selectFeature(id) {
-    const featuresList = document.getElementsByClassName('bookfeature')
-    for (var i = 0; i < featuresList.length; ++i) {
-      const elem = featuresList[i]
-      elem.classList.toggle("selected", elem.id === ('book-feature-' + id));
-    }
-  }
 
   function handleResize() {
     breakPoints.map(bp => {
@@ -119,14 +112,24 @@
     }, 250)
   }
 
+  handleResize()
+
+  function selectFeature(id) {
+    const featuresList = document.getElementsByClassName('bookfeature')
+    for (var i = 0; i < featuresList.length; ++i) {
+      const elem = featuresList[i]
+      elem.classList.toggle("selected", elem.id === ('book-feature-' + id));
+    }
+  }
+
   // Invoke on page load
   {%#with (lookup items 0)~%}
     selectFeature('{%id%}')
   {%/with%}
 
-  handleResize()
 </script>
 
 <div id="booksSlider"></div>
+{%/if%}
 
 {%/page%}
