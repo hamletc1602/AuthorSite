@@ -3,44 +3,16 @@
 <div class="page-home contentNoPanel">
 
 {%#if @config.useBookLists%}
-  {%> bookFeature feature %}
-{%else%}
-  {%#items%}
-    {%> bookFeature . %}
-  {%/items%}
-{%/if%}
-
-{%#if @config.useBookLists%}
-{%#if @config.useBookCategories%}
-  {%#each group.pubs%}
-  <h2 class="" id="{%typePlural%}">{%displayName%}</h2>
-  <p>
-  <div class="booklist">
-    <div class="booklist-display">
-      {%#list%}
-      <div class="booklist-item booklist-item{%@index%}">
-        <div class="bookCoverImage {%id%}CoverIcon">
-          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
-          {%#if published%}
-          <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
-          {%else%}
-          <div class="comingSoon">Coming Soon!</div>
-          {%/if%}
-        </div>
-      </div>
-      {%/list%}
+  {%#if ../items.useCarousel%}
+    <div class="booklist booklistCarousel booklistCarousel{%../items.length%} hidden">
+      <div id="{%group.id%}_pubs" data-onclick="selectFeature" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
     </div>
-  </div>
-  </p>
-  {%/each%}
-{%else%}
-  {%#items%}
-    {%#if ../items.useCarousel%}
-      <div id="{%id%}_pubs" class="booklist" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
-    {%else%}
+  {%/if%}
+  <div class="booklist booklistStatic booklistStatic{%../items.length%}">
+    {%#items%}
       <div class="booklist-item booklist-item{%@index%}">
         <div class="bookCoverImage {%id%}CoverIcon">
-          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+          <a class="bookCoverLink" onclick="selectFeature('{%id%}')" aria-label="{%title%}"></a>
           {%#if published%}
             <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">{%@config.publishedStickerText%}</a>
           {%else%}
@@ -48,12 +20,112 @@
           {%/if%}
         </div>
       </div>
-    {%/if%}
+    {%/items%}
+  </div>
+  <div class="bookFeatureContainer">
+    {%#items%}
+      {%> bookFeature . %}
+    {%/items%}
+  </div>
+  {%#if @config.useBookCategories%}
+    {%#each group.pubs%}
+      <h2 class="" id="{%@key%}">{%displayName%}</h2>
+      {%#if useCarousel%}
+        <div class="booklist booklistCarousel booklistCarousel{%list.length%} hidden">
+          <div id="{%../group.id%}_{%@key%}" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
+        </div>
+      {%/if%}
+      <div class="booklist booklistStatic booklistStatic{%list.length%}">
+        <div class="booklist-display">
+          {%#list%}
+          <div class="booklist-item booklist-item{%@index%}">
+            <div class="bookCoverImage {%id%}CoverIcon">
+              <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+              {%#if published%}
+              <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
+              {%else%}
+              <div class="comingSoon">Coming Soon!</div>
+              {%/if%}
+            </div>
+          </div>
+          {%/list%}
+        </div>
+      </div>
+    {%/each%}
+  {%/if%}
+{%else%}
+  {%#items%}
+    {%> bookFeature . %}
   {%/items%}
-{%/if%}
 {%/if%}
 
 </div>
+
+<script>
+  const breakPoints = [{
+    minStaticWidth: ({%items.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
+    carouselCls: 'booklistCarousel' + {%items.length%},
+    staticCls: 'booklistStatic' + {%items.length%}
+  {%#each group.pubs%}
+  },{
+    minStaticWidth: ({%list.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
+    carouselCls: 'booklistCarousel' + {%list.length%},
+    staticCls: 'booklistStatic' + {%list.length%}
+  {%/each%}
+  }]
+  let resizeDebounce = null
+
+  function selectFeature(id) {
+    const featuresList = document.getElementsByClassName('bookfeature')
+    for (var i = 0; i < featuresList.length; ++i) {
+      const elem = featuresList[i]
+      elem.classList.toggle("selected", elem.id === ('book-feature-' + id));
+    }
+  }
+
+  function handleResize() {
+    breakPoints.map(bp => {
+      //console.log('In resize breakpoint. Window width: ' + window.innerWidth + ' min static list width: ' + bp.minStaticWidth)
+      if (window.innerWidth < bp.minStaticWidth) {
+        toggleCarouselVisibility(bp, true)
+      } else {
+        toggleCarouselVisibility(bp, false)
+      }
+    })
+  }
+
+  function toggleCarouselVisibility(breakPoint, showCarousel) {
+    // if (showCarousel) {
+    //   console.log('Toggle visibility on for ' + breakPoint.carouselCls + ' off for ' + breakPoint.staticCls)
+    // } else {
+    //   console.log('Toggle visibility on for ' + breakPoint.staticCls + ' off for ' + breakPoint.carouselCls)
+    // }
+    const carouselList = document.getElementsByClassName(breakPoint.carouselCls)
+    const staticList = document.getElementsByClassName(breakPoint.staticCls)
+    for (var i = 0; i < carouselList.length; ++i) {
+      const elem = carouselList[i]
+      elem.classList.toggle("hidden", !showCarousel);
+    }
+    for (var i = 0; i < staticList.length; ++i) {
+      const elem = staticList[i]
+      elem.classList.toggle("hidden", showCarousel);
+    }
+  }
+
+  window.onresize = (ev) => {
+    clearTimeout(resizeDebounce)
+    resizeDebounce = setTimeout(() => {
+      handleResize()
+    }, 250)
+  }
+
+  // Invoke on page load
+  {%#with (lookup items 0)~%}
+    selectFeature('{%id%}')
+  {%/with%}
+
+  handleResize()
+</script>
 
 <div id="booksSlider"></div>
 

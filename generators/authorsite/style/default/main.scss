@@ -25,6 +25,10 @@ $unpublishedMarkerWidth: "<%@config.unpublishedMarkerWidth%>px";
 /** Social Media Sharing Buttons (https://sharingbuttons.io/) ******/
 @import 'sharing';
 
+.hidden {
+	display: none !important;
+}
+
 .bookFeatureBlock {
 	.sharing {
 		margin-top: 2em;
@@ -330,6 +334,21 @@ html {
 
 
 /** Book List ***************************************/
+.booklist {
+	margin-bottom: 1em;
+
+	.links {
+		img {
+			border-radius: 3px;
+		}
+	}
+}
+
+.booklistStatic {
+	display: flex;
+	justify-content: center;
+}
+
 .booklist-nav {
 	position: relative;
 	overflow: hidden;
@@ -378,14 +397,6 @@ html {
 	float: right;
 	vertical-align: top;
 	padding: 5px;
-}
-
-.booklist {
-	.links {
-		img {
-			border-radius: 3px;
-		}
-	}
 }
 
 /** Book Table ***************************************/
@@ -550,7 +561,7 @@ html {
 	.contentNoPanel {
 		margin-top: 20px;
 
-		h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
+		h1, h2, .bookfeature, .sectTitle, .sectDesc {
 			margin: 0px auto;
 		}
 
@@ -566,6 +577,17 @@ html {
 
 .sectDesc {
 	margin-bottom: 30px;
+}
+
+.bookFeatureContainer {
+	.bookfeature {
+		display: none;
+	}
+	.bookfeature {
+		&.selected {
+			display: block
+		}
+	}
 }
 
 .bookFeatureBlock {

@@ -8,9 +8,9 @@
     "copyrightShort": "&copy; {%yyyy%} {%siteName%}",
     "copyright": "Copyright &copy; {%yyyy%} {%siteName%}",
 
-    "minBooksForList": 5,
+    "minBooksForList": 3,
     "minBooksForCategories": 10,
-    "minBooksForCarousel": 4,
+    "minBooksForCarousel": 2,
 
     "license": {
         "display": true,

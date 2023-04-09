@@ -12,7 +12,7 @@ export default class BooksSlider extends React.Component {
       ...this.state.settings,
       dots: false,
       //infinite: this.state.slides.length > 3,
-      speed: 500,
+      speed: 1000,
       slidesToShow: 1,
       slidesToScroll: 1,
       variableWidth: true
@@ -43,7 +43,11 @@ export default class BooksSlider extends React.Component {
                 <div key={slide.id} className={`booklist-item booklist-item${index}`}>
                   { titleBlock }
                   <div className={`bookCoverImage ${slide.id}CoverIcon`}>
-                    <a className="bookCoverLink" href={slide.detailsUrl} aria-label={slide.title}></a>
+
+                    <a className="bookCoverLink"
+                      href={settings.onClick ? null : slide.detailsUrl}
+                      onClick={settings.onClick ? () => settings.onClick(slide.id) : null}
+                      aria-label={slide.title}></a>
                     {
                       overlay
                     }

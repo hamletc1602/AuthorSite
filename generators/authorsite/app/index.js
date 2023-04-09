@@ -1162,6 +1162,7 @@ const filterAuthorMap = (config, authorMap) => {
         let pubType = author.pubs[pubTypeName]
         return {
           showTitles: config.showTitlesOnGroupedPage,
+          pubType: pubTypeName,
           list: pubType.list.map(pub => {
             return {
               id: pub.id,

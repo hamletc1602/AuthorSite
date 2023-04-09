@@ -7,21 +7,12 @@ import FeedbackButton from './feedback.jsx'
 import breakpoints from './breakpoints.json'
 import authorMap from './authorMap.json'
 
-
 textCollapse();
 bookLists();
 feedback();
 copyToClipboard();
 
 // Rendering support //////////////////////////////////////////////////////////
-
-/* Disable theme select. Not very useful now we have local builds. Will likely repurpose this kind of UI for
-   notifications like "sign up for email list!"
-function themeSelection() {
-    // Render theme selection buttons
-    ReactDOM.render(<ThemeSelector themes={skins} />, document.getElementById('themeSelect'))
-}
-*/
 
 function bookLists() {
     const bookSliderSettings = {
@@ -60,6 +51,26 @@ function bookLists() {
       }]
     }
 
+    // Update static slider settings based on current page context, including the data attributes
+    // on the component shadow element.
+    function updateSettings(settings, elem) {
+      const overlayText = elem.getAttribute('data-overlayText');
+      if (overlayText) {
+        let overlayParts = overlayText.split('/');
+        settings.overlayPublished = overlayParts[0];
+        settings.overlayUnpublished = overlayParts[1];
+      }
+      const onClickFuncName = elem.getAttribute('data-onclick');
+      if (onClickFuncName) {
+        if (window[onClickFuncName]) {
+          //console.log('Found bookslider onclick function: ' + onClickFuncName)
+          settings.onClick = window[onClickFuncName]
+        } else {
+          //console.log('Unabled to find bookslider onclick function: ' + onClickFuncName)
+        }
+      }
+    }
+
     // Render book lists
     Object.keys(authorMap).map(authorName => {
       let author = authorMap[authorName]
@@ -67,31 +78,23 @@ function bookLists() {
 
       // Books list by author.
       if (author.pubs) {
-        Object.keys(author.pubs).map(typeName => {
-          let pub = author.pubs[typeName]
+        author.pubs.map(pub => {
           allPubs.push(...pub.list)
-
-          let elem = document.getElementById(author.id + '_' + pub.typePlural);
-          if (elem && pub.list.length > 2) {
-            let overlayText = elem.getAttribute('data-overlayText');
-            if (overlayText) {
-              let overlayParts = overlayText.split('/');
-              bookSliderSettings.overlayPublished = overlayParts[0];
-              bookSliderSettings.overlayUnpublished = overlayParts[1];
-            }
+          const elemId = author.id + '_' + pub.pubType
+          const elem = document.getElementById(elemId);
+          if (elem) {
+            //console.log('Found bookslider elem for: ' + elemId)
+            updateSettings(bookSliderSettings, elem)
             bookSliderSettings.showTitles = pub.showTitles;
             ReactDOM.render(<BooksSlider settings={bookSliderSettings} books={pub.list} />, elem);
+          } else {
+            //console.log('Unable to find bookslider elem for: ' + elemId)
           }
         })
 
         let elem = document.getElementById(author.id + '_pubs');
-        if (elem && allPubs.length > 2) {
-          let overlayText = elem.getAttribute('data-overlayText');
-          if (overlayText) {
-            let overlayParts = overlayText.split('/');
-            bookSliderSettings.overlayPublished = overlayParts[0]
-            bookSliderSettings.overlayUnpublished = overlayParts[1]
-          }
+        if (elem) {
+          updateSettings(bookSliderSettings, elem)
           bookSliderSettings.showTitles = author.pubs[0].showTitles;
           ReactDOM.render(<BooksSlider settings={bookSliderSettings} books={allPubs} />, elem);
         }
