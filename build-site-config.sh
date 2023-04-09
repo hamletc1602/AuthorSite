@@ -23,8 +23,7 @@ echo Author
 root=/tmp/authorsite/template/author
 mkdir -p $root
 cp -R site-config/author/ $root
-# mkdir -p $root $root/config/templates/mobile
-# cp -r site-config/author/config/templates/desktop/* $root/config/templates/mobile
+cp -R site-config/schema/schema $root/config/schema
 cd $root
 zip -qr $wdir/target/AutoSite/site-config/author.zip *
 cd $wdir

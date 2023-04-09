@@ -1,4 +1,3 @@
-$offWhite: #EEE;
 
 /** Vibrant Color styles for all the skins */
 <%#style%>
@@ -105,8 +104,17 @@ details > summary {
 	.summary {
 		max-height: 20em;
 		overflow: hidden;
-		text-overflow: ellipsis;
+		border-bottom: 1px solid <%style.textColor%>;
 	}
+	.more {
+		width: 3em;
+		padding: 3px;
+		border-left: 1px solid <%style.textColor%>;
+		border-right: 1px solid <%style.textColor%>;
+		border-bottom: 1px solid <%style.textColor%>;
+		user-select: none;
+		cursor: pointer;
+	 }
 	.less {
 		display: none;
 	}
@@ -118,6 +126,10 @@ details[open] > summary {
 	 }
 	 .less {
 		display: block;
+		width: 2.8em;
+		padding: 3px;
+		border: 1px solid <%style.textColor%>;
+		user-select: none;
 	 }
 }
 
@@ -1063,10 +1075,6 @@ a.themebtn:hover {
 
 		.page-content-inner > .contentNoPanel {
 			margin-top: <%@config.headerHeight.noPanel.md%>;
-
-			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
-				max-width: 800px;
-			}
 		}
 	}
 
@@ -1274,10 +1282,6 @@ a.themebtn:hover {
 
 		.page-content-inner > .contentNoPanel {
 			margin-top: <%@config.headerHeight.noPanel.lg%>;
-
-			h1, h2, .bookfeature, .booklist, .sectTitle, .sectDesc {
-				max-width: 1000px;
-			}
 		}
 	}
 
@@ -1336,18 +1340,6 @@ a.themebtn:hover {
 	}
 	.pure-xl-show {
 		display: inline-block !important;
-	}
-
-	.page-content {
-		.page-content-inner > .contentNoPanel {
-			.bookfeature {
-				max-width: 1200px;
-			}
-
-			h1, h2, .booklist, .sectTitle, .sectDesc {
-				max-width: 1500px;
-			}
-		}
 	}
 
 	<%#style%>

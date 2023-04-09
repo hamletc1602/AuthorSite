@@ -3,15 +3,15 @@
 <div class="authorPage content"><div class="authorsig">
   <a href="{%group.imageLink%}" class="media"><img src="/{%group.image%}" class="mediaright {%group.imageExtraStyle%}" alt="{%group.imageAlt%}"/></a>
 </div>
-<p>
 
-<div class="sectDesc textSlider" sliderMinHeight="180">
-  <div style="max-height: 1000px; overflow: hidden;">
-    {%noescape group.content%}
-  </div>
-</div>
-
-</p>
+<details>
+  <summary>
+    <div class="summary">{%noescape group.content%}</div>
+    <div class="more">More...</div>
+    <!--<div class="less">Close</div>-->
+  </summary>
+  <div class="content">{%noescape group.content%}</div>
+</details>
 
 {%#if group.socialMediaLinks%}
 <h2 class="" id="contact">Contact</h2>

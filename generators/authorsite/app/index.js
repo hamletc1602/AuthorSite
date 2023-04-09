@@ -853,7 +853,7 @@ const renderReactComponents = async (config, outputDir, tempDir, _options) => {
   const absTempDir = (tempDir[0] === '/' ? tempDir : Path.join(__dirname, '..', tempDir))
   const absOutputDir = (outputDir[0] === '/' ? outputDir : Path.join(__dirname, '..', outputDir))
   Files.copyResourcesOverwrite('lib/script-src', Path.join(absTempDir, 'script-src'), [
-    'index.jsx', 'booksSlider.jsx', 'themeSelect.jsx', 'textSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
+    'index.jsx', 'booksSlider.jsx', 'copyToClipboard.jsx', 'feedback.jsx'
   ])
   let nodeModulesPath = require.resolve('babel-loader')
   {
@@ -1102,11 +1102,13 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
       authorName = authorName.trim()
       const author = authorMap[authorName]
       if (author) {
+        author.list = author.list || []
         const pubs = author.pubs || {}
 
         authorObjList.push(author)
 
         // Add books to author
+        author.list.push(pub)
         // Currently, book type is a single-select, but it may change to multi-select in future
         let pubType = pub.type
         if ( ! Array.isArray(pubType)) {
@@ -1136,15 +1138,13 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
   // Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
   Object.keys(authorMap).forEach(authorKey => {
     const author = authorMap[authorKey]
-    let pubCount = 0
     if (author.pubs) {
       Object.keys(author.pubs).forEach(pubKey => {
         const pub = author.pubs[pubKey]
         pub.useCarousel = pub.list.length >= Number(config.minBooksForCarousel)
-        pubCount += pub.list.length
       })
     }
-    author.useCarousel = pubCount >= Number(config.minBooksForCarousel)
+    author.useCarousel = author.list.length >= Number(config.minBooksForCarousel)
   })
 }
 
@@ -1155,7 +1155,8 @@ const filterAuthorMap = (config, authorMap) => {
     let author = authorMap[authorName];
     let ret = {
       id: author.id,
-      pubs: null
+      pubs: null,
+      list: null
     }
     if (author.pubs) {
       ret.pubs = Object.keys(author.pubs).map(pubTypeName => {
@@ -1173,6 +1174,18 @@ const filterAuthorMap = (config, authorMap) => {
               published: pub.published
             }
           })
+        }
+      })
+    }
+    if (author.list) {
+      ret.list = author.list.map(pub => {
+        return {
+          id: pub.id,
+          title: pub.title,
+          logline: pub.logline,
+          detailsUrl: Path.join(config.booksPath, pub.id),
+          primaryDistributor: pub.primaryDistributor,
+          published: pub.published
         }
       })
     }

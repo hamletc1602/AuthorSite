@@ -62,15 +62,19 @@
 <link href='{%@config.stylePath%}/main.css?v={%@config.buildId%}' rel='stylesheet' type='text/css'>
 
 </head>
-<body class="skin">
+<body class="{%id%} skin">
 
   <div class="pure-g">
 
   <div class="pure-u-1 page-header">
     <div class="pure-g header-menu-container">
-      <div class="pure-u-6-24 pure-u-md-2-24 pure-u-lg-4-24">
+      <div class="pure-u-1">
         <div class="page-header-logo"></div>
-        <a class="page-header-logo-link" href="{%@config.rootPath%}/index" aria-label="Home"></a>
+        <a class="page-header-logo-link" href="{%@config.rootPath%}/index" aria-label="Home">
+          {%#style.logo.text%}
+            <span class="page-header-logo-text-defaults page-header-logo-text">{%.%}</span>
+          {%/style.logo.text%}
+        </a>
       </div>
       <div class="pure-u-18-24 pure-u-md-20-24 pure-u-lg-19-24 page-header-inner">
         <ul class="pure-menu pure-menu-open pure-menu-list pure-menu-horizontal header-menu">
@@ -82,33 +86,31 @@
     </div>
   </div>
 
-
   <div class="pure-u-1 page-top">
     <div class="pure-g">
-      <div class="pure-u-1-24 pure-md-show gutter gutter-left"></div>
-      <div class="pure-u-1 pure-u-md-22-24 inner"></div>
-      <div class="pure-u-1-24 pure-md-show gutter gutter-right"></div>
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-left"></div>
+      <div class="pure-u-1 pure-u-md-22-24 page-top-inner"></div>
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-right"></div>
     </div>
   </div>
 
   <div class="pure-u-1 page-content">
     <div class="pure-g">
-      <div class="pure-u-1-24 pure-md-show gutter gutter-left"></div>
-      <div class="pure-u-1 pure-u-md-22-24 inner">
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-left"></div>
+      <div class="pure-u-1 pure-u-md-22-24 page-content-inner">
         {%> @partial-block %}
       </div>
-      <div class="pure-u-1-24 pure-md-show gutter gutter-right"></div>
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-right"></div>
     </div>
   </div>
 
   <div class="pure-u-1 page-bottom">
     <div class="pure-g">
-      <div class="pure-u-1-24 pure-md-show gutter gutter-left"></div>
-      <div class="pure-u-1 pure-u-md-22-24 inner"></div>
-      <div class="pure-u-1-24 pure-md-show gutter gutter-right"></div>
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-left"></div>
+      <div class="pure-u-1 pure-u-md-22-24 page-bottom-inner"></div>
+      <div class="pure-u-1-24 pure-md-show page-gutter page-gutter-right"></div>
     </div>
   </div>
-
 
   <div class="pure-u-1 page-footer">
     <div class="pure-g">

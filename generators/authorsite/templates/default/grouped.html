@@ -1,77 +1,94 @@
-{%#> page id=pageId %}
+{%#> page id=pageId uiApp=true %}
 
 <div class="page-home contentNoPanel">
-<p>
 
-<div class="bookfeature">
-<div class="bookFeatureBlock">
-  <div class="distributorList bookFeatureTop">
-    <div class="distributorLink">
-      <span class="title">Buy now at:</span>
-      {%#feature.distributors%}
-        <a href="{%url%}" target="_blank" aria-label="{%name%}">
-        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
-        </a>
-      {%/feature.distributors%}
-    </div>
-    {%> sharing feature %}
-  </div>
+{%> bookFeature feature %}
 
-  <div class="bookCover"><img src="{%@config.imagePath%}/{%feature.featureCoverImage%}"></div>
-  <div class="bookBlurbWrapper">
-    <div class="bookTitle">{%feature.title%}</div>
-    {%#if feature.seriesIndex%}
-    <div class="bookSeriesTitle">Book {%feature.seriesIndex%} of the {%feature.seriesName%} series</div>
-    {%/if%}
-    <div class="bookLogline" style="color: {%feature.loglineColor%};">{%feature.logline%}</div>
-    <div class="bookBlurb">{%noescape feature.blurb%}</div>
-  </div>
-  <div class="distributorList bookFeatureBottom">
-    <div class="distributorLink">
-      <span class="title">Buy now at:</span>
-      {%#feature.distributors%}
-        <a href="{%url%}" target="_blank" aria-label="{%name%}">
-        <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
-        </a>
-      {%/feature.distributors%}
-    </div>
-    <div class="sharing">
-      {%> sharing feature %}
-    </div>
-  </div>
-</div>
-
-</div>
-
-<h1 class="" id="authors">Authors</h1>
+<h1 id="authors">Authors</h1>
 
 {%#groups%}
   {%#unless external%}
     <h2><a href="{%@config.authorPath%}/{%id%}">{%name%}</a></h2>
     {%#if useCarousel%}
-      <div id="{%id%}_pubs" class="booklist" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
-    {%else%}
-      {%#each pubs%}
-        {%#list%}
-          <div class="booklist-item booklist-item{%@index%}">
-            <div class="bookCoverImage {%id%}CoverIcon">
-              <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
-              {%#if published%}
-                <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
-              {%else%}
-                <div class="comingSoon">Coming Soon!</div>
-              {%/if%}
-            </div>
-          </div>
-        {%/list%}
-      {%/each%}
+      <div class="booklist booklistCarousel booklistCarousel{%list.length%} hidden">
+        <div id="{%id%}_pubs" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
+      </div>
     {%/if%}
-    </p>
+    <div class="booklist booklistStatic booklistStatic{%list.length%}">
+    {%#list%}
+      <div class="booklist-item booklist-item{%@index%}">
+        <div class="bookCoverImage {%id%}CoverIcon">
+          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+          {%#if published%}
+            <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
+          {%else%}
+            <div class="comingSoon">Coming Soon!</div>
+          {%/if%}
+        </div>
+      </div>
+    {%/list%}
+    </div>
   {%/unless%}
 {%/groups%}
 
 </div>
 
+{%#if @config.useBookLists%}
+<script>
+  let breakPoints = [{
+    {%#groups%}
+      {%#unless external%}
+        },{
+          minStaticWidth: ({%list.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
+          carouselCls: 'booklistCarousel' + {%list.length%},
+          staticCls: 'booklistStatic' + {%list.length%}
+      {%/unless%}
+    {%/groups%}
+  }]
+  breakPoints = breakPoints.slice(1) // Clear dummy empty list element
+  let resizeDebounce = null
+
+  function handleResize() {
+    breakPoints.map(bp => {
+      //console.log('In resize breakpoint. Window width: ' + window.innerWidth + ' min static list width: ' + bp.minStaticWidth)
+      if (window.innerWidth < bp.minStaticWidth) {
+        toggleCarouselVisibility(bp, true)
+      } else {
+        toggleCarouselVisibility(bp, false)
+      }
+    })
+  }
+
+  function toggleCarouselVisibility(breakPoint, showCarousel) {
+    // if (showCarousel) {
+    //   console.log('Toggle visibility on for ' + breakPoint.carouselCls + ' off for ' + breakPoint.staticCls)
+    // } else {
+    //   console.log('Toggle visibility on for ' + breakPoint.staticCls + ' off for ' + breakPoint.carouselCls)
+    // }
+    const carouselList = document.getElementsByClassName(breakPoint.carouselCls)
+    const staticList = document.getElementsByClassName(breakPoint.staticCls)
+    for (var i = 0; i < carouselList.length; ++i) {
+      const elem = carouselList[i]
+      elem.classList.toggle("hidden", !showCarousel);
+    }
+    for (var i = 0; i < staticList.length; ++i) {
+      const elem = staticList[i]
+      elem.classList.toggle("hidden", showCarousel);
+    }
+  }
+
+  window.onresize = (ev) => {
+    clearTimeout(resizeDebounce)
+    resizeDebounce = setTimeout(() => {
+      handleResize()
+    }, 250)
+  }
+
+  handleResize()
+
+</script>
+
 <div id="booksSlider"></div>
+{%/if%}
 
 {%/page%}
