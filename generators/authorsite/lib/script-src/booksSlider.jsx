@@ -45,8 +45,8 @@ export default class BooksSlider extends React.Component {
                   <div className={`bookCoverImage ${slide.id}CoverIcon`}>
 
                     <a className="bookCoverLink"
-                      href={settings.onClick ? null : slide.detailsUrl}
-                      onClick={settings.onClick ? () => settings.onClick(slide.id) : null}
+                      href={slide.detailsUrl}
+                      onClick={settings.onClick ? (ev) => { ev.preventDefault(); settings.onClick(slide.id); } : null}
                       aria-label={slide.title}></a>
                     {
                       overlay

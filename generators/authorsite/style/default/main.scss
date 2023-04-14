@@ -74,6 +74,7 @@ html {
 	margin: 0px;
 	padding: 0px;
 	background-color: transparent !important;
+	white-space: normal !important;
 }
 
 .header-menu li a {
@@ -104,9 +105,11 @@ details > summary {
 	.summary {
 		max-height: 20em;
 		overflow: hidden;
-		border-bottom: 1px solid <%style.textColor%>;
 	}
 	.more {
+		border-top: 1px solid <%style.textColor%>;
+	 }
+	.moreButton {
 		width: 3em;
 		padding: 3px;
 		border-left: 1px solid <%style.textColor%>;
@@ -372,6 +375,11 @@ details[open] > summary {
 	display: flex;
 	justify-content: center;
 	flex-wrap: nowrap;
+	min-height: <%@config.coverIconHeight%>px;
+}
+
+.booklistCarousel {
+	min-height: <%@config.coverIconHeight%>px;
 }
 
 .booklist-nav {

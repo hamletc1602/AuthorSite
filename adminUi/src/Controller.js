@@ -244,7 +244,7 @@ export default class Controller {
 
   /** Put various site content files for the given template. */
   async putSiteContent(templateId, contentPath, contentType, content) {
-    if (content && content.length > 0) {
+    if (content && (content.length > 0 || content.byteLength > 0)) {
       return this.putSiteContentInner('site-content', templateId, contentPath, contentType, content)
     }
   }

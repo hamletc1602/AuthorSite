@@ -183,7 +183,8 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     for await (const entry of zip) {
       if (entry.type === 'File') {
         if (/config\/schema/.test(entry.path)
-          || /config\/template/.test(entry.path)
+          || /config\/templates/.test(entry.path)
+          || /config\/custom-pages/.test(entry.path)
           || /config\/editors\.yaml/.test(entry.path)
           // This one config file is also non-editable.
           //       TODO: Should look in editors.yaml for data files with no schema, instead of hard-coding (this would also
@@ -212,10 +213,14 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     await aws.put(adminBucket, rootPath + 'editors.yaml', 'text/yaml', Fs.readFileSync('/tmp/config/editors.yaml'), maxAgeBrowser, maxAgeCloudFront)
     await aws.delete(adminBucket, rootPath + 'editors.json')
     const monitor = { push: async _event => {} }
-    aws.mergeToS3('/tmp/config/schema', adminBucket, rootPath + 'schema', maxAgeBrowser, maxAgeCloudFront, monitor)
+    await aws.mergeToS3('/tmp/config/schema', adminBucket, rootPath + 'schema', maxAgeBrowser, maxAgeCloudFront, monitor)
     if (await Fs.exists('/tmp/config/templates')) {
-      aws.mergeToS3('/tmp/config/templates', adminBucket, rootPath + 'templates', maxAgeBrowser, maxAgeCloudFront, monitor)
+      await aws.mergeToS3('/tmp/config/templates', adminBucket, rootPath + 'templates', maxAgeBrowser, maxAgeCloudFront, monitor)
     }
+    if (await Fs.exists('/tmp/config/custom-pages')) {
+      await aws.mergeToS3('/tmp/config/custom-pages', adminBucket, rootPath + 'custom-pages', maxAgeBrowser, maxAgeCloudFront, monitor)
+    }
+    await aws.put(adminBucket, rootPath + 'conf/structure.json', 'application/json', Fs.readFileSync('/tmp/config/conf/structure.json'), maxAgeBrowser, maxAgeCloudFront)
     //
     console.log('Convert YAML configuration files to JSON.')
     try {
@@ -272,7 +277,8 @@ async function upateTemplate(publicBucket, adminBucket, params) {
    }
   } catch (error) {
     console.log(`Failed update with ${templateName} template.`, error)
-    await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true }, 'update', `Failed update of ${templateName} template. Error: ${error.message}.`)
+    const errMsg = `Failed update of ${templateName} template. Error: ${error.message}.`
+    await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true, updateTemplateErrMsg: errMsg }, 'update', errMsg)
     success = false
   } finally {
     if (success) {
@@ -280,7 +286,8 @@ async function upateTemplate(publicBucket, adminBucket, params) {
       await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: false }, 'update', `Updated ${templateName} template.`)
     } else {
       console.log(`Failed update of ${templateName} template.`)
-      await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true }, 'update', `Failed update ${templateName} template.`)
+      const errMsg = `Failed update ${templateName} template.`
+      await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true, updateTemplateErrMsg: errMsg }, 'update', errMsg)
     }
   }
 }
@@ -379,7 +386,10 @@ async function pushTemplateFile(aws, templateName, file, opts) {
             case 'schema':
               await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
               break
-            case 'template':
+            case 'templates':
+              await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
+            break
+            case 'custom-pages':
               await aws.put(adminBucket, `site-config/${templateName}/${filePath}`, null, body)
             break
             case 'FILE':

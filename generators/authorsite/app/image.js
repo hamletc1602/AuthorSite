@@ -54,6 +54,11 @@ exports.resizeBookIcon = async (srcImagePath, newImagePath, newHeight) => {
         newWidth = Math.round(newWidth);
         if (srcImg.height !== newHeight) {
             await ImageSharp(srcImagePath).resize(newWidth, newHeight).toFile(newImagePath);
+
+            // Add webp() call in chain here to save in webp format (generally smaller)
+            // Though, need to update the file name
+            //await ImageSharp(srcImagePath).resize(newWidth, newHeight).webp().toFile(newImagePath);
+
             return { height: newHeight, width: newWidth }
         }
     } else {
@@ -130,7 +135,7 @@ exports.extractVibrantPaletteColors = palette => {
     //
     function getTextColor(baseColor) {
         const hsl = baseColor.getHsl()
-        if (hsl[2] >= 0.5) {
+        if (hsl[2] >= 0.4) {
             return '#000'
         } else {
             return '#FFF'
@@ -280,6 +285,10 @@ const prepareSm = async function(config, outNameTpl, origImage, updateCache) {
             console.log(`Create ${outName}`)
             let img = await ImageLib.create(origWidth, config.footerHeight)
             ImageLib.blit(img, origImage, x1 - 1, 0, x1 - 1, origHeight - config.footerHeight, config.widthSm + 2, config.footerHeight)
+
+            // Use Sharp lib with webp() to save in webp format (generally smaller)
+            // Though, need to update the file name
+
             await ImageLib.save(img, outName)
         } catch(err) {
             console.error(JSON.stringify(err));

@@ -1,6 +1,7 @@
 {%#> page id=pageId %}
 
-<div class="authorPage content"><div class="authorsig">
+<div class="seriesPage content"><div class="authorsig">
+  <div class="authorname">{%group.name%}</div>
   <a href="{%group.imageLink%}" class="media"><img src="/{%group.image%}" class="mediaright {%group.imageExtraStyle%}" alt="{%group.imageAlt%}"/></a>
 </div>
 
@@ -17,19 +18,36 @@
 {%#if group.socialMediaLinks%}
 <h2 class="" id="contact">Contact</h2>
 <p>
-You can find me on
+Catch up on discussion about this series at:
 {%#group.socialMediaLinks%}
     <a href="{%url%}" class="urlextern" target="blank">{%name%}</a>{%#if @last%}.{%else%},{%/if%}
 {%/group.socialMediaLinks%}
 </p>
 {%/if%}
 
+<div class="booklist booklistStatic booklistStatic{%group.list.length%}" style="flex-wrap: wrap;">
+  <div class="booklist-display">
+    {%#group.list%}
+    <div class="booklist-item booklist-item{%@index%}">
+      <div class="bookCoverImage {%id%}CoverIcon">
+        <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+        {%#if published%}
+        <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
+        {%else%}
+        <div class="comingSoon">Coming Soon!</div>
+        {%/if%}
+      </div>
+    </div>
+    {%/group.list%}
+  </div>
+</div>
+
 </div>
 
 <script>
   let resizeDebounce = null
 
-  function toggleMoreButton() {
+  function handleResize() {
     const container = document.querySelector('details .summary')
     const lastPara = document.querySelector('details .summary p:last-child')
     const more = document.querySelector('details .more')
@@ -46,14 +64,14 @@ You can find me on
     }
   }
 
-  toggleMoreButton()
-
   window.onresize = (ev) => {
     clearTimeout(resizeDebounce)
     resizeDebounce = setTimeout(() => {
-      toggleMoreButton()
+      handleResize()
     }, 250)
   }
+
+  handleResize()
 </script>
 
 {%/page%}

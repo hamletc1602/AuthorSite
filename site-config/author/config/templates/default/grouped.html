@@ -12,7 +12,7 @@
     {%#items%}
       <div class="booklist-item booklist-item{%@index%}">
         <div class="bookCoverImage {%id%}CoverIcon">
-          <a class="bookCoverLink" onclick="selectFeature('{%id%}')" aria-label="{%title%}"></a>
+          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" onclick="event.preventDefault();selectFeature('{%id%}')" aria-label="{%title%}"></a>
           {%#if published%}
             <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">{%@config.publishedStickerText%}</a>
           {%else%}
@@ -122,10 +122,7 @@
     }
   }
 
-  // Invoke on page load
-  {%#with (lookup items 0)~%}
-    selectFeature('{%id%}')
-  {%/with%}
+  selectFeature('{%feature.id%}')
 
 </script>
 

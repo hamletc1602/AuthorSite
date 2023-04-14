@@ -230,7 +230,8 @@ function App() {
     controller.sendCommand('saveTemplate', {
       id: adminConfig.templateId,
       name: saveTemplateName.current.value,
-      desc: saveTemplateDesc.current.value || `A custom template derived from ${adminConfig.templateId}`
+      desc: saveTemplateDesc.current.value || `A custom template derived from ${adminConfig.templateId}`,
+      overwrite: advancedMode
     })
     startFastPolling()
   }

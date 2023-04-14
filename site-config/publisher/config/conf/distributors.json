@@ -4,6 +4,8 @@
     "url": "tychebooks.com/@BOOKID@",
     "icon": "/dist-icons/tyche32.png",
     "featureIcon": "/dist-icons/tyche32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "tycheId"
 },{
     "id": "amazonPrint",
@@ -12,6 +14,8 @@
     "popupText": "Buy print book now from Amazon",
     "icon": "/dist-icons/amazonPrint32white.png",
     "featureIcon": "/dist-icons/amazonPrint32white.png",
+    "featureIconWidth": "67",
+    "featureIconHeight": "32",
     "bookIdProp": "amazonPrintId"
 },{
     "id": "amazon",
@@ -20,15 +24,9 @@
     "popupText": "Buy Ebook now from Amazon",
     "icon": "/dist-icons/amazon32.png",
     "featureIcon": "/dist-icons/amazon32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "amazonId"
-},{
-    "id": "createSpace",
-    "name": "CreateSpace",
-    "url": "www.ceatespace.com/@BOOKID@",
-    "popupText": "Buy now from CreateSpace",
-    "icon": "/dist-icons/createspace32.png",
-    "featureIcon": "/dist-icons/createspace32.png",
-    "bookIdProp": "createspaceId"
 },{
     "id": "barnesNoble",
     "name": "Barnes & Noble",
@@ -36,6 +34,8 @@
     "popupText": "Buy now from Barnes & Noble",
     "icon": "/dist-icons/bn32.png",
     "featureIcon": "/dist-icons/bn32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "barnesNobleId"
 },{
     "id": "appleStore",
@@ -44,6 +44,8 @@
     "popupText": "Buy now from Apple Store",
     "icon": "/dist-icons/itunes32.png",
     "featureIcon": "/dist-icons/itunes32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "appleStoreId"
 },{
     "id": "kobo",
@@ -52,6 +54,8 @@
     "popupText": "Buy now from Kobo",
     "icon": "/dist-icons/kobo32.png",
     "featureIcon": "/dist-icons/kobo32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "koboId"
 },{
     "id": "smashwords",
@@ -60,6 +64,8 @@
     "popupText": "Buy now from Smashwords",
     "icon": "/dist-icons/smashwords32.png",
     "featureIcon": "/dist-icons/smashwords32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "smashwordsId"
 },{
     "id": "goodreads",
@@ -68,6 +74,8 @@
     "popupText": "Buy now at Smashwords",
     "icon": "/dist-icons/goodreads32.png",
     "featureIcon": "/dist-icons/goodreads32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "goodreadsId"
 },{
     "id": "lulu",
@@ -76,5 +84,7 @@
     "popupText": "Buy now from Lulu.com",
     "icon": "/dist-icons/lulu32.png",
     "featureIcon": "/dist-icons/lulu32.png",
+    "featureIconWidth": "32",
+    "featureIconHeight": "32",
     "bookIdProp": "luluId"
 }]

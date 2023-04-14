@@ -484,8 +484,8 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
       if (pub.seriesName && pub.seriesName.length > 0) {
         pub.series = seriesMap[pub.seriesName]
         if (pub.series && pub.seriesIndex) {
-          if (!pub.series.books) { pub.series.books = [] }
-          pub.series.books[pub.seriesIndex] = pub
+          if (!pub.series.list) { pub.series.list = [] }
+          pub.series.list[pub.seriesIndex] = pub
         } else {
           console.warn(`Missing config for series: ${pub.seriesName}.`)
         }
@@ -695,6 +695,8 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   const catchupTpl = await Files.loadTemplate(config.templatesDir, templateType, 'catchup.html')
   // Template for each author page
   const groupTpl = await Files.loadTemplate(config.templatesDir, templateType, 'group.html')
+  // Template for each series page
+  const seriesTpl = await Files.loadTemplate(config.templatesDir, templateType, 'series.html')
   //const authorFacebookTpl = await Files.loadTemplate(config.templatesDir, templateType, 'authorFacebook.html')
   // Template for each book promo URL page
   const bookPromoFacebookTpl = await Files.loadTemplate(config.templatesDir, templateType, 'bookPromoFacebook.html')
@@ -711,8 +713,6 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   Files.copyResourcesOverwrite(Path.join(confDir, 'style'), Path.join(outputDir, 'style'))
   Files.copyResourcesOverwrite(Path.join(confDir, 'image'), Path.join(outputDir, 'image'))
   Files.copyResourcesOverwrite(Path.join(confDir, "favicon.ico"), Path.join(outputDir, 'favicon.ico'))
-  Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick.css'), Path.join(outputDir, 'style', 'slick.css'))
-  Files.copyResourcesOverwrite(require.resolve('slick-carousel/slick/slick-theme.css'), Path.join(outputDir, 'style', 'slick-theme.css'))
 
   //
   console.log("Rendering pages.")
@@ -724,7 +724,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     series: data.series,
     feature: data.published.find(p => p.featured === true),
     news: data.news,
-    share: config,
+    share: config.metadata,
     style: data.style
   }
 
@@ -820,7 +820,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // For each series, render a new series page based on the series template
   await Promise.all(data.series.map(async function(elem) {
-    let content = groupTpl({ pageId: 'books', group: elem, share: groupToShare(elem, 'series', 'books'), style: data.style }, tplData)
+    let content = seriesTpl({ pageId: 'books', group: elem, share: groupToShare(elem, 'series', 'books'), style: data.style }, tplData)
     await Files.savePage(outputDir + '/series/' + elem.id + '.html', content)
   }))
 

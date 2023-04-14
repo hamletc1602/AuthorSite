@@ -8,8 +8,9 @@
 <details>
   <summary>
     <div class="summary">{%noescape group.content%}</div>
-    <div class="more">More...</div>
-    <!--<div class="less">Close</div>-->
+    <div class="more">
+      <div class="moreButton">More...</div>
+    </div>
   </summary>
   <div class="content">{%noescape group.content%}</div>
 </details>
@@ -51,73 +52,87 @@ You can find me on
 
 </div>
 
-{%#if @config.useBookLists%}
 <script>
-  let breakPoints = [{
-    {%#each group.pubs%}
-      },{
-        minStaticWidth: ({%list.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
-        carouselCls: 'booklistCarousel' + {%list.length%},
-        staticCls: 'booklistStatic' + {%list.length%}
-    {%/each%}
-  }]
-  breakPoints = breakPoints.slice(1) // Clear dummy empty list element
   let resizeDebounce = null
 
-  function handleResize() {
-    breakPoints.map(bp => {
-      //console.log('In resize breakpoint. Window width: ' + window.innerWidth + ' min static list width: ' + bp.minStaticWidth)
-      if (window.innerWidth < bp.minStaticWidth) {
-        toggleCarouselVisibility(bp, true)
-      } else {
-        toggleCarouselVisibility(bp, false)
+  {%#if @config.useBookLists%}
+
+  let breakPoints = [{
+      {%#each group.pubs%}
+        },{
+          minStaticWidth: ({%list.length%} * ({%@config.coverIconWidth%} + 10)) + 60,
+          carouselCls: 'booklistCarousel' + {%list.length%},
+          staticCls: 'booklistStatic' + {%list.length%}
+      {%/each%}
+    }]
+    breakPoints = breakPoints.slice(1) // Clear dummy empty list element
+
+    function toggleCarouselVisibility(breakPoint, showCarousel) {
+      // if (showCarousel) {
+      //   console.log('Toggle visibility on for ' + breakPoint.carouselCls + ' off for ' + breakPoint.staticCls)
+      // } else {
+      //   console.log('Toggle visibility on for ' + breakPoint.staticCls + ' off for ' + breakPoint.carouselCls)
+      // }
+      const carouselList = document.getElementsByClassName(breakPoint.carouselCls)
+      const staticList = document.getElementsByClassName(breakPoint.staticCls)
+      for (var i = 0; i < carouselList.length; ++i) {
+        const elem = carouselList[i]
+        elem.classList.toggle("hidden", !showCarousel);
       }
-    })
+      for (var i = 0; i < staticList.length; ++i) {
+        const elem = staticList[i]
+        elem.classList.toggle("hidden", showCarousel);
+      }
+    }
+
+    function toggleCarousel() {
+      breakPoints.map(bp => {
+        //console.log('In resize breakpoint. Window width: ' + window.innerWidth + ' min static list width: ' + bp.minStaticWidth)
+        if (window.innerWidth < bp.minStaticWidth) {
+          toggleCarouselVisibility(bp, true)
+        } else {
+          toggleCarouselVisibility(bp, false)
+        }
+      })
+    }
+
+    toggleCarousel()
+
+  {%/if%}
+
+  function toggleMoreButton() {
+    const container = document.querySelector('details .summary')
+    const lastPara = document.querySelector('details .summary p:last-child')
+    const more = document.querySelector('details .more')
+    if (container && lastPara && more) {
+      contRect = container.getBoundingClientRect()
+      lastRect = lastPara.getBoundingClientRect()
+      console.log(`text bottom ${lastRect.bottom}, content bottom: ${contRect.bottom}`)
+      if (lastRect.bottom <= contRect.bottom) {
+        console.log(`Hide more button`)
+        more.classList.toggle('hidden', true)
+      } else {
+        more.classList.toggle('hidden', false)
+      }
+    }
   }
 
-  function toggleCarouselVisibility(breakPoint, showCarousel) {
-    // if (showCarousel) {
-    //   console.log('Toggle visibility on for ' + breakPoint.carouselCls + ' off for ' + breakPoint.staticCls)
-    // } else {
-    //   console.log('Toggle visibility on for ' + breakPoint.staticCls + ' off for ' + breakPoint.carouselCls)
-    // }
-    const carouselList = document.getElementsByClassName(breakPoint.carouselCls)
-    const staticList = document.getElementsByClassName(breakPoint.staticCls)
-    for (var i = 0; i < carouselList.length; ++i) {
-      const elem = carouselList[i]
-      elem.classList.toggle("hidden", !showCarousel);
-    }
-    for (var i = 0; i < staticList.length; ++i) {
-      const elem = staticList[i]
-      elem.classList.toggle("hidden", showCarousel);
-    }
-  }
+  toggleMoreButton()
 
   window.onresize = (ev) => {
     clearTimeout(resizeDebounce)
     resizeDebounce = setTimeout(() => {
-      handleResize()
+      {%#if @config.useBookLists%}
+        toggleCarousel()
+      {%/if%}
+      toggleMoreButton()
     }, 250)
   }
 
-  handleResize()
-
-  function selectFeature(id) {
-    const featuresList = document.getElementsByClassName('bookfeature')
-    for (var i = 0; i < featuresList.length; ++i) {
-      const elem = featuresList[i]
-      elem.classList.toggle("selected", elem.id === ('book-feature-' + id));
-    }
-  }
-
-  // Invoke on page load
-  {%#with (lookup items 0)~%}
-    selectFeature('{%id%}')
-  {%/with%}
-
 </script>
 
-<div id="booksSlider"></div>
+{%#if @config.useBookLists%}
+  <div id="booksSlider"></div>
 {%/if%}
 
 {%/page%}

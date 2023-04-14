@@ -5,14 +5,21 @@
           <span class="title">Buy now at:</span>
           {%#distributors%}
             <a href="{%url%}" target="_blank" aria-label="{%name%}">
-            <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+            <img src="{%featureIcon%}" width="{%featureIconWidth%}" height="{%featureIconHeight%}" title="{%name%}" alt="{%name%}">
             </a>
           {%/distributors%}
         </div>
         {%> sharing . %}
       </div>
-
-      <div class="bookCover"><img src="{%@config.imagePath%}/{%featureCoverImage%}"></div>
+      <div class="bookCover">
+        <img
+          src="{%@config.imagePath%}/{%featureCoverImage%}"
+          alt="Book cover for {%title%}"
+          width="{%featureCoverImageSize.width%}"
+          height="{%featureCoverImageSize.height%}"
+          {%#unless featured%}loading="lazy"{%/unless%}
+        >
+      </div>
       <div class="bookBlurbWrapper">
         <div class="bookTitle">{%title%}</div>
         {%#if seriesIndex%}
@@ -26,7 +33,7 @@
           <span class="title">Buy now at:</span>
           {%#distributors%}
             <a href="{%url%}" target="_blank" aria-label="{%name%}">
-            <img src="{%featureIcon%}" title="{%name%}" alt="{%name%}">
+            <img src="{%featureIcon%}" width="{%featureIconWidth%}" height="{%featureIconHeight%}" title="{%name%}" alt="{%name%}">
             </a>
           {%/distributors%}
         </div>

@@ -95,6 +95,26 @@ properties:
         disp: Text Offset Extra Large
         desc: Optional. Text offset from the left edge at  extra large widths. Any CSS size value can be used here, but note that it will override the default values.
         type: string
+  textColor:
+    disp: Text Colour
+    desc: Default site text colour, unless overriden by another setting.
+    type: color
+  linkColor:
+    disp: Link Colour
+    desc: Default colour for hyperlinks on the site.
+    type: color
+  footerTextColor:
+    disp: Footer Text Colour
+    desc: Override colour for the footer section text only.
+    type: color
+  featureTextColor:
+    disp: Feature Text Colour
+    desc: Override colour for the book feature text.
+    type: color
+  featureLoglineColor:
+    disp: Feature Log Line Colour
+    desc: Default colour for the book feature log line. Can be overriden by a colour set in the individual book proprties.
+    type: color
   coverPromoBackground:
     disp: Cover Promo Background Image
     desc: Background image used when generating social medai promo images from book covers.
@@ -107,10 +127,22 @@ properties:
     disp: Menu Hover Text Colour
     desc: Color of menu items when the user hovers over the menu name.
     type: color
+    hidden: true
   headerMenuHoverBkgnd:
     disp: Menu Hover Background Colour
     desc: Color of the backgorund around menu items when the user hovers over the menu name.
     type: color
+    hidden: true
+  headerMenuColor:
+    disp: Header Menu Colour
+    desc: Header menu text colour.
+    type: color
+    hidden: true
+  headerMenuSelectedColor:
+    disp: Header Menu Selected Colour
+    desc: Text colour for the selected item in the header menu.
+    type: color
+    hidden: true
   headerColor:
     disp: Header Colour
     desc: Override the site header colour.
@@ -141,10 +173,6 @@ properties:
     desc: A background color for the book log line in the featured book block in the landing page. If set, Overrides the colour generated from the background image.
     type: color
     hidden: true
-  featureLoglineColor:
-    disp: Feature Log Line Colour
-    desc: A default color for the book log line in the featured book block in the landing page.
-    type: color
   defaultFont:
     disp: Site Font
     desc: A font family name to use for all text on the site that does not have a more specific font setting.
