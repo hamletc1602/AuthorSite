@@ -11,8 +11,7 @@ export default class BooksSlider extends React.Component {
     var settings = {
       ...this.state.settings,
       dots: false,
-      //infinite: this.state.slides.length > 3,
-      speed: 1000,
+      speed: 300,
       slidesToShow: 1,
       slidesToScroll: 1,
       variableWidth: true

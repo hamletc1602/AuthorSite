@@ -11,26 +11,29 @@
 {%/if%}
 
 {%#news%}
-<article id="post-{%id%}" class="post-{%id%} post type-{%type%} status-{%status%} format-{%format%} category-{%category.id%}">
-	<header class="entry-header">
-		<h2 class="entry-title">{%title%}</h2>
-		<div class="entry-meta">
-			<span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
-		</div>
-	</header>
-	<div class="entry {%#if image%}entry-with-image{%else%}entry-no-image{%/if%}">
-		{%#if image%}{%#if imageLeft%}
-		<div class="entry-image entry-image-left entry-image-{%id%}" title="{%imageAlt%}"></div>
-		{%/if%}{%/if%}
-		<div class="entry-content">{%noescape content%}</div>
-		{%#if image%}{%#if imageRight%}
-		<div class="entry-image entry-image-right entry-image-{%id%}" title="{%imageAlt%}"></div>
-		{%/if%}{%/if%}
-	</div>
-	<footer class="entry-footer">
-		<span class="wp-cat-links">Posted in {%#category%}<a href="{%@config.newsPath%}/cat-{%id%}" rel="category">{%name%}</a>{%#if @last%}.{%else%}, {%/if%}{%/category%}</span>
-	</footer>
-</article>
+<div id="post-{%id%}" class="post-{%id%} post type-{%type%} status-{%status%} format-{%format%} category-{%category.id%}">
+    <div class="entry-header">
+      <h2 class="entry-title">{%title%}</h2>
+      <div class="entry-meta">
+        <span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
+      </div>
+    </div>
+    <div class="entry {%#if image%}entry-with-image{%else%}entry-no-image{%/if%}">
+      <div class="entry-image entry-image-center entry-image-{%id%} pure-sm-show pure-md-hide" aria-label="{%imageAlt%}"></div>
+      <div class="entry-content-container">
+        {%#if image%}{%#if imageLeft%}
+        <div class="entry-image entry-image-left entry-image-{%id%} pure-sm-hide pure-md-show" aria-label="{%imageAlt%}"></div>
+        {%/if%}{%/if%}
+        <div class="entry-content">{%noescape content%}</div>
+        {%#if image%}{%#if imageRight%}
+        <div class="entry-image entry-image-right entry-image-{%id%} pure-sm-hide pure-md-show" aria-label="{%imageAlt%}"></div>
+        {%/if%}{%/if%}
+      </div>
+    </div>
+    <div class="entry-footer">
+      <span class="wp-cat-links">Posted in {%#category%}<a href="{%@config.newsPath%}/cat-{%id%}" rel="category">{%name%}</a>{%#if @last%}.{%else%}, {%/if%}{%/category%}</span>
+    </div>
+</div>
 {%/news%}
 
 </div>

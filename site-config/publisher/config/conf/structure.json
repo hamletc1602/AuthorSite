@@ -34,8 +34,8 @@
     "bkgndConfig": {
         "heightSm": 200,
         "height": 400,
-        "widthXSm": 320,
-        "widthSm": 480,
+        "widthXSm": 420,
+        "widthSm": 650,
         "widthMd": 1024,
         "widthLg": 1536,
         "widthXl": 2048,

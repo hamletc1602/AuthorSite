@@ -103,7 +103,7 @@ html {
 /* Expandable Sections */
 details > summary {
 	.summary {
-		max-height: 20em;
+		max-height: 30em;
 		overflow: hidden;
 	}
 	.more {
@@ -164,9 +164,12 @@ details[open] > summary {
 	}
 
 	.entry {
-		display: flex;
-		align-items: flex-start;
 		margin: 5px 0;
+
+		.entry-content-container {
+			display: flex;
+			align-items: flex-start;
+		}
 
 		.entry-image {
 			flex: 0;
@@ -189,17 +192,9 @@ details[open] > summary {
 		}
 
 		&.entry-with-image {
-			.entry-image {
-			}
-			.entry-content {
-			}
 		}
 
 		&.entry-no-image {
-			.entry-image {
-			}
-			.entry-content {
-			}
 		}
 	}
 
@@ -229,41 +224,17 @@ details[open] > summary {
 		margin-top: <%@config.headerHeight.noPanel.sm%>;
 	}
 
-	.title-centre h1 {
-		text-align: center;
-	}
-
-	.title-right h1 {
-		text-align: right;
-	}
-
-	/* A bit of a hack to add some padding to all wiki content to it looks right in the
-	   .content sections but also lines up with the content outside them
-	*/
-	>p,>h1,>h2,>h3,>h4,>h5,>h6 {
-		margin-left: 12px;
-		margin-right: 12px;
-	}
 	h1,h2,h3,h4,h5,h6 {
 		text-transform: uppercase;
 		font-family: '<%style.defaultFont%>';
-	}
-
-	.table {
-		table {
-			th {
-				padding: 3px;
-			}
-			td {
-				padding: 3px;
-			}
-		}
-
 	}
 }
 
 .page-contact {
 	.feedback {
+		>p {
+			text-align: center;
+		}
 		input, textarea {
 			color: initial;
 		}
@@ -271,10 +242,17 @@ details[open] > summary {
 			border: 2px solid red;
 		}
 		.feedbackButton {
-
+			.feedbackButton {
+				text-align: center;
+				padding-top: 1em;
+			}
 			.fb_buttonUi {
-				border: 1px solid white;
+				border: 1px solid <%style.textColor%>;
 				padding: 5px;
+				font-size: 200%;
+				&:hover {
+					text-decoration: none;
+				}
 			}
 			.fb_status {
 				position: absolute;
@@ -282,11 +260,11 @@ details[open] > summary {
 				left: 50%;
 				transform: translate(-50%, -50%);
 
-				color: white;
+				color: <%style.textColor%>;
 				border: 2px solid black;
 				padding: 5px;
 				border-radius: 5px;
-				background-color: rgb(153, 153, 153);
+				background-color: <%style.headerMenuSelectedBkgnd%>;
 
 				//.fb_statusInner {
 				//}
@@ -369,6 +347,24 @@ details[open] > summary {
 			border-radius: 3px;
 		}
 	}
+
+	.slick-prev {
+		left: 0px;
+		z-index: 100;
+		background-color: rgba(60, 60, 60, 0.5);
+		border-radius: 8px;
+		&:hover, &:focus, &:active {
+			background-color: rgba(60, 60, 60, 0.5);
+		}
+	}
+	.slick-next {
+		right: 0px;
+		background-color: rgba(60, 60, 60, 0.5);
+		border-radius: 8px;
+		&:hover, &:focus, &:active {
+			background-color: rgba(60, 60, 60, 0.5);
+		}
+	}
 }
 
 .booklistStatic {
@@ -380,40 +376,6 @@ details[open] > summary {
 
 .booklistCarousel {
 	min-height: <%@config.coverIconHeight%>px;
-}
-
-.booklist-nav {
-	position: relative;
-	overflow: hidden;
-	border-radius: 3px;
-}
-
-.booklist-nav-left,
-.booklist-nav-right
-{
-	position: absolute;
-	top: 70px;
-	padding: 5px;
-	background: hsla(0,0%,50%,0.2);
-	z-index: 5;
-	font-size: 8em;
-	font-weight: bold;
-	color: hsla(0, 0%, 0%, 0.5);
-	cursor: pointer;
-	@include disable-text-selection();
-	height: 0.5em;
-	width: 0.5em;
-	border-radius: 0.5em;
-	line-height: 0.37em;
-}
-
-.booklist-nav-left {
-	left: 0px;
-}
-
-.booklist-nav-right {
-	right: 0px;
-	text-indent: 0.1em;
 }
 
 .booklist-display {
@@ -450,52 +412,6 @@ details[open] > summary {
 	.bookCoverImage {
 		margin-bottom: 1.3em;
 	}
-}
-
-/** Comic List ***************************************/
-.comiclist-nav {
-	border-radius: 3px;
-	vertical-align: middle;
-}
-
-.comiclist-nav > div {
-	display: inline-block;
-}
-
-.comiclist-display {
-	width: 90%;
-	margin-left: 5%;
-}
-
-.comiclist-nav-left,
-.comiclist-nav-right
-{
-	position: absolute;
-	top: 70%;
-	padding: 7px;
-	background: hsla(0,0%,50%,0.2);
-	z-index: 5;
-	font-size: 4em;
-	font-weight: bold;
-	color: hsla(0, 0%, 0%, 0.5);
-	cursor: pointer;
-	@include disable-text-selection();
-	height: 0.5em;
-	width: 0.5em;
-	border-radius: 0.5em;
-	line-height: 0.36em;
-}
-
-.comiclist-nav-right {
-	margin-left: -0.5em;
-	padding: 7px 0px 7px 14px;
-}
-
-.comiclist-item {
-}
-
-.comiclist-item img {
-	width: 100%;
 }
 
 /** Book Block ***************************************/
@@ -718,16 +634,15 @@ details[open] > summary {
 
 }
 
-
 .notificationBanner {
 	margin-bottom: 1em;
-	background-color: black;
+	background-color: <%style.featureBkColor%>;
 	padding: 0.2em;
 	border-radius: 3px;
 
 	p {
 		margin: 12px;
-		color: hsl(82, 35%, 63%);
+		color: <%style.featureTextColor%>;
 	}
 
 }
@@ -751,11 +666,11 @@ details[open] > summary {
 	text-align: center;
 	white-space: nowrap;
 
-	color: white !important;
-	background-color: rgba(195, 198, 197, 0.65);
+	color: <%style.textColor%> !important;
+	background-color: <%style.headerMenuSelectedBkgnd%>;
 
 	&:hover {
-		background-color: rgba(195, 198, 197, 0.90);
+		background-color: <%style.headerMenuHoverBkgnd%>;
 	}
 }
 
@@ -771,11 +686,11 @@ details[open] > summary {
 	text-align: center;
 	white-space: nowrap;
 
-	color: white !important;
-	background-color: rgba(195, 198, 197, 0.65);
+	color: <%style.textColor%> !important;
+	background-color: <%style.headerMenuSelectedBkgnd%>;
 
 	&:hover {
-		background-color: rgba(195, 198, 197, 0.90);
+		background-color: <%style.headerMenuHoverBkgnd%>;
 	}
 }
 
@@ -790,8 +705,8 @@ details[open] > summary {
 	text-align: center;
 	width: <%@config.unpublishedMarkerWidth%>px;
 	//width: $unpublishedMarkerWidth;
-	color: white !important;
-	background-color: rgba(128, 128, 128, 0.65);
+	color: <%style.textColor%> !important;
+	background-color: <%style.headerMenuSelectedBkgnd%>;
 }
 
 .bookSubText {
@@ -800,15 +715,6 @@ details[open] > summary {
 	white-space: nowrap;
 	overflow-x: hidden;
 	text-overflow: ellipsis;
-}
-
-.sectDescMoreBtn {
-	text-decoration: italic;
-	cursor: pointer;
-
-	&.expanded {
-		display: none;
-	}
 }
 
 
@@ -861,11 +767,6 @@ details[open] > summary {
 }
 
 /** Themes *****************************************/
-a.themebtn {
-	.long {
-		white-space: nowrap;
-	}
-}
 
 @media screen {
 
@@ -922,6 +823,7 @@ a.themebtn {
 			.page-header-logo-text-defaults {
 				display: inline-block;
 				white-space: nowrap;
+				margin-top: 30px;
 			}
 
 			.page-header-logo-text {
@@ -955,85 +857,34 @@ a.themebtn {
 				&:visited,
 				&:hover,
 				&:active {
-					color: <%headerMenuSelectedColor%>;
+					color: <%#if headerMenuSelectedColor%><%headerMenuSelectedColor%><%else%><%textColor%><%/if%>;
 					background-color: <%headerMenuSelectedBkgnd%>;
 				}
 			}
 
 			a:link, a:visited, a:hover, a:active, .linkColor {
-				color: <%linkColor%>;
+				color: <%#if linkColor%><%linkColor%><%else%><%textColor%><%/if%>;
 			}
 
 			.header-menu li a {
-				color: <%headerMenuColor%>;
+				color: <%#if headerMenuColor%><%headerMenuColor%><%else%><%textColor%><%/if%>;
 			}
 
 			.header-menu li a:hover {
 				text-decoration: none;
-				color: <%headerMenuHoverColor%>;
+				color: <%#if headerMenuHoverColor%><%headerMenuHoverColor%><%else%><%textColor%><%/if%>;
 				text-shadow: none;
 			}
 
 			.page-footer {
-				color: <%footerTextColor%>;
+				color: <%#if footerTextColor%><%footerTextColor%><%else%><%textColor%><%/if%>;
 				text-shadow: 0px 0px 6px <%footerTextShadowColor%>;
 				a {
-					color: <%footerTextColor%>;
+					color: <%#if footerTextColor%><%footerTextColor%><%else%><%textColor%><%/if%>;
 				}
 			}
-
-			a.themebtn {
-				border-color: <%headerMenuColor%>;
-				color: <%headerMenuColor%>;
-			}
-
-			.themebtn-<%className%> {
-				display: none;
-			}
-
 		} /* Theme */
 	<%/style%>
-
-}
-
-/** Theme buttons ************************************************/
-.themebtn-outer {
-}
-
-a.themebtn {
-	float: right;
-	clear: both;
-	position: relative;
-	top: 50px;
-	border-width: 1px 0px 1px 1px;
-	border-style: solid;
-	font-weight: bold;
-	font-size: 1.5em;
-	margin: 2px 0px 2px 2px;
-	padding: 4px 2px 0px 2px;
-	text-decoration: none;
-	min-width: 1em;
-	border-top-left-radius: 3px;
-	border-bottom-left-radius: 3px;
-}
-
-a.themebtn .long,
-a.themebtn:hover .short {
-	display: none;
-}
-
-a.themebtn:hover .long {
-	display: inline;
-	padding: 0px 3px 0px 3px;
-	color: black;
-}
-
-a.themebtn:hover {
-	left: -1px;  // Extra 1px causes scrollbar, not sure why?
-	text-decoration: none;
-	color: black;
-	border-color: hsl(0, 0%, 80%);
-	background-color: hsla(0, 0%, 80%, 0.5);
 }
 
 .bookblock {
@@ -1050,6 +901,7 @@ a.themebtn:hover {
 
 }
 */
+
 
 /*** Medium screen ***********************************************************/
 @media screen and (min-width: <%@config.bkgndConfig.widthSm%>px) {
@@ -1090,17 +942,22 @@ a.themebtn:hover {
 		font-size: 3em;
 	}
 
-	/** Book Block ***************************************/
-	/* Having trouble with ractive sizing - these rules ends up applied at all times, not just small widths??
-	.bookTitle {
-		margin: .1em 0;
-		font-size: 125%;
+	.booklist {
+		.slick-prev {
+			left: -25px;
+			background-color: initial;
+			&:hover, &:focus, &:active {
+				background-color: initial;
+			}
+		}
+		.slick-next {
+			right: -25px;
+			background-color: initial;
+			&:hover, &:focus, &:active {
+				background-color: initial;
+			}
+		}
 	}
-
-	.bookSeries {
-		margin: 0;
-	}
-	*/
 
 	.bookblock {
 		.cover, .summary, .links {
@@ -1207,10 +1064,16 @@ a.themebtn:hover {
 			}
 
 		}
-
-
 	}
 
+	// Author page
+	details > summary {
+		.summary {
+			max-height: 20em;
+		}
+	}
+
+	//
 	<%#style%>
 		.skin {
 			<%#if solid %>
@@ -1221,8 +1084,8 @@ a.themebtn:hover {
 
 			.page-header-logo {
 				position: absolute;
-				height: 500px;
-				width: 500px;
+				height: 400px;
+				width: 480px;
 				background: url('/<%logo.medium%>');
 				background-repeat: no-repeat;
 				background-position: 0px 0px;
@@ -1237,6 +1100,7 @@ a.themebtn:hover {
 			}
 
 			.page-header-logo-text-defaults {
+				margin-top: 0px;
 			}
 
 			.page-header-logo-text {
@@ -1285,7 +1149,6 @@ a.themebtn:hover {
 	.page-content {
 		.page-content-inner > .content {
 			margin-top: <%@config.headerHeight.lg%>;
-			min-height: 40em;
 		}
 
 		.page-content-inner > .contentNoPanel {

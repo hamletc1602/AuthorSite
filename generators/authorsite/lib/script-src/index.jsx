@@ -17,17 +17,17 @@ function bookLists() {
       responsive: [{
         breakpoint: breakpoints.widthXXl,
         settings: {
-          slidesToScroll: 6
+          slidesToScroll: 4
         }
       },{
         breakpoint: breakpoints.widthXl,
         settings: {
-          slidesToScroll: 5
+          slidesToScroll: 4
         }
       },{
         breakpoint: breakpoints.widthLg,
         settings: {
-          slidesToScroll: 4
+          slidesToScroll: 3
         }
       },{
         breakpoint: breakpoints.widthMd,
@@ -37,8 +37,7 @@ function bookLists() {
       },{
         breakpoint: breakpoints.widthSm,
         settings: {
-          slidesToScroll: 2,
-          arrows: false
+          slidesToScroll: 2
         }
       },{
         breakpoint: breakpoints.widthXSm,
