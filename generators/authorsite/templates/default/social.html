@@ -14,11 +14,11 @@
         {%#social%}
           {%#if category.twitter%}
             <div class="promoItem">
-              <a class="" href="https://twitter.com/intent/tweet/?text={%description%}&amp;url=http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%name%}" target="_blank" rel="noopener" aria-label="">
-                <img src="/{%thumbImage%}" title="{%name%}">
+              <a class="" href="https://twitter.com/intent/tweet/?text={%description%}&amp;url=https://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%id%}" target="_blank" rel="noopener" aria-label="">
+                <img src="/{%thumbImage%}" title="{%title%}">
               </a>
               <br>
-              <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%name%}">Copy Link</span>
+              <span class="copyToClipboard promoLink" textToCopy="https://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%id%}">Copy Link</span>
             </div>
           {%/if%}
         {%/social%}
@@ -30,11 +30,11 @@
         {%#social%}
           {%#if category.facebook%}
           <div class="promoItem">
-              <a class="" href="https://facebook.com/sharer/sharer.php?u=http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%name%}" target="_blank" rel="noopener">
-                <img src="/{%thumbImage%}" title="{%name%}">
+              <a class="" href="https://facebook.com/sharer/sharer.php?u=https://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%id%}" target="_blank" rel="noopener">
+                <img src="/{%thumbImage%}" title="{%title%}">
               </a>
               <br>
-              <span class="copyToClipboard promoLink" textToCopy="http://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%name%}">Copy Link</span>
+              <span class="copyToClipboard promoLink" textToCopy="https://{%@config.hostName%}{%@config.promoLinkPath%}/fb/{%id%}">Copy Link</span>
           </div>
           {%/if%}
         {%/social%}

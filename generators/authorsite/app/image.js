@@ -16,17 +16,21 @@ exports.prepare = async (contentPath, cachePath, bkgndConfig, skin) => {
     const sourceImagePath = path.join(contentPath, skin.background)
     const siteImage = await ImageLib.load(sourceImagePath)
     let updateCache = true
-    try {
-        const cacheInfo = Fs.readJSONSync(path.join(cachePath, 'info.json'))
-        if (cacheInfo) {
-            const imgInfo = cacheInfo.backgroundImage
-            if (imgInfo.path === skin.background && imgInfo.size === siteImage.data.byteLength) {
-                updateCache = false
-            }
-        }
-    } catch (e) {
-        console.log('No cache info file found. Will update any existing header and footer images.')
-    }
+    // Weirdness happening with background files. Sometimes only some parts are updating?
+    // Turn off any bg image caching until I have time to debug why some images are not being updated.
+    // At least this may get the issue sorted out by re-building a few times??
+    // ( I'm thinking it's likely an async bug, but I have not been able to find any missing awaits yet )
+    // try {
+    //     const cacheInfo = Fs.readJSONSync(path.join(cachePath, 'info.json'))
+    //     if (cacheInfo) {
+    //         const imgInfo = cacheInfo.backgroundImage
+    //         if (imgInfo.path === skin.background && imgInfo.size === siteImage.data.byteLength) {
+    //             updateCache = false
+    //         }
+    //     }
+    // } catch (e) {
+    //     console.log('No cache info file found. Will update any existing header and footer images.')
+    // }
     if (updateCache) {
         Fs.writeJSONSync(path.join(cachePath, 'info.json'), {
             backgroundImage:  {

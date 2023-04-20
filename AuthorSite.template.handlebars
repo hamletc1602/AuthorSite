@@ -52,9 +52,17 @@ Parameters:
   SharedStorageName:
     Type: String
     Description: (OPTIONAL) Name of a previously created shared storage bucket to link to this stack.
+  DirectAccess:
+    Description: Create a user and credentials for direct access to files in the preview site.
+    Default: No
+    Type: String
+    AllowedValues:
+      - Yes
+      - No
 
 Conditions:
   SharedBucket: !Equals [!Ref SharedStorage, 'Yes, this is my first site in this account']
+  AllowDirectAccess: !Equals [!Ref DirectAccess, 'Yes']
 
 Resources:
   SharedData:
@@ -300,6 +308,7 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
+        HttpVersion: http2and3
         {{#domain}}
         Aliases:
           - !Ref DomainName
@@ -307,7 +316,7 @@ Resources:
         ViewerCertificate:
             AcmCertificateArn: !Ref Certificate
             SslSupportMethod: sni-only
-            MinimumProtocolVersion: TLSv1
+            MinimumProtocolVersion: TLSv1.2_2018
         {{else}}
         ViewerCertificate:
             CloudFrontDefaultCertificate: true
@@ -362,6 +371,26 @@ Resources:
               - EventType: viewer-request
                 LambdaFunctionARN: !Ref OnFeedbackVersion
                 IncludeBody: true
+          - PathPattern: recovery/*
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: AdminUiData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: true
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !Ref OnAdminVersion
+                IncludeBody: true
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnCacheVersion
+                IncludeBody: true
           - PathPattern: admin/*
             AllowedMethods:
               - DELETE
@@ -411,7 +440,7 @@ Resources:
         ViewerCertificate:
             AcmCertificateArn: !Ref TestCertificate
             SslSupportMethod: sni-only
-            MinimumProtocolVersion: TLSv1
+            MinimumProtocolVersion: TLSv1.2_2018
         {{else}}
         ViewerCertificate:
             CloudFrontDefaultCertificate: true
@@ -467,6 +496,26 @@ Resources:
                 LambdaFunctionARN: !Ref OnFeedbackVersion
                 IncludeBody: true
           - PathPattern: admin/*
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: AdminUiData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: true
+            LambdaFunctionAssociations:
+              - EventType: viewer-request
+                LambdaFunctionARN: !Ref OnAdminVersion
+                IncludeBody: true
+              - EventType: origin-request
+                LambdaFunctionARN: !Ref OnCacheVersion
+                IncludeBody: true
+          - PathPattern: recovery/*
             AllowedMethods:
               - DELETE
               - GET
@@ -688,9 +737,9 @@ Resources:
           testSiteBucket: !Ref TestWebData
           siteBucket: !Ref WebData
           stateQueueUrl: !Ref StateQueue
-          {{#Domain}}
+          {{#domain}}
           domainName: !Ref DomainName
-          {{/Domain}}
+          {{/domain}}
       Code:
         S3Bucket: !Select [0, !Split [':', !Ref SiteGenerator]]
         S3Key: !Select [1, !Split [':', !Ref SiteGenerator]]
@@ -851,9 +900,9 @@ Resources:
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
-      {{#Domain}}
+      {{#domain}}
       DomainName: !Ref DomainName
-      {{/Domain}}
+      {{/domain}}
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
     DependsOn:
@@ -1285,6 +1334,7 @@ Resources:
 
   UploadUser:
     Type: AWS::IAM::User
+    Condition: AllowDirectAccess
     Properties:
       UserName: !Join ['.', [!Ref AWS::StackName, 'uploader']]
       LoginProfile:
@@ -1317,19 +1367,20 @@ Resources:
 
   UploadUserAccessKey:
     Type: AWS::IAM::AccessKey
+    Condition: AllowDirectAccess
     Properties:
       UserName: !Ref UploadUser
 
 Outputs:
   SharedStorageName:
     Description: Name of the shared bucket. Supply this name as the 'SharedStorageName' parameter when creating other stacks.
-    Value: !If [SharedBucket, !Ref SharedData, '']
+    Value: !If [SharedBucket, !Ref SharedData, 'Not Configured']
   TestSiteBucket:
     Description: S3 bucket for test site files
     Value: !Ref TestWebData
   AccessId:
     Description: Access ID
-    Value: !Ref UploadUserAccessKey
+    Value: !If [AllowDirectAccess, !Ref UploadUserAccessKey, 'Not Configured']
   AccessSecret:
     Description: Access Secret
-    Value: !GetAtt UploadUserAccessKey.SecretAccessKey
+    Value: !If [AllowDirectAccess, !GetAtt UploadUserAccessKey.SecretAccessKey, 'Not Configured']

@@ -38,7 +38,7 @@ properties:
     publish: true
   imageType:
     desc: MIME type of the promo image.
-    type: image
+    type: string
     hidden: true
   imageHeight:
     desc: Height of the promo image in pixels.

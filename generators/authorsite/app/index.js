@@ -10,8 +10,7 @@ const Webpack = require("webpack")
 
 const defaultOptions = {
   buildId: Date.now(),
-  types: 'desktop,mobile',
-  skipImages: false
+  types: 'desktop,mobile'
 }
 const memCache = {}
 
@@ -80,7 +79,6 @@ const handler = async (event, context) => {
     }
 
     // Load options from Environment
-    addEnv(options, 'skipImages')
     addEnv(options, 'types')
     addEnv(options, 'adminBucket')
     addEnv(options, 'adminUiBucket')
@@ -229,10 +227,10 @@ const handler = async (event, context) => {
     }
 
     // Load real content for any 'text' type elements and replace the file path
-    const resolveFileRefsWorker= async (value, parent, key) => {
+    const resolveFileRefsWorker= async (schema, value, parent, key) => {
       // Replace key value with external text content (possibly also rendered from a template)
       if (typeof value === 'string' || value instanceof String) {
-        parent[key] = await Files.loadLargeData(Path.join(contentDir, value), { props: parent, config: data.config });
+        parent[key] = await Files.loadLargeData(schema.textType, Path.join(contentDir, value), { props: parent, config: data.config });
       } else {
         console.warn(`Text type value is not string. Value: ${JSON.stringify(value)}`)
       }
@@ -736,10 +734,10 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     Promise.all(Object.keys(config.customPages).map(async pageId => {
       const pageConfig = config.customPages[pageId]
       if (pageConfig.content) {
-        const pageContentConfig = {
+        const pageContentConfig = Object.assign({
           name: 'page-' + pageId,
-          content: await Files.loadLargeData(Path.join(confDir, pageConfig.content))
-        };
+          content: await Files.loadLargeData(pageConfig.textType || 'markdown', Path.join(confDir, pageConfig.content))
+        }, renderData);
         if (pageConfig.menuRef) {
           pageContentConfig[pageConfig.menuRef] = true;
         }
@@ -752,17 +750,17 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   await Promise.all(data.published.map(async elem => {
     // Construct at least one promo, with the book's cover only, to support the social media share buttons
     const autoPromo = {
-      name: elem.id + '-cover',
+      id: elem.id + '-cover',
       image: elem.coverPromo,
       imageHeight: elem.coverPromoSize.height,
       imageWidth: elem.coverPromoSize.width,
       category: { twitter: true, facebook: true }
     }
-    data.social.push(Object.assign(autoPromo, elem));
+    data.social.push(autoPromo);
 
     // Write book pages
     const bookShare = bookToShare(Object.assign(autoPromo, elem));
-    bookShare.url = `/p/fb/${elem.id}-${autoPromo.name}`
+    bookShare.url = `/p/fb/${bookShare.id}`
     let content = itemTpl({ pageId: 'books', book: elem, share: bookShare, style: data.style }, tplData);
     await Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
@@ -772,8 +770,8 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     }
   }))
 
-  // Social images
-  await Promise.all(data.social.map(async promo => {
+  // Social images  ( Replace entire social data list here in the render data, because we're adding extra details )
+  renderData.social = await Promise.all(data.social.map(async promo => {
     // Convert categories from editor format (array of strings) to object format for handlebars template
     if (promo.category && Array.isArray(promo.category)) {
       const newCats = {}
@@ -787,25 +785,27 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
         twitter: true
       }
     }
+    const share = Object.assign({}, bookToShare(promo), promo)
     // Write shareable page
-    const share = bookToShare(promo)
-    if (promo.category.facebook) {
-      share.url = `/p/fb/${promo.name}`
+    if (share.category.facebook) {
+      share.url = `/p/fb/${share.id}`
       const content = bookPromoFacebookTpl({ promo: promo, share: share }, tplData)
       await Files.savePage(outputDir + share.url + '.html', content)
     }
-    if (promo.category.twitter) {
-      share.url = `/p/tw/${promo.name}`
+    if (share.category.twitter) {
+      share.url = `/p/tw/${share.id}`
       const content = bookPromoTwitterTpl({ promo: promo, share: share }, tplData)
       await Files.savePage(outputDir + share.url + '.html', content)
     }
     // TODO: Copy full images from content to site.
-    Files.ensurePath(Path.join(outputDir, promo.image))
-    await Files.copy(Path.join(contentDir, promo.image), Path.join(outputDir, promo.image))
+    Files.ensurePath(Path.join(outputDir, share.image))
+    await Files.copy(Path.join(contentDir, share.image), Path.join(outputDir, share.image))
     // Create a thumbnail images
-    promo.thumbImage = Files.createNewPath(promo.image, 'thumb')
-    Files.ensurePath(Path.join(outputDir, promo.thumbImage))
-    promo.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, promo.image), Path.join(outputDir, promo.thumbImage), config.promoThumbImageHeight)
+    share.thumbImage = Files.createNewPath(share.image, 'thumb')
+    Files.ensurePath(Path.join(outputDir, share.thumbImage))
+    share.thumbSize = await Image.resizeBookIcon(Path.join(contentDir, share.image), Path.join(outputDir, share.thumbImage), config.promoThumbImageHeight)
+    //
+    return share
   }));
 
   // For each author, render a new author page based on the author template. (And copy author image referenced in config from content to the site.)
@@ -976,7 +976,7 @@ const visitProperties = async (value, schema, config, actionFunc, parent, key) =
 const resolveFileRefs = async (valueI, schemaI, configI, worker) => {
   await visitProperties(valueI, schemaI, configI, async (value, schema, _config, parent, key) => {
     if (schema.type === 'text') {
-      await worker(value, parent, key)
+      await worker(schema, value, parent, key)
     }
   })
 }
@@ -1031,7 +1031,11 @@ const publishContent = async (valueI, schemaI, configI, worker) => {
       } else {
         console.log(`Publish content ${key}:${value} to site.`)
       }
-      await worker(value, schema.pubDir)
+      try {
+        await worker(value, schema.pubDir)
+      } catch (ex) {
+        console.log(`Failed to copy content ${key}:${value} to site: ${ex.message}.`, ex)
+      }
     }
   })
 }
@@ -1050,6 +1054,7 @@ const bookToShare = (book) => {
   }
   //
   return {
+    id: book.id || removeSpaces(book.title).toLowerCase(),
     ogType: 'book',
     redirectUrl: redirectUrl,
     isbn: book.isbn,

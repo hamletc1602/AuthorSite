@@ -67,7 +67,7 @@ exports.loadJson = (filepath, config) => {
 }
 
 /** Load and parse a 'large data' file (for blurbs, author bio, etc.) */
-exports.loadLargeData = (filepath, config) => {
+exports.loadLargeData = (textType, filepath, config) => {
   return new Promise((resolve, reject) => {
     Fs.readFile(filepath, 'utf8', (err, content) => {
       var tpl = null
@@ -83,8 +83,14 @@ exports.loadLargeData = (filepath, config) => {
             tpl = Handlebars.compile(content);
             content = tpl(config)
           }
-          // If the source file ends with .md, process it as markdown
-          if (/\.md$/.test(filepath)) {
+          if (textType) {
+            if (textType === 'markdown') {
+              // Process as markdown
+              content = Markdown.toHTML(content)
+            }
+            // For now, all other text types are passed on with no further processing.
+          } else if (/\.md$/.test(filepath)) {
+            // If no explicit text type, and the source file ends with .md, process it as markdown
             content = Markdown.toHTML(content)
           }
           resolve(content)

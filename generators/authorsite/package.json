@@ -17,7 +17,6 @@
     "debug-on": "npm config set authorsite_debug true",
     "debug-off": "npm config set authorsite_debug false",
     "build": "node app/index.js types desktop,mobile",
-    "build:skipImages": "node app/index.js skipImages true",
     "build:desktop": "node app/index.js types desktop",
     "build:desktop:debug": "node app/index.js debug true types desktop",
     "build:mobile": "node app/index.js types mobile",

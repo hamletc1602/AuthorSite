@@ -2,8 +2,8 @@
 
 <div class="page-news content">
 
-{%#if showNewsSignup%}
-	{%noescape newsSignupHtml%}
+{%#if @config.showNewsSignup%}
+	{%noescape @config.newsSignupHtml%}
 {%/if%}
 
 {%#if category%}
