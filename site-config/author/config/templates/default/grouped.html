@@ -1,8 +1,8 @@
-{%#> page id=pageId uiApp=@config.useBookLists %}
+{%#> page id=pageId uiApp=@config._useBookLists %}
 
 <div class="page-home contentNoPanel">
 
-{%#if @config.useBookLists%}
+{%#if @config._useBookLists%}
   {%#if ../items.useCarousel%}
     <div class="booklist booklistCarousel booklistCarousel{%../items.length%} hidden">
       <div id="{%group.id%}_pubs" data-onclick="selectFeature" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
@@ -27,7 +27,7 @@
       {%> bookFeature . %}
     {%/items%}
   </div>
-  {%#if @config.useBookCategories%}
+  {%#if @config._useBookCategories%}
     {%#each group.pubs%}
       <h2 class="" id="{%@key%}">{%displayName%}</h2>
       {%#if useCarousel%}
@@ -61,7 +61,7 @@
 
 </div>
 
-{%#if @config.useBookLists%}
+{%#if @config._useBookLists%}
 <script>
   const breakPoints = [{
     minStaticWidth: ({%items.length%} * ({%@config.coverIconWidth%} + 10)) + 60,

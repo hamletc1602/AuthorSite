@@ -169,8 +169,8 @@ const handler = async (event, context) => {
     initConfig.siteName = config.siteName
     config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
     config.hostName = options.domainName
-    config.tempDir = tempDir
-    const data = {
+    config._tempDir = tempDir
+    const data = { 
       config: config,
       structure: await Files.loadConfig(Path.join(confDir, confIndex.structure.data), config),
       style: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
@@ -192,8 +192,8 @@ const handler = async (event, context) => {
       // Ensure all logo sizes are defined, borrowing oher logo sizes if needed.
       fillInMissingLogoEntries(data.style.logo)
       // Add flags to adjust page rendering based on the number of books available
-      config.useBookLists = data.published.length >= Number(config.minBooksForList)
-      config.useBookCategories = data.published.length >= Number(config.minBooksForCategories)
+      config._useBookLists = data.published.length >= Number(config.minBooksForList)
+      config._useBookCategories = data.published.length >= Number(config.minBooksForCategories)
     }
 
     // Load all schema
@@ -211,7 +211,8 @@ const handler = async (event, context) => {
     // Remove properties that refer to files that don't exist, to prevent further builder code from attempting to
     // load them and failing at an awkward spot.
     const clearMissingFilesWorker  = async (value, schema, _config, parent, key) => {
-      if (schema.type === 'image' || schema.type === 'file') {
+      if (schema.type === 'image' || schema.type === 'file' || schema.type === 'text') {
+        //console.log(`Check existence of File ${Path.join(contentDir, value)} for prop ${key}.`)
         if (value && ! Files.exists(Path.join(contentDir, value))) {
           console.log(`File ${value} for prop ${key} not found. Clearing property value for this run.`)
           parent[key] = null
@@ -535,34 +536,38 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
 
       // Ensure all icon and feature images exist, and are the proper size.
       //console.debug(`Ensure all icon and feature images exist for ${pub.title}, and are the proper size`)
-      if ( ! pub.featureCoverImage) {
-        pub.featureCoverImage = Files.createNewPath(pub.coverImage, 'feature')
-        const newPath = Path.join(outputDir, 'image', pub.featureCoverImage)
-        Files.ensurePath(newPath)
-        pub.featureCoverImageSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.featureImageHeight)
-        if (config.unpublishedFeatureStickerImage && ! pub.published) {
-          await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedFeatureStickerImage), 'bottom', 'right')
+      if (pub.coverImage) {
+        if ( ! pub.featureCoverImage) {
+          pub.featureCoverImage = Files.createNewPath(pub.coverImage, 'feature')
+          const newPath = Path.join(outputDir, 'image', pub.featureCoverImage)
+          Files.ensurePath(newPath)
+          pub.featureCoverImageSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.featureImageHeight)
+          if (config.unpublishedFeatureStickerImage && ! pub.published) {
+            await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedFeatureStickerImage), 'bottom', 'right')
+          }
         }
-      }
-      if ( ! pub.coverIcon) {
-        pub.coverIcon = Files.createNewPath(pub.coverImage, 'icon')
-        const newPath = Path.join(outputDir, 'image', pub.coverIcon)
-        Files.ensurePath(newPath)
-        pub.coverIconSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.coverIconHeight)
-        if (config.unpublishedStickerImage && ! pub.published) {
-          await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedStickerImage), 'bottom', 'right')
+        if ( ! pub.coverIcon) {
+          pub.coverIcon = Files.createNewPath(pub.coverImage, 'icon')
+          const newPath = Path.join(outputDir, 'image', pub.coverIcon)
+          Files.ensurePath(newPath)
+          pub.coverIconSize = await Image.resizeBookIcon(Path.join(contentDir, pub.coverImage), newPath, config.coverIconHeight)
+          if (config.unpublishedStickerImage && ! pub.published) {
+            await Image.applySticker(newPath, Path.join(contentDir, config.unpublishedStickerImage), 'bottom', 'right')
+          }
         }
-      }
-      if ( ! pub.coverPromo) {
-        // Create cover promo image in content dir to allow following code to deal with generated and static
-        // promo conent in the same way.
-        pub.coverPromo = Files.createNewPath(Path.join('social', pub.coverImage), 'promo')
-        const newPath = Path.join(contentDir, pub.coverPromo)
-        Files.ensurePath(newPath)
-        pub.coverPromoSize = await Image.createPromo(Path.join(outputDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
-        if (config.logo && config.addLogoToSocialImages) {
-          await Image.applySticker(newPath, Path.join(contentDir, config.logo.small), 'top', 'left')
+        if ( ! pub.coverPromo) {
+          // Create cover promo image in content dir to allow following code to deal with generated and static
+          // promo conent in the same way.
+          pub.coverPromo = Files.createNewPath(Path.join('social', pub.coverImage), 'promo')
+          const newPath = Path.join(contentDir, pub.coverPromo)
+          Files.ensurePath(newPath)
+          pub.coverPromoSize = await Image.createPromo(Path.join(outputDir, 'image', pub.featureCoverImage), Path.join(contentDir, config.coverPromoBackground), newPath)
+          if (config.logo && config.addLogoToSocialImages) {
+            await Image.applySticker(newPath, Path.join(contentDir, config.logo.small), 'top', 'left')
+          }
         }
+      } else {
+        console.warn(`Missing cover image for book ${pub.title}. Generation will likely fail.`)
       }
 
       // Add sharing data to feed the 'sharing.html' template, invoked from item.html template (and others)

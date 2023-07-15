@@ -55,7 +55,7 @@ You can find me on
 <script>
   let resizeDebounce = null
 
-  {%#if @config.useBookLists%}
+  {%#if @config._useBookLists%}
 
   let breakPoints = [{
       {%#each group.pubs%}
@@ -122,7 +122,7 @@ You can find me on
   window.onresize = (ev) => {
     clearTimeout(resizeDebounce)
     resizeDebounce = setTimeout(() => {
-      {%#if @config.useBookLists%}
+      {%#if @config._useBookLists%}
         toggleCarousel()
       {%/if%}
       toggleMoreButton()
@@ -131,7 +131,7 @@ You can find me on
 
 </script>
 
-{%#if @config.useBookLists%}
+{%#if @config._useBookLists%}
   <div id="booksSlider"></div>
 {%/if%}
 
