@@ -718,10 +718,10 @@ function usePutContentWorker(controller, adminConfig, contentToPut, putContentCo
         await Promise.all(Object.keys(contentToPut.current).map(async toPutId => {
           const toPut = contentToPut.current[toPutId]
           if (toPut.state === 'new') {
-            console.log(`Push content to server for ${toPutId}`)
             toPut.state = 'working'
             const sourceRec = toPut.source[toPut.id]
             if (sourceRec) {
+              console.log(`Push content to server for ${toPutId}`, sourceRec)
               try {
                 if (sourceRec.isConfig) {
                   await controller.putSiteConfig(
