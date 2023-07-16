@@ -8,6 +8,28 @@
     "copyrightShort": "&copy; {%yyyy%} {%siteName%}",
     "copyright": "Copyright &copy; {%yyyy%} {%siteName%}",
 
+    "itemCategories": [{
+        "name": "book",
+        "single": "Novel",
+        "plural": "Novels"
+      },{
+        "name": "novella",
+        "single": "Novella",
+        "plural": "Novellas"
+      },{
+        "name": "short",
+        "single": "Short Story",
+        "plural": "Short Stories"
+      },{
+        "name": "anthology",
+        "single": "Anthology",
+        "plural": "Anthologies"
+      },{
+        "name": "nonfiction",
+        "single": "Nonfiction",
+        "plural": "Nonfiction"
+    }],
+
     "minBooksForList": 5,
     "minBooksForCategories": 10,
     "minBooksForCarousel": 3,

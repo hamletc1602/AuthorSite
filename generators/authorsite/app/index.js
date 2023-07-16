@@ -1091,20 +1091,13 @@ const groupToShare = (group, subpath, ogType) => {
 
 const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
-  // TODO: Externalize these lists into config.
-  var typePluralMap = {
-    book: "books",
-    novella: "novellas",
-    short: "shorts",
-    anthology: "anthologies"
-  };
-
-  var displayNameMap = {
-    books: "Novels",
-    novellas: "Novellas",
-    shorts: "Short Stories",
-    anthologies: "Anthologies"
-  };
+  const displayNameMap = {}
+  config.itemCategories.map(cat => {
+    displayNameMap[cat.name] = {
+      single: cat.single,
+      plural: cat.plural
+    }
+  })
 
   published.map(pub => {
     const authorObjList = []
@@ -1125,14 +1118,13 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
           pubType = [pubType]
         }
         pubType.forEach(type => {
-          const pluralType = typePluralMap[type] || type
-          if ( ! pubs[pluralType]) {
-            pubs[pluralType] = {
-              displayName: displayNameMap[pluralType] || pluralType,
+          if ( ! pubs[type]) {
+            pubs[type] = {
+              displayName: (displayNameMap[type] && displayNameMap[type].plural) || type,
               list: []
             }
           }
-          pubs[pluralType].list.push(pub)
+          pubs[type].list.push(pub)
           if ( ! author.pubs) {
             author.pubs = pubs
           }

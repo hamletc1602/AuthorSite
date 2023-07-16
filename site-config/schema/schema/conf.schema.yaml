@@ -111,6 +111,27 @@ properties:
         desc: Height in pixels for the default site image.
         hidden: true
 
+  itemCategories:
+    disp: Categories
+    type: list
+    desc: Define category tags that can be used on books.
+    elemType: object
+    nameProp: name
+    addTitle: Category
+    properties:
+      name:
+        disp: Name
+        type: string
+        desc: Code to use when entering the category name(s) for books.
+      single:
+        disp: Singular Display
+        type: string
+        desc: Display name for a single item of this category.
+      plural:
+        disp: Plural Display
+        type: string
+        desc: Display name for multiple items of this category.
+
   minBooksForList:
     disp: Min Books for List
     type: number

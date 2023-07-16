@@ -3,8 +3,8 @@
     "menu": [{
         "name": "index",
         "pageId": "books",
-        "title": "BOOKS",
-        "desc": "All my books",
+        "title": "AUTHORS",
+        "desc": "All our authors and their books!",
         "template": "grouped.html"
       },{
         "name": "social",

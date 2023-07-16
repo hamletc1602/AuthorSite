@@ -41,6 +41,7 @@ properties:
       - short
       - novella
       - anthology
+      - planner
   published:
     disp: Is Published
     type: boolean

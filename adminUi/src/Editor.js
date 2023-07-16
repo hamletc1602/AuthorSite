@@ -235,6 +235,20 @@ export default function Editor({
 
   // Switch to editing a child item by updating the path with it's name (this will force a re-render)
   const editItem = (name) => {
+    // Check if the item exists in config and create if needed
+    const currCont = Util.getContentForPath(configs, path)
+    if ( ! currCont[name]) {
+      if (schema.properties[name]) {
+        const itemSchema = schema.properties[name]
+        if (itemSchema.type === 'list') {
+          currCont[name] = []
+        }
+        if (itemSchema.type === 'object') {
+          currCont[name] = {}
+        }
+      }
+    }
+    // Switch to the item
     setPath([...path, { name: name }])
   }
 
