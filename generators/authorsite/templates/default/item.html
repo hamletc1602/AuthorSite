@@ -12,9 +12,9 @@
     {%else%}
       Book {%@root.book.seriesIndex%} of the <a href="/series/{%id%}">{%@root.book.seriesName%}</a> series
     {%/if%}
-    {%#@root.book.catchup%}
+    {%#@root.book.catchup.content%}
       <span> ( </span><a href="/series/{%@root.book.series.id%}-catchup-{%@root.book.seriesIndex%}" target="_blank">A refresher on the story so far...</a> )
-    {%/@root.book.catchup%}
+    {%/@root.book.catchup.content%}
   </div>
   {%/book.series%}
 </div>

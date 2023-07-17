@@ -11,9 +11,10 @@
 {%/if%}
 
 {%#news%}
+<a name="{%id%}"></a>
 <div id="post-{%id%}" class="post-{%id%} post type-{%type%} status-{%status%} format-{%format%} category-{%category.id%}">
     <div class="entry-header">
-      <h2 class="entry-title">{%title%}</h2>
+      <h2 class="entry-title">{%title%} <a class="permalink" href="/news#{%id%}">(link)</a></h2>
       <div class="entry-meta">
         <span class="posted-on">Posted on <time class="entry-date published" datetime="{%publishedDateIso%}">{%publishedDateDisplay%}</time></span><span class="byline"> by <span class="author vcard"><a class="url fn n" href="{%@config.authorPath%}/{%author.id%}">{%author.name%}</a></span></span>
       </div>

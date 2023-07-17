@@ -23,7 +23,13 @@
       <div class="bookBlurbWrapper">
         <div class="bookTitle">{%title%}</div>
         {%#if seriesIndex%}
-        <div class="bookSeriesTitle">Book {%seriesIndex%} of the {%seriesName%} series</div>
+          <div class="bookSeriesTitle">
+          {%#if external %}
+            Book {%seriesIndex%} of the <a href="{%series.url%}" target="blank">{%seriesName%}</a> series
+          {%else%}
+            Book {%seriesIndex%} of the <a href="/series/{%series.id%}">{%seriesName%}</a> series
+          {%/if%}
+          </div>
         {%/if%}
         <div class="bookLogline" style="color: {%loglineColor%};">{%logline%}</div>
         <div class="bookBlurb">{%noescape blurb%}</div>

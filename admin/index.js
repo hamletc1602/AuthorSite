@@ -67,6 +67,11 @@ exports.handler = async (event, _context) => {
   }
 }
 
+/**  */
+async function sleep(seconds) {
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
+
 /** Copy entire Test site to Live Site. */
 const deploySite = async (testSiteBucket, siteBucket) => {
   const deployId = new Date().getTime()
@@ -290,6 +295,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
       await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true, updateTemplateErrMsg: errMsg }, 'update', errMsg)
     }
   }
+  sleep(2) // Wait for 2s  ( seems like some S3 operations aren't completing properly?? )
 }
 
 /** Convert YAML configuration files to JSON */

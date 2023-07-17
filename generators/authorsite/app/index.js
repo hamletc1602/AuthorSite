@@ -231,7 +231,7 @@ const handler = async (event, context) => {
     const resolveFileRefsWorker= async (schema, value, parent, key) => {
       // Replace key value with external text content (possibly also rendered from a template)
       if (typeof value === 'string' || value instanceof String) {
-        parent[key] = await Files.loadLargeData(schema.textType, Path.join(contentDir, value), { props: parent, config: data.config });
+        parent[key] = await Files.loadLargeData(schema.textType || 'markdown', Path.join(contentDir, value), { props: parent, config: data.config });
       } else {
         console.warn(`Text type value is not string. Value: ${JSON.stringify(value)}`)
       }
@@ -769,7 +769,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     let content = itemTpl({ pageId: 'books', book: elem, share: bookShare, style: data.style }, tplData);
     await Files.savePage(outputDir + '/w/' + elem.id + '.html', content)
 
-    if (elem.catchup && elem.series) {
+    if (elem.catchup && elem.catchup.content && elem.series) {
       content = catchupTpl({ pageId: 'books', book: elem, share: bookShare, style: data.style }, tplData);
       await Files.savePage(`${outputDir}/series/${elem.series.id}-catchup-${elem.seriesIndex}.html`, content)
     }
@@ -1129,6 +1129,8 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
             author.pubs = pubs
           }
         })
+
+
       } else {
         console.error(`Can't find author ${authorName} in the list of authors.`, authorMap)
       }
@@ -1137,6 +1139,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     // Replace list of author names with objects.
     pub.author = authorObjList
   })
+
   // Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
   Object.keys(authorMap).forEach(authorKey => {
     const author = authorMap[authorKey]
@@ -1148,6 +1151,13 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     }
     author.useCarousel = author.list.length >= Number(config.minBooksForCarousel)
   })
+
+  // Sort book categories to the same order as they are defined in the config
+  // First, we'll need to make the pubs a list, not an object, and add an index to each pub based
+  // on it's name order in the itemCategories list.
+  //config.itemCategories
+  // author.pubs.list.sort(p => {
+  // })
 }
 
 // Trim down the data we save to the page as data input to the client side code generation
