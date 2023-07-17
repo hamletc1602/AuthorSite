@@ -225,10 +225,7 @@ export default class Controller {
       })
     } catch (error) {
       console.error('Failed to get site content.', error)
-      return {
-        contentType: null,
-        content: null
-      }
+      return null
     }
   }
 
