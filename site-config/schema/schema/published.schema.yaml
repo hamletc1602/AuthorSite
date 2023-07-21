@@ -36,12 +36,7 @@ properties:
     type: list
     elemType: string
     closed: true
-    values:
-      - book
-      - short
-      - novella
-      - anthology
-      - planner
+    source: general/itemCategories/name
   published:
     disp: Is Published
     type: boolean
@@ -55,8 +50,11 @@ properties:
     type: string
   primaryDistributor:
     disp: Primary Distributor
-    type: string
+    type: list
     desc: ID of the primary distributor for the 'buy now' links.
+    elemType: string
+    closed: true
+    source: distributors/id
   isbn:
     disp: ISBN (ebook)
     type: string
@@ -67,8 +65,13 @@ properties:
     desc: ISBN for print book versions.
   seriesName:
     disp: Series Name
-    type: string
+    type: list
     desc: Display name of the series this book belongs to, or blank if it's a standalone.
+    elemType: string
+    closed: true
+    source: series/name
+    values:
+      -
   seriesIndex:
     disp: Series Index
     type: number

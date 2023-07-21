@@ -309,7 +309,8 @@ function App() {
     if ( ! configs.current[configId]) {
       await loadAndCacheConfig(configId)
     }
-    await Util.processDynamicProperties(configs.current, configs.current[configId], loadAndCacheConfig)
+    await Util.processDynamicProperties(configs.current, configs.current[configId].schema, loadAndCacheConfig)
+    await Util.processDynamicLists(configs.current, configs.current[configId].schema, loadAndCacheConfig)
     setPath(editor.lastEditPath)
     prevEditorIndex.current = index
   }

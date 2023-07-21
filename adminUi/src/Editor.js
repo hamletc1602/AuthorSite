@@ -125,6 +125,11 @@ export default function Editor({
     }
   }
 
+  // Get content for path
+  const getContentForPath = (pathStr) => {
+    return Util.getContentForPath(configs, Util.deserializePath(pathStr))
+  }
+
   // Move the selected item up on rank in the list (swap it with the previous item)
   const moveItemUp = (ev) => {
     if (pathIndex <= 0) {
@@ -375,6 +380,7 @@ export default function Editor({
           setData={setData}
           editItem={editItem}
           putContentComplete={putContentComplete}
+          getContentForPath={getContentForPath}
           advancedMode={advancedMode}
           locked={locked}
         ></SubEditor>

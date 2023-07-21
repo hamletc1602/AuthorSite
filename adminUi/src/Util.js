@@ -3,6 +3,35 @@ import { v1 } from 'uuid'
 /**  */
 export default class Util {
 
+  static isNumber = /^\d*$/
+
+  // Deserialize path
+  static deserializePath(pathStr) {
+    const parts = pathStr.split('/')
+    return parts.map(part => {
+      if (this.isNumber.test(part)) {
+        return {
+          index: Number(part)
+        }
+      } else {
+        return {
+          name: part
+        }
+      }
+    })
+  }
+
+  // Serialize path
+  static serializePath(path) {
+    return path.map(item => {
+      if (item.index === undefined) {
+        return item.name
+      } else {
+        return item.index
+      }
+    }).join('/')
+  }
+
   // Get inital list index from the index elem at the end of the path, or -1 if there's no index elem.
   static getCurrIndex(path) {
     if (path.length > 0) {
@@ -174,7 +203,10 @@ export default class Util {
       case 'color': return ''
       case 'list':
         if (schema.closed) {
-          return schema.values[0]
+          if (schema.values) {
+            return schema.values[0]
+          }
+          return null
         } else {
           return []
         }
@@ -213,11 +245,10 @@ export default class Util {
   /** Find any dynamic properties in the schema of the current config and refresh their cached list of generated
       property names based on the data in other refrenced schemas.
   */
-  static async processDynamicProperties(configs, currConfig, loadConfig) {
-    const currSchema = currConfig.schema
-    if (currSchema.dynamicProperties) {
-      currSchema.dynamicProperties.cache = {}
-      await Promise.all(Object.entries(currSchema.dynamicProperties).map(async ([propName, propConf]) => {
+  static async processDynamicProperties(configs, schema, loadConfig) {
+    if (schema.dynamicProperties) {
+      schema.dynamicProperties.cache = {}
+      await Promise.all(Object.entries(schema.dynamicProperties).map(async ([propName, propConf]) => {
         if ( ! propConf.source) {
           console.log(`Dynamic property ${propName} missing source attribute.`)
           return
@@ -232,12 +263,38 @@ export default class Util {
         }
         sourceConfig.content.forEach(p => {
           // Generator will not alert in log for property names with underscore that don't have a schema attached.
-          currSchema.dynamicProperties.cache['_' + propName + '_' + p[sourcePropName]] = {
+          schema.dynamicProperties.cache['_' + propName + '_' + p[sourcePropName]] = {
             type: propConf.type,
             disp: p[sourcePropName],
             desc: propConf.desc
           }
         })
+      }))
+    }
+  }
+
+  /** Find any dynamic lists in the schema of the current config and ensure that the config they reference
+      is loaded.
+  */
+  static async processDynamicLists(configs, schema, loadConfig) {
+    if (schema.properties) {
+      await Promise.all(Object.keys(schema.properties).map(async key => {
+        const p = schema.properties[key]
+        if (p.type === 'list') {
+          if (p.elemType === 'object') {
+            // Process all object properties
+            Util.processDynamicLists(configs, p, loadConfig)
+          } else if (p.source) {
+            // The first element of the source will be the editor id we need to ensure is loaded
+            const path = Util.deserializePath(p.source)
+            if ( ! configs[path[0].name]) {
+              await loadConfig(path[0].name)
+            }
+          }
+        } else if (p.type === 'object') {
+          // Process all object properties
+          Util.processDynamicLists(configs, p, loadConfig)
+        }
       }))
     }
   }

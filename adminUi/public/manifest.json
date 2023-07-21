@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "BV StaticSite AdminUI",
+  "name": "BraeVitae Static Site Admin UI",
   "icons": [
     {
       "src": "favicon.ico",

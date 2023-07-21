@@ -6,7 +6,7 @@ import {
 //import EditableTags from './EditableTags';
 
 /**  */
-export default function EditorProperties({id, content, schema, setData, editItem, advancedMode, locked}) {
+export default function EditorProperties({id, content, schema, setData, editItem, getContentForPath, advancedMode, locked}) {
 
   // Upate item content values on control changes
   function editField(schema, name, value) {
@@ -47,16 +47,32 @@ export default function EditorProperties({id, content, schema, setData, editItem
           // TODO: Multi-select list is not yet implemented
           // UI will likely be a checkboxes group??
           return <Box>{'Multi-select list input is not yet available'}</Box>
-        } else if (schema.closed && schema.values) {
+        } else if (schema.closed && (schema.values || schema.source)) {
+          const values = []
+          if (schema.values) {
+            // Add any hard-coded values to the selection list
+            values.push(...schema.values)
+          }
+          if (schema.source) {
+            // This list uses values from the data elements defined for a named propery path
+            const sourceParts = schema.source.split('/')
+            const itemProp = sourceParts.pop()
+            const listContent = getContentForPath(sourceParts.join('/'))
+            if (listContent && listContent.forEach) {
+              listContent.forEach(item => {
+                values.push(item[itemProp])
+              })
+            }
+          }
           let selIndex = -1
           if (value) {
-            selIndex = schema.values.findIndex(p => p === value)
+            selIndex = values.findIndex(p => p === value)
           }
           return <Select key={itemKey} size='sm'
             defaultValue={selIndex} disabled={locked}
-            onChange={ev => { setData(name, schema.values[ev.target.value]) }}
+            onChange={ev => { setData(name, values[ev.target.value]) }}
           >
-            {schema.values.map((listValue, index) => {
+            {values.map((listValue, index) => {
               return <option key={itemKey + '_opt' + index} value={index}>{listValue}</option>
             })}
           </Select>
