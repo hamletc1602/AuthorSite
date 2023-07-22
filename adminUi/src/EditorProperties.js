@@ -9,7 +9,7 @@ import {
 export default function EditorProperties({id, content, schema, setData, editItem, getContentForPath, advancedMode, locked}) {
 
   // Upate item content values on control changes
-  function editField(schema, name, value) {
+  function editField(schema, name, value, nameProp) {
     const itemKey = id + '-' + name + '-edit-ctrl'
     switch (schema.type) {
       case 'string':
@@ -17,6 +17,11 @@ export default function EditorProperties({id, content, schema, setData, editItem
         return <Input key={itemKey} size='sm'
           defaultValue={value} disabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
+          onBlur={ev => {
+            if (name === nameProp) {
+              setData(name, ev.target.value, { setListName: true })
+            }
+          }}
         />
       case 'url': return <Input key={itemKey} size='sm'
           defaultValue={value} disabled={locked}
@@ -151,7 +156,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
           </Tooltip>
         </GridItem>,
         <GridItem key={`${id}-${name}-edit`}>
-          {editField(itemSchema, name, value)}
+          {editField(itemSchema, name, value, schema.nameProp)}
         </GridItem>
       ]
     }).flat()}

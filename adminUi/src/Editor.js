@@ -158,7 +158,7 @@ export default function Editor({
 
   // Update this data value in the config. Push the config data to the server if the value has
   // changed. Push the referenced file to the server if this is a text or image type value.
-  const setData = (name, value) => {
+  const setData = (name, value, opts) => {
     let currContent = content
     if (schema.type === 'image') {
       // Image File Content
@@ -234,6 +234,9 @@ export default function Editor({
       if (value !== oldValue) {
         currContent[name] = value
         pushContent(editor.data, configs.current, editor.id, editor.id)
+      }
+      if (opts && opts.setListName) {
+        itemSelected(null, pathIndex, value)
       }
     }
   }

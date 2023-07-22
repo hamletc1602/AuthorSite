@@ -10,8 +10,8 @@ exports.onCache = async (event, _context) => {
       suffix = '';
   }
   let typeDir = '';
-  // If path ends in .json (data file) skip mobile/desktop switch
-  if (request.uri.indexOf('.json') !== request.uri.length - 5) {
+  // If path ends in admin.json (data file) skip mobile/desktop switch
+  if (request.uri.indexOf('admin.json') === -1) {
     typeDir = '/desktop';
     if (request.headers) {
       console.log(`Context: ${JSON.stringify(request.headers)}`)
