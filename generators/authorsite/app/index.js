@@ -1120,6 +1120,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
         pubType.forEach(type => {
           if ( ! pubs[type]) {
             pubs[type] = {
+              name: type,
               displayName: (displayNameMap[type] && displayNameMap[type].plural) || type,
               list: []
             }
@@ -1140,24 +1141,24 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     pub.author = authorObjList
   })
 
-  // Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
+  // Convert author pubs to a list, and Sort book categories to the same order as they are defined in the config
+  //    Also: Add 'useCarousel' flag to authors and each pub type within author, for use in UI rendering
   Object.keys(authorMap).forEach(authorKey => {
     const author = authorMap[authorKey]
+    const pubList = []
     if (author.pubs) {
       Object.keys(author.pubs).forEach(pubKey => {
         const pub = author.pubs[pubKey]
+
+        pub.order = config.itemCategories.findIndex(p => p.name === pubKey)
         pub.useCarousel = pub.list.length >= Number(config.minBooksForCarousel)
+        pubList.push(pub)
       })
     }
+    author.pubs = pubList
+    author.pubs.sort((a, b) => a.order - b.order)
     author.useCarousel = author.list.length >= Number(config.minBooksForCarousel)
   })
-
-  // Sort book categories to the same order as they are defined in the config
-  // First, we'll need to make the pubs a list, not an object, and add an index to each pub based
-  // on it's name order in the itemCategories list.
-  //config.itemCategories
-  // author.pubs.list.sort(p => {
-  // })
 }
 
 // Trim down the data we save to the page as data input to the client side code generation
@@ -1171,11 +1172,10 @@ const filterAuthorMap = (config, authorMap) => {
       list: null
     }
     if (author.pubs) {
-      ret.pubs = Object.keys(author.pubs).map(pubTypeName => {
-        let pubType = author.pubs[pubTypeName]
+      ret.pubs = author.pubs.map(pubType => {
         return {
           showTitles: config.showTitlesOnGroupedPage,
-          pubType: pubTypeName,
+          pubType: pubType.name,
           list: pubType.list.map(pub => {
             return {
               id: pub.id,

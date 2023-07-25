@@ -195,7 +195,8 @@ export default class Controller {
   /** Get various site content files for the given template. */
   async getSiteContent(templateId, contentPath) {
     try {
-      return fetch(`/content/${templateId}/${contentPath}`, {
+      // Add a cache-buster timestamp parameter to the URL mainly to ignore cached '404' responses.
+      return fetch(`/content/${templateId}/${contentPath}?t=${Date.now()}`, {
         headers: new Headers({
           'Authorization': this.basicAuth(),
         })
