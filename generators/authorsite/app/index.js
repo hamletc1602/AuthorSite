@@ -1157,7 +1157,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     }
     author.pubs = pubList
     author.pubs.sort((a, b) => a.order - b.order)
-    author.useCarousel = author.list.length >= Number(config.minBooksForCarousel)
+    author.useCarousel = author.pubs.length >= Number(config.minBooksForCarousel)
   })
 }
 
