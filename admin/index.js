@@ -25,7 +25,9 @@ const aws = new AwsUtils({
   files: Files,
   s3: new sdk.S3(),
   sqs: new sdk.SQS(),
-  stateQueueUrl: stateQueueUrl
+  stateQueueUrl: stateQueueUrl,
+  cf: new sdk.CloudFront(),
+  cm: new sdk.ACM()
 })
 
 /** Worker for admin tasks forwarded from admin@Edge lambda.
@@ -60,6 +62,10 @@ exports.handler = async (event, _context) => {
       return saveTemplate(sharedBucket, adminBucket, event.body)
     case 'setPassword':
       return setPassword(adminBucket, event.body)
+    case 'getAvailableDomains':
+      return getAvailableDomains(adminBucket, event.body)
+    case 'setSiteDomain':
+      return setSiteDomain(adminBucket, event.body)
     default:
       return {
         status: '404',
@@ -609,5 +615,37 @@ async function setPassword(adminBucket, params) {
   } catch (e) {
     console.log(`Failed to set new password.`, e)
     await aws.displayUpdate({ settingPwd: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `End change password. Failed: ${e.message}`)
+  }
+}
+
+async function getAvailableDomains(adminBucket, params) {
+  try {
+    await aws.displayUpdate({ getDomains: true, getDomError: false, getDomErrMsg: '' }, 'getDomains', `Start get available domains`)
+
+    // Get all avaiable certificates that qualify - must have a main and test site, or be a wildcard cert
+
+
+
+
+    // Get all certs in use from CF, and remove from available list
+
+
+    await aws.displayUpdate({ getDomains: false, getDomError: false, getDomErrMsg: '' }, 'getDomains', `End get available domains`)
+  } catch (e) {
+    console.log(`Failed to get available domains.`, e)
+    await aws.displayUpdate({ getDomains: false, getDomError: true, getDomErrMsg: `Failed to get domains ${e.message}` }, 'getDomains', `End get available domains. Failed: ${e.message}`)
+  }
+}
+
+async function setSiteDomain(adminBucket, params) {
+  try {
+    await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set domain`)
+
+
+
+    await aws.displayUpdate({ setDomains: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
+  } catch (e) {
+    console.log(`Failed to set domain.`, e)
+    await aws.displayUpdate({ setDomains: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
   }
 }

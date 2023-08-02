@@ -254,6 +254,12 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
       case 'setPassword':
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
+      case 'getAvailableDomains':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
+      case 'setSiteDomain':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
       default:
         ret = {
           status: '404',

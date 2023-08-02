@@ -6,7 +6,10 @@ async function main() {
   const args = process.argv.slice(2);
   const templateFilePath = args[0]
   const sourceBucket = args[1]
+<<<<<<< HEAD
   const version = args[2] || ''  // Default version to empty string
+=======
+>>>>>>> 8eadeb1 (Start adding server functions for editing site domain on the fly.)
 
   const templateSource = await Fs.readFile(templateFilePath)
   const template = Handlebars.compile(templateSource.toString());
