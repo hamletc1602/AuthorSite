@@ -903,8 +903,11 @@ Resources:
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
+      BaseDomain: !GetAtt WebCache.DomainName
+      BaseDomainTest: !GetAtt TestWebCache.DomainName
       {{#domain}}
       DomainName: !Ref DomainName
+      DomainNameTest: !Join ['.', ['test', !Ref DomainName]]
       {{/domain}}
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
@@ -1394,6 +1397,9 @@ Resources:
       UserName: !Ref UploadUser
 
 Outputs:
+  SiteUrl:
+    Description: Base URL for the site which can be used whether there's a custom domain linked or not.
+    Value: !GetAtt WebCache.DomainName
   SharedStorageName:
     Description: Name of the shared bucket. Supply this name as the 'SharedStorageName' parameter when creating other stacks.
     Value: !If [SharedBucket, !Ref SharedData, 'Not Configured']

@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
-  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea
+  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea, Select, Tooltip
 } from '@chakra-ui/react'
 import { ExternalLinkIcon, InfoOutlineIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import Editor from './Editor'
 import Login from './Login'
+import ChangingDomain from './ChangingDomain'
 import SelectTemplate from './SelectTemplate'
 import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
@@ -62,27 +63,7 @@ const customTheme = extendTheme({
   }
 })
 
-// fill in site links from current URL host (Or from the environment, if we're in local dev. mode)
-let siteHost = null
-let testSiteHost = null
-if (process.env.NODE_ENV !== 'development') {
-  if (window.location.host.indexOf('test.') === 0) {
-    testSiteHost = window.location.host
-    siteHost = testSiteHost.substring(5)
-  } else {
-    siteHost = window.location.host
-    if (siteHost) {
-      siteHost = siteHost.replace('www.', '')
-      testSiteHost = 'test.' + siteHost
-    }
-  }
-} else {
-  siteHost = process.env.REACT_APP_TARGET_HOST
-  if (siteHost) {
-    siteHost = siteHost.replace('www.', '')
-    testSiteHost = 'test.' + siteHost
-  }
-}
+let siteHost = window.location.host
 
 //
 const controller = new Controller()
@@ -93,6 +74,7 @@ const BUTTON_GENERATE_DEBUG_TOOLTIP = 'Generate a test site from your configurat
 const BUTTON_PUBLISH_TOOLTIP = 'Replace your current live site content with the test site content.'
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
+const LIST_DOMAIN_TOOLTIP = 'Set Site domain. The browser page may reload if this setting is changed.'
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
@@ -143,12 +125,12 @@ document.addEventListener("visibilitychange", () => {
 function App() {
   // State
   const [showLogin, setShowLogin] = useState(true)
+  const [showChangingDomain, setShowChangingDomain] = useState(false)
   const [showSelectTemplate, setShowSelectTemplate] = useState(false)
   const [showPreparingTemplate, setShowPreparingTemplate] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({ new: true })
-  const [adminDisplay, setAdminDisplay] = useState({})
   const [adminTemplates, setAdminTemplates] = useState([])
   const [authState, setAuthState] = useState('unknown')
   const [authErrorMsg, setAuthErrorMsg] = useState('')
@@ -164,6 +146,8 @@ function App() {
   // Global Refs
   const editors = useRef([])
   const configs = useRef({})
+  const adminDisplay = useRef({})
+  const adminDomains = useRef({})
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
   const putContentComplete = useRef({})
@@ -172,6 +156,7 @@ function App() {
   const saveTemplateName = useRef({})
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
+  const availableDomains = useRef([])
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id, editorId) => {
@@ -184,8 +169,22 @@ function App() {
     }
   }
 
+  const setDisplay = (prop, value) => {
+    adminDisplay.current[prop] = value
+  }
+
   // Handlers
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
+
+  const setDomain = (domain) => {
+    controller.sendCommand('setDomain', { domain: domain })
+    if (siteHost !== adminDomains.current.base) {
+      // Current location is NOT the base (default CF domain), so the site will be unstable while
+      // the swap is happening and we'll need to refresh the browser to the new domain.
+      startFastPolling()
+      setShowChangingDomain(true)
+    }
+  }
 
   const setTemplateId = (templateId) => {
     if (templateId) {
@@ -211,14 +210,14 @@ function App() {
   }
 
   const onUpdateTemplate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { updatingTemplate: true }))
+    setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
     controller.sendCommand('updateTemplate', { id: adminConfig.templateId })
     startFastPolling()
   }
 
   const onUpdateAdminUi = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { updatingUi: true }))
+    setDisplay('updatingUi', true)
     // Don't update the recovery path if we're currently running an update _from_ the recovery path!
     const recoveryPath = /recovery/.test(window.location.path)
     controller.sendCommand('updateAdminUi', { updateRecoveryPath: !recoveryPath })
@@ -226,7 +225,7 @@ function App() {
   }
 
   const doSaveTemplate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { savingTemplate: true }))
+    setDisplay('savingTemplate', true)
     controller.sendCommand('saveTemplate', {
       id: adminConfig.templateId,
       name: saveTemplateName.current.value,
@@ -237,28 +236,28 @@ function App() {
   }
 
   const doSetPassword = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { settingPwd: true }))
+    setDisplay('settingPwd', true)
     controller.sendCommand('setPassword', { newPassword: newPassword.current.value })
     newPassword.current.value = ''
     startFastPolling()
   }
 
   const onGenerate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { building: true }))
+    setDisplay('building', true)
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     setTimeout(() => {
       console.log(`Cancel generating state after 15 minutes. Server-side generator timed out.`)
-      setAdminDisplay(Object.assign({}, adminDisplay, { building: false }))
+      setDisplay('building', false)
     }, 15 * 60 * 1000)
     startFastPolling()
   }
 
   const onPublish = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { deploying: true }))
+    setDisplay('deploying', true)
     controller.sendCommand('publish')
     setTimeout(() => {
       console.log(`Cancel publishing state after 5 minutes. Server-side generator timed out.`)
-      setAdminDisplay(Object.assign({}, adminDisplay, { deploying: false }))
+      setDisplay('deploying', false)
     }, 5 * 60 * 1000)
     startFastPolling()
   }
@@ -344,8 +343,24 @@ function App() {
   const setAdminState = (adminState) => {
     if ( ! adminLive) {
       setAdminConfig(adminState.config)
-      setAdminDisplay(adminState.display)
       setAdminTemplates(adminState.templates)
+      adminDisplay.current = adminState.display
+      //adminDomains.current = adminState.domains
+      //availableDomains.current = adminState.availableDomains
+
+      // Testing
+      adminDomains.current = {
+        base: 'BaseDomain',
+        baseTest: 'BaseDomainTest',
+        current: 'DomainName',
+        currentTest: 'DomainNameTest'
+      }
+      availableDomains.current = [
+        'BaseDomain',
+        'DomainName'
+      ]
+
+
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
@@ -354,9 +369,9 @@ function App() {
       if ( ! deepEqual(adminState.config, adminConfig)) {
         setAdminConfig(adminState.config)
       }
-      if ( ! deepEqual(adminState.display, adminDisplay)) {
+      if ( ! deepEqual(adminState.display, adminDisplay.current)) {
         console.log('Update display state', adminState.display)
-        setAdminDisplay(adminState.display)
+        adminDisplay.current = adminState.display
         if ( ! (adminState.display.deploying || adminState.display.building || adminState.display.preparing
           || adminState.display.updatingTemplate || adminState.display.updatingUi)
         ) {
@@ -365,6 +380,9 @@ function App() {
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
+      }
+      if ( ! deepEqual(adminState.domains, adminDomains.current)) {
+        adminDomains.current = adminState.domains
       }
     }
   }
@@ -485,8 +503,24 @@ function App() {
         <GridItem color='baseText' bg='accent' h='2.75em'>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
-            <Text color='accentText' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
-            <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
+            <Text color='accentText' whiteSpace='nowrap' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
+            <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
+            <Spacer m='3px'/>
+            <Tooltip
+              openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end'
+              label={LIST_DOMAIN_TOOLTIP}
+            >
+              <Select size='sm' m='2px' border='none' color='accentText'
+                defaultValue={availableDomains.current.indexOf(adminDomains.current.current)} disabled={locked}
+                onChange={ev => {
+                  setDomain(availableDomains.current[ev.target.value])
+                }}
+              >
+                {availableDomains.current.map((listValue, index) => {
+                  return <option key={index} value={index}>{listValue}</option>
+                })}
+              </Select>
+            </Tooltip>
             <Spacer/>
             {advancedMode ?
               <ActionButton text='Generate Debug' onClick={onGenerate}
@@ -495,18 +529,18 @@ function App() {
                 isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
                 isLoading={adminDisplay.building && !advancedMode} loadingText='Generating Debug...'/>
             : null}
-            <ActionButton text='Generate' onClick={onGenerate}
+            <ActionButton text='Generate' onClick={onGenerate} w='12em'
                 tooltip={{ text: BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
                 isLoading={adminDisplay.building && !advancedMode} loadingText='Generating...'/>
-            <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <ActionButton text='Publish' onClick={onPublish}
+            <Link href={`https://${adminDomains.current.currentTest}/`} size='sm' whiteSpace='nowrap' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
+            <ActionButton text='Publish' onClick={onPublish} w='10em'
                 tooltip={{ text: BUTTON_PUBLISH_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.publishError} errorText={adminDisplay.publishErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.deploying) && !advancedMode}
                 isLoading={adminDisplay.deploying && !advancedMode} loadingText='Publishing...'/>
-            <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
+            <Link href={`https://${adminDomains.current.current}/`} size='sm' whiteSpace='nowrap' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
         <GridItem bg='editorBg' >
@@ -628,6 +662,11 @@ function App() {
           </Flex>
         </GridItem>
       </Grid>
+
+      <Modal isOpen={showChangingDomain}>
+        <ModalOverlay />
+        <ChangingDomain/>
+      </Modal>
 
       <Modal isOpen={showPreparingTemplate && ! showSelectTemplate && ! showLogin}>
         <ModalOverlay />

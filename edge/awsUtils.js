@@ -27,6 +27,8 @@ function AwsUtils(options) {
   this.s3 = options.s3
   this.sqs = options.sqs
   this.stateQueueUrl = options.stateQueueUrl
+  this.cf = options.cf
+  this.acm = options.acm
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
 }
@@ -602,6 +604,40 @@ AwsUtils.prototype.bucketExists = async function(bucketName) {
   }
   return false
 }
+
+/** Return a list of all certificates associated with this account that are not currently in use.
+*/
+AwsUtils.prototype.listCertificates = async function(domain) {
+  if ( ! this.cf) {
+    throw new Error("CloudFront service not initilaized.")
+  }
+  const ret = await this.cf.listCertificates({
+    CertificateStatuses: ['ISSUED'],
+    SortBy: 'CREATED_AT',
+    SortOrder: 'DESCENDING'
+  }).promise()
+  const list = ret.CertificateSummaryList
+  return list
+    .filter(p => p.inUse)
+    .map(p => {
+      return {
+        arn: p.CertificateArn,
+        domain: p.DomainName,
+        altNames: p.SubjectAlternativeNameSummaries
+      }
+    })
+}
+
+AwsUtils.prototype.listDomainsInUse = async function() {
+  if ( ! this.acm) {
+    throw new Error("Certificate manager service not initilaized.")
+  }
+
+
+
+
+}
+
 
 //
 module.exports = AwsUtils
