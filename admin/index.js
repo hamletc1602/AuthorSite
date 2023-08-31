@@ -27,7 +27,8 @@ const aws = new AwsUtils({
   sqs: new sdk.SQS(),
   stateQueueUrl: stateQueueUrl,
   cf: new sdk.CloudFront(),
-  cm: new sdk.ACM()
+  cm: new sdk.ACM(),
+  r53: new sdk.Route53()
 })
 
 /** Worker for admin tasks forwarded from admin@Edge lambda.
@@ -618,34 +619,131 @@ async function setPassword(adminBucket, params) {
   }
 }
 
+/** Return a list of all domains names that are not currently in use, and that match the domain/test.domain pattern required for administered
+   sites. Using available certificates as a proxy for available domain names (later steps may need to create R53 records to support
+   the routing to CloudFront for the custom domain).
+ */
 async function getAvailableDomains(adminBucket, params) {
   try {
     await aws.displayUpdate({ getDomains: true, getDomError: false, getDomErrMsg: '' }, 'getDomains', `Start get available domains`)
-
-    // Get all avaiable certificates that qualify - must have a main and test site, or be a wildcard cert
-
-
-
-
-    // Get all certs in use from CF, and remove from available list
-
-
+    const validDomains = []
+    const allFreeCerts = await aws.listCertificates()
+    allFreeCerts.map(cert => {
+      const testCert = allFreeCerts.find(p => p.domain === ('test.' + cert.domain))
+      if (testCert) {
+        validDomains.push(cert.domain)
+      }
+    })
+    // Send event to update admin state
+    aws.updateAvailableDomains(validDomains)
     await aws.displayUpdate({ getDomains: false, getDomError: false, getDomErrMsg: '' }, 'getDomains', `End get available domains`)
   } catch (e) {
     console.log(`Failed to get available domains.`, e)
     await aws.displayUpdate({ getDomains: false, getDomError: true, getDomErrMsg: `Failed to get domains ${e.message}` }, 'getDomains', `End get available domains. Failed: ${e.message}`)
+    return {
+      status: '500',
+      statusDescription: `Unable to get list of valid domains. ${e.message}. Please check logs.`
+    }
   }
 }
 
+/** */
 async function setSiteDomain(adminBucket, params) {
   try {
-    await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set domain`)
-
-
-
+    if (params.domain) {
+      // Change to or add a custom domain
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain to ${params.domain}`)
+      await upsertCustomDomain(params.hostedZoneId, params.domains)
+    } else {
+      // remove the custom domain (Site will only be accessable via the base CloudFront domain)
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain`)
+      await removeCustomDomain(params.hostedZoneId, params.domains)
+    }
     await aws.displayUpdate({ setDomains: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
     console.log(`Failed to set domain.`, e)
     await aws.displayUpdate({ setDomains: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
+  }
+}
+
+/** */
+async function upsertCustomDomain(hostedZoneId, domains) {
+  // Add/Update R53 domain records for main and test domain
+  const param = {
+    ChangeBatch: {
+      Changes: [
+        createUpsertChange(domains.current, domains.base),
+        createUpsertChange(domains.currentTest, domains.baseTest)
+      ],
+      comment: 'Add/Update custom domain'
+    },
+    HostedZoneId: hostedZoneId
+  }
+  await r53.changeResourceRecordSets(param).promise()
+
+  // Add alt domain names to CF
+
+
+
+  // Add custom cert from to CF
+
+
+}
+
+/** */
+async function removeCustomDomain(hostedZoneId, domains) {
+  // Remove any R53 domain records for main and test domain
+  const param = {
+    ChangeBatch: {
+      Changes: [
+        createDeleteChange(domains.current, domains.base),
+        createDeleteChange(domains.currentTest, domains.baseTest)
+      ],
+      comment: 'Remove custom domain'
+    },
+    HostedZoneId: hostedZoneId
+  }
+  await r53.changeResourceRecordSets(param).promise()
+
+  // Remove alt domain names from old CF
+
+
+
+  // remove custom cert from old CF
+
+
+}
+
+/** Create a change to upsert a new record into R53. */
+async function createUpsertChange(type, domain, cfDomain) {
+  return {
+    Action: "UPSERT",
+    ResourceRecordSet: {
+      Name: domain,
+      AliasTarget: {
+        DNSName: cfDomain,
+        EvaluateTargetHealth: false,
+        HostedZoneId: "Z2FDTNDATAQYW2"
+      },
+      TTL: 60,
+      Type: type
+    }
+  }
+}
+
+/** Create a record to delete an existing record from R53. */
+async function createDeleteChange(domain, cfDomain) {
+  return {
+    Action: "DELETE",
+    ResourceRecordSet: {
+      Name: domain,
+      AliasTarget: {
+        DNSName: cfDomain,
+        EvaluateTargetHealth: false,
+        HostedZoneId: "Z2FDTNDATAQYW2"
+      },
+      TTL: 60,
+      Type: type
+    }
   }
 }

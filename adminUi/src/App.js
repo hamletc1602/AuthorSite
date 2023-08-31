@@ -177,12 +177,15 @@ function App() {
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
 
   const setDomain = (domain) => {
-    controller.sendCommand('setDomain', { domain: domain })
     if (siteHost !== adminDomains.current.base) {
       // Current location is NOT the base (default CF domain), so the site will be unstable while
       // the swap is happening and we'll need to refresh the browser to the new domain.
       startFastPolling()
       setShowChangingDomain(true)
+      //
+      controller.sendCommand('setDomain', { })
+    } else {
+      controller.sendCommand('setDomain', { domain: domain })
     }
   }
 
@@ -345,8 +348,11 @@ function App() {
       setAdminConfig(adminState.config)
       setAdminTemplates(adminState.templates)
       adminDisplay.current = adminState.display
+
+
       //adminDomains.current = adminState.domains
       //availableDomains.current = adminState.availableDomains
+
 
       // Testing
       adminDomains.current = {
@@ -359,6 +365,7 @@ function App() {
         'BaseDomain',
         'DomainName'
       ]
+      // Testing
 
 
       if (adminState.config.templateId) {
@@ -512,6 +519,9 @@ function App() {
             >
               <Select size='sm' m='2px' border='none' color='accentText'
                 defaultValue={availableDomains.current.indexOf(adminDomains.current.current)} disabled={locked}
+                onFocus={async ev => {
+                  await controller.sendCommand('getAvailableDomains')
+                }}
                 onChange={ev => {
                   setDomain(availableDomains.current[ev.target.value])
                 }}
@@ -694,6 +704,8 @@ function useAdminStatePolling(adminLive, setAdminState) {
       //console.log(`First admin state`)
       setAdminState(controller.getConfig())
     })
+    // Sneak in a call here to pre-load the list of available domains.
+    controller.sendCommand('getAvailableDomains')
   }
   useEffect(() => {
     if ( ! adminStatePoller) {

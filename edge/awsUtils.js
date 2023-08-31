@@ -539,6 +539,19 @@ const _mergeState = (state, logs, message) => {
     console.log(`Delete templates ${JSON.stringify(message.deleteTemplates)} from templates ${JSON.stringify(state.templates)}`)
     state.templates = state.templates.filter(t => message.deleteTemplates[t.id] ? false : true)
   }
+  // Update available domains
+  if (message.availableDomains) {
+    stateUpdated = true
+    console.log(`Update available domains ${JSON.stringify(message.availableDomains)}}`)
+    state.availableDomains = message.availableDomains
+  }
+  // Update site domain
+  if (message.siteDomain) {
+    stateUpdated = true
+    console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
+    state.domains.base = message.siteDomain.base
+    state.domains.test = message.siteDomain.test
+  }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }
 }
@@ -607,7 +620,7 @@ AwsUtils.prototype.bucketExists = async function(bucketName) {
 
 /** Return a list of all certificates associated with this account that are not currently in use.
 */
-AwsUtils.prototype.listCertificates = async function(domain) {
+AwsUtils.prototype.listCertificates = async function() {
   if ( ! this.cf) {
     throw new Error("CloudFront service not initilaized.")
   }
@@ -626,6 +639,23 @@ AwsUtils.prototype.listCertificates = async function(domain) {
         altNames: p.SubjectAlternativeNameSummaries
       }
     })
+}
+
+AwsUtils.prototype.updateAvailableDomains = async function(domains) {
+  try {
+    const msg = {
+      time: Date.now(),
+      setAvailableDomains: domains
+    }
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send templates update: ${JSON.stringify(error)}`)
+  }
 }
 
 AwsUtils.prototype.listDomainsInUse = async function() {
