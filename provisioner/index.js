@@ -41,7 +41,7 @@ const cfnCreateHandler = async (params) => {
     }
     let publicTemplates= null
     {
-      const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
+      const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: `AutoSite${params.Version}/site-config/metadata.json`}).promise()
       if (templateMetadataObj) {
         const templatesStr = templateMetadataObj.Body.toString()
         if (templatesStr) {
@@ -85,7 +85,7 @@ const cfnCreateHandler = async (params) => {
     //   version in future.
     console.log(`Copy admin UI files from braevitae-pub to ${params.AdminUiBucket}`)
     await Promise.all(['desktop', 'mobile'].map(async mode => {
-      const adminUiDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: 'AutoSite/provision/adminui.zip' });
+      const adminUiDir = await Unzipper.Open.s3(s3,{ Bucket: params.PublicBucket, Key: `AutoSite${params.Version}/provision/adminui.zip` });
       await Promise.all(adminUiDir.files.map(async file => {
         console.log(`Copying ${file.path}`)
         await s3.putObject({

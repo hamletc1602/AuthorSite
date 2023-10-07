@@ -11,6 +11,7 @@ const Zip = require('zip-a-folder')
 const JsonContentType = 'application/json'
 
 const publicBucket = process.env.publicBucket
+const version = process.env.version
 const sharedBucket = process.env.sharedBucket
 const adminBucket = process.env.adminBucket
 const adminUiBucket = process.env.adminUiBucket
@@ -105,18 +106,26 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Reurn true if this template is a public template (vs. private to this user's AWS tenant) */
-async function getBucketForTemplate(templateName) {
+async function getLocationForTemplate(templateName) {
   const adminConfigBuff = (await aws.get(adminUiBucket, 'admin/admin.json')).Body
   if (adminConfigBuff) {
     const adminConfig = JSON.parse(adminConfigBuff.toString())
     const templateProps = adminConfig.templates.find(p => p.id === templateName)
     if (templateProps) {
-      if (templateProps.access === 'public') { return publicBucket }
-      if (templateProps.access === 'shared') { return sharedBucket }
-      return adminBucket
+      return templateProps.access
     }
   }
-  return adminBucket
+  return 'local'
+}
+
+/** Return the AWS bucket name to use for this source location. */
+function getSourceBucket(sourceLoc) {
+  switch (sourceLoc) {
+    case 'public': return publicBucket
+    case 'shared': return sharedBucket
+    case 'local': return adminBucket
+    default: return adminBucket
+  }
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
@@ -127,11 +136,12 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
     await aws.displayUpdate({
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
-    const sourceBucket = await getBucketForTemplate(templateName)
+    const sourceLoc = await getLocationForTemplate(templateName)
+    const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(sourceBucket, `AutoSite/site-config/${templateName}.zip`)
+    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     // Copy all the site template files to the local buckets
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
@@ -179,10 +189,11 @@ async function upateTemplate(publicBucket, adminBucket, params) {
         updatingTemplate: true, updateTemplateError: false, stepMsg: 'Update Template'
       }, 'update', `Starting update with ${templateName} template.`)
     // Copy template archive to local FS.
-    const sourceBucket = await getBucketForTemplate(templateName)
+    const sourceLoc = await getLocationForTemplate(templateName)
+    const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
     console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(sourceBucket,  `AutoSite/site-config/${templateName}.zip`)
+    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
@@ -251,7 +262,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     }
     let publicTemplates = []
     {
-      const templateMetadataObj = await aws.get(publicBucket, 'AutoSite/site-config/metadata.json')
+      const templateMetadataObj = await aws.get(publicBucket, `AutoSite${version}/site-config/metadata.json`)
       if (templateMetadataObj) {
         const templatesStr = templateMetadataObj.Body.toString()
         if (templatesStr) {
@@ -453,7 +464,7 @@ async function updateAdminUi(publicBucket, adminUiBucket, params) {
       }
       // Copy latest AdminUI from BraeVitae
       console.log(`Copy admin UI files from braevitae-pub to ${adminUiBucket}`)
-      const adminUiDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: 'AutoSite/provision/adminui.zip' });
+      const adminUiDir = await Unzipper.Open.s3(aws.getS3(),{ Bucket: publicBucket, Key: `AutoSite${version}/provision/adminui.zip` });
       await Promise.all(adminUiDir.files.map(async file => {
         console.log(`Copying ${file.path}`)
         await aws.put(adminUiBucket, mode + '/admin/' + file.path, Mime.getType(file.path) || 'text/html',

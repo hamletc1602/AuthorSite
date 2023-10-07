@@ -729,7 +729,8 @@ Resources:
       Handler: app/index.handler
       Environment:
         Variables:
-          publicBucket: 'braevitae-pub'
+          publicBucket: '{{sourceBucket}}'
+          version: '{{version}}'
           # Direct ref to AdminData bucket here causes cycle because of bucket change notification config where BuildSite is the target
           #adminBucket: !Ref AdminData
           adminBucket: !Join ['-',[!Ref AWS::StackName,'admin']]
@@ -791,7 +792,8 @@ Resources:
       Handler: index.handler
       Environment:
         Variables:
-          publicBucket: 'braevitae-pub'
+          publicBucket: '{{sourceBucket}}'
+          version: '{{version}}'
           sharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
           adminBucket: !Ref AdminData
           adminUiBucket: !Ref AdminUiData
@@ -890,7 +892,8 @@ Resources:
     Properties:
       ServiceToken: !GetAtt ProvisionSite.Arn
       SiteGenerator: !Ref SiteGenerator
-      PublicBucket: 'braevitae-pub'
+      PublicBucket: '{{sourceBucket}}'
+      Version: '{{version}}'
       SharedBucket: !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName]
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
