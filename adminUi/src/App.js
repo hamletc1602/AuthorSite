@@ -177,15 +177,18 @@ function App() {
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
 
   const setDomain = (domain) => {
+    // Current location is NOT the base (default CF domain), so the site will be unstable while
+    // the swap is happening and we'll need to refresh the browser to the new domain.
     if (siteHost !== adminDomains.current.base) {
-      // Current location is NOT the base (default CF domain), so the site will be unstable while
-      // the swap is happening and we'll need to refresh the browser to the new domain.
       startFastPolling()
       setShowChangingDomain(true)
-      //
-      controller.sendCommand('setDomain', { })
+    }
+    // If the selected domain is the CF base domain, then _remove_ the custom domain, otherwise,
+    // change/add custom domain.
+    if (domain.domain === domains.current.base) {
+      controller.sendCommand('setDomain', { domains: adminDomains.current })
     } else {
-      controller.sendCommand('setDomain', { domain: domain })
+      controller.sendCommand('setDomain', { domains: adminDomains.current, newDomain: domain })
     }
   }
 
@@ -348,26 +351,8 @@ function App() {
       setAdminConfig(adminState.config)
       setAdminTemplates(adminState.templates)
       adminDisplay.current = adminState.display
-
-
-      //adminDomains.current = adminState.domains
-      //availableDomains.current = adminState.availableDomains
-
-
-      // Testing
-      adminDomains.current = {
-        base: 'BaseDomain',
-        baseTest: 'BaseDomainTest',
-        current: 'DomainName',
-        currentTest: 'DomainNameTest'
-      }
-      availableDomains.current = [
-        'BaseDomain',
-        'DomainName'
-      ]
-      // Testing
-
-
+      adminDomains.current = adminState.domains
+      availableDomains.current = adminState.availableDomains
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
@@ -390,6 +375,16 @@ function App() {
       }
       if ( ! deepEqual(adminState.domains, adminDomains.current)) {
         adminDomains.current = adminState.domains
+        if (adminDomains.current.current !== window.location.host) {
+          if (showChangingDomain) {
+            // Upate browser location to match expected domain in adminConfig
+            setShowChangingDomain(false)
+            window.location.host = adminDomains.current.current
+          }
+        }
+      }
+      if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
+        availableDomains.current = adminState.availableDomains
       }
     }
   }
@@ -527,7 +522,7 @@ function App() {
                 }}
               >
                 {availableDomains.current.map((listValue, index) => {
-                  return <option key={index} value={index}>{listValue}</option>
+                  return <option key={index} value={index}>{listValue.domain}</option>
                 })}
               </Select>
             </Tooltip>

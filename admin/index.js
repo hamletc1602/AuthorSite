@@ -631,7 +631,12 @@ async function getAvailableDomains(adminBucket, params) {
     allFreeCerts.map(cert => {
       const testCert = allFreeCerts.find(p => p.domain === ('test.' + cert.domain))
       if (testCert) {
-        validDomains.push(cert.domain)
+        validDomains.push({
+          domain: cert.domain,
+          testDomain: testCert.domain,
+          arn: cert.arn,
+          testArn: testCert.arn
+        })
       }
     })
     // Send event to update admin state
@@ -647,17 +652,24 @@ async function getAvailableDomains(adminBucket, params) {
   }
 }
 
-/** */
+/**
+  domains: Existing domains (object from adminState.domains)
+  newDomain: Selected domain (from adminState.availableDomains)
+*/
 async function setSiteDomain(adminBucket, params) {
   try {
-    if (params.domain) {
+    if (params.newDomain) {
       // Change to or add a custom domain
+      const hostedZoneId = getHostedZoneId(params.newDomain.domain)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain to ${params.domain}`)
-      await upsertCustomDomain(params.hostedZoneId, params.domains)
+      await upsertCustomDomain(hostedZoneId, params.domains, params.newDomain)
+      await aws.updateSiteDomain({ current: newDomain.domain, currentTest: newDomain.testDomain })
     } else {
       // remove the custom domain (Site will only be accessable via the base CloudFront domain)
+      const hostedZoneId = getHostedZoneId(params.domains.current)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain`)
-      await removeCustomDomain(params.hostedZoneId, params.domains)
+      await removeCustomDomain(hostedZoneId, params.domains)
+      await aws.updateSiteDomain({ current: domains.base, currentTest: domains.baseTest })
     }
     await aws.displayUpdate({ setDomains: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
@@ -667,51 +679,71 @@ async function setSiteDomain(adminBucket, params) {
 }
 
 /** */
-async function upsertCustomDomain(hostedZoneId, domains) {
+async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
   // Add/Update R53 domain records for main and test domain
-  const param = {
+  await r53.changeResourceRecordSets({
     ChangeBatch: {
       Changes: [
-        createUpsertChange(domains.current, domains.base),
-        createUpsertChange(domains.currentTest, domains.baseTest)
+        createUpsertChange(newDomain.domain, domains.base),
+        createUpsertChange(newDomain.testDomain, domains.baseTest)
       ],
       comment: 'Add/Update custom domain'
     },
     HostedZoneId: hostedZoneId
-  }
-  await r53.changeResourceRecordSets(param).promise()
+  }).promise()
 
   // Add alt domain names to CF
+  const cfDistId =  domains.base.split('.')[0]
+  const cfTestDistId = domains.baseTest.split('.')[0]
+  await cf.associateAlias({
+    Alias: newDomain.domain,
+    TargetDistributionId: cfDistId
+  }).promise()
+  await cf.associateAlias({
+    Alias: newDomain.testDomain,
+    TargetDistributionId: cfTestDistId
+  }).promise()
 
-
-
-  // Add custom cert from to CF
-
-
+  // Add/update custom cert from to CF
+  const config = await cf.getDistributionConfig({ id: cfDistId })
+  config.ViewerCertificate.CloudFrontDefaultCertificate = false
+  config.ViewerCertificate.ACMCertificateArn = newDomain.arn
+  await cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
+  const testConfig = await cf.getDistributionConfig({ id: cfTestDistId })
+  testConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
+  testConfig.ViewerCertificate.ACMCertificateArn = newDomain.testArn
+  await cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
 }
 
 /** */
 async function removeCustomDomain(hostedZoneId, domains) {
   // Remove any R53 domain records for main and test domain
-  const param = {
-    ChangeBatch: {
-      Changes: [
-        createDeleteChange(domains.current, domains.base),
-        createDeleteChange(domains.currentTest, domains.baseTest)
-      ],
-      comment: 'Remove custom domain'
-    },
-    HostedZoneId: hostedZoneId
+  if (hostedZoneId) {
+    const param = {
+      ChangeBatch: {
+        Changes: [
+          createDeleteChange(domains.current, domains.base),
+          createDeleteChange(domains.currentTest, domains.baseTest)
+        ],
+        comment: 'Remove custom domain'
+      },
+      HostedZoneId: hostedZoneId
+    }
+    await r53.changeResourceRecordSets(param).promise()
   }
-  await r53.changeResourceRecordSets(param).promise()
 
   // Remove alt domain names from old CF
-
-
-
   // remove custom cert from old CF
-
-
+  const config = await cf.getDistributionConfig({ id: cfDistId })
+  config.Aliases.Quantity = 0
+  config.Items = []
+  config.ViewerCertificate.CloudFrontDefaultCertificate = true
+  await cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
+  const testConfig = await cf.getDistributionConfig({ id: cfTestDistId })
+  testConfig.Aliases.Quantity = 0
+  testConfig.Items = []
+  testConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
+  await cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
 }
 
 /** Create a change to upsert a new record into R53. */
@@ -746,4 +778,17 @@ async function createDeleteChange(domain, cfDomain) {
       Type: type
     }
   }
+}
+
+/** Find the AWS hosted zone ID for this domain, or this domain's parent domain, if no zone
+    exists. Return null if neither this domain or the parent domain can be found.
+*/
+async function getHostedZoneId(domainName) {
+  const zones = await r53.listHostedZones({}).promise()
+  let zone = zones.find(p => p.name === domainName)
+  if (zone) return zone.id
+  const rootDomainName = domainName.split('.').slice(1).join('.')
+  zone = zones.find(p => p.name === rootDomainName)
+  if (zone) return zone.id
+  return null
 }

@@ -549,8 +549,8 @@ const _mergeState = (state, logs, message) => {
   if (message.siteDomain) {
     stateUpdated = true
     console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
-    state.domains.base = message.siteDomain.base
-    state.domains.test = message.siteDomain.test
+    state.domains.current = message.siteDomain.current
+    state.domains.currentTest = message.siteDomain.currentTest
   }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }
@@ -654,20 +654,26 @@ AwsUtils.prototype.updateAvailableDomains = async function(domains) {
     }).promise()
     return ret
   } catch (error) {
-    console.error(`Failed to send templates update: ${JSON.stringify(error)}`)
+    console.error(`Failed to send available domains update: ${JSON.stringify(error)}`)
   }
 }
 
-AwsUtils.prototype.listDomainsInUse = async function() {
-  if ( ! this.acm) {
-    throw new Error("Certificate manager service not initilaized.")
+AwsUtils.prototype.updateSiteDomain = async function(domain) {
+  try {
+    const msg = {
+      time: Date.now(),
+      siteDomain: domain
+    }
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send site domain update: ${JSON.stringify(error)}`)
   }
-
-
-
-
 }
-
 
 //
 module.exports = AwsUtils
