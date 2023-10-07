@@ -5,31 +5,39 @@ const Path = require('path')
 async function main() {
   const args = process.argv.slice(2);
   const templateFilePath = args[0]
+  const sourceBucket = args[1]
+  const version = args[2] || ''  // Default version to empty string
 
   const templateSource = await Fs.readFile(templateFilePath)
   const template = Handlebars.compile(templateSource.toString());
 
   const bareFileName = Path.basename(templateFilePath).split('.')[0]
 
-  console.log(`Processng template: ${bareFileName}.`)
+  console.log(`Processng template: ${bareFileName}. Arguments: ${JSON.stringify(args)}`)
 
   const baseSiteTemplate = template({
     domain: false,
-    subDomain: false
+    subDomain: false,
+    sourceBucket: sourceBucket,
+    version: version
   })
   await Fs.writeFile(bareFileName + '.template', baseSiteTemplate)
   console.log(`Created core site template.`)
 
   const domainTemplate = template({
     domain: true,
-    subDomain: false
+    subDomain: false,
+    sourceBucket: sourceBucket,
+    version: version
   })
   await Fs.writeFile(bareFileName + '-domain.template', domainTemplate)
   console.log(`Created domain site template.`)
 
   const subDomainTemplate = template({
     domain: true,
-    subDomain: true
+    subDomain: true,
+    sourceBucket: sourceBucket,
+    version: version
   })
   await Fs.writeFile(bareFileName + '-subdomain.template', subDomainTemplate)
   console.log(`Created subdomain site template.`)

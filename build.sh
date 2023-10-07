@@ -50,11 +50,3 @@ npm run build
 cd build
 zip -qr $wdir/target/AutoSite/provision/adminui.zip *
 cd $wdir
-
-echo Build customized CFN provisioning template versions and copy to target
-cd build
-npm run build ../AutoSite.template.handlebars
-mv AuthorSite.template $wdir/target/AutoSite
-mv AuthorSite-domain.template $wdir/target/AutoSite
-mv AuthorSite-subdomain.template $wdir/target/AutoSite
-cd $wdir

@@ -4,7 +4,7 @@
   "description": "Authorsite build utilities",
   "main": "index.js",
   "scripts": {
-    "build": "node index.js ../AuthorSite.template.handlebars"
+    "build": "node index.js ../AuthorSite.template.handlebars braevitae-pub"
   },
   "author": "Adriaan Brae",
   "license": "ISC",

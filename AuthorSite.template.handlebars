@@ -40,7 +40,7 @@ Parameters:
     Description: Recipient address for feedback emails.
   SiteGenerator:
     Type: String
-    Default: 'braevitae-pub:AutoSite/lambdas/authorsite.zip'
+    Default: '{{sourceBucket}}:AutoSite{{version}}/lambdas/authorsite.zip'
     Description: The site generator app to use for this site, from the list of publshed generators.
   SharedStorage:
     Description: (OPTIONAL) For your first site, create a shared storage area that can be used by all sites to share saved template data.
@@ -565,8 +565,8 @@ Resources:
           Value: !Ref 'AWS::StackName'
       Handler: edge.onCache
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/edge.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
   OnCacheVersion:
     Type: AWS::Lambda::Version
@@ -586,8 +586,8 @@ Resources:
           Value: !Ref 'AWS::StackName'
       Handler: edge.onAzn
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/edge.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
   OnAznVersion:
     Type: AWS::Lambda::Version
@@ -618,8 +618,8 @@ Resources:
           Value: !Ref 'AWS::StackName'
       Handler: feedback.onFeedback
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/edge.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
   OnFeedbackVersion:
     Type: AWS::Lambda::Version
@@ -657,8 +657,8 @@ Resources:
           TOPIC: !Ref FeedbackTopic
           stateQueueUrl: !Ref StateQueue
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/edge.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
   FeedbackPubisherSchedule:
     Type: AWS::Events::Rule
@@ -692,8 +692,8 @@ Resources:
           Value: !Ref 'AWS::StackName'
       Handler: admin.handler
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/edge.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
   OnAdminVersion:
     Type: AWS::Lambda::Version
@@ -710,8 +710,8 @@ Resources:
       CompatibleRuntimes:
         - 'nodejs16.x'
       Content:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/layers/authorsite.layer.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/layers/authorsite.layer.zip'
 
   BuildSite:
     Type: 'AWS::Lambda::Function'
@@ -772,8 +772,8 @@ Resources:
       CompatibleRuntimes:
         - 'nodejs16.x'
       Content:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/layers/admin-worker.layer.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/layers/admin-worker.layer.zip'
 
   AdminWorker:
     Type: 'AWS::Lambda::Function'
@@ -801,8 +801,8 @@ Resources:
           maxAgeBrowser: 86400
           maxAgeCloudFront: 60
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/admin-worker.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
 
@@ -832,8 +832,8 @@ Resources:
           adminUiBucket: !Ref AdminUiData
           stateQueueUrl: !Ref StateQueue
       Code:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/lambdas/admin-worker.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
 
@@ -863,8 +863,8 @@ Resources:
       CompatibleRuntimes:
         - 'nodejs16.x'
       Content:
-        S3Bucket: 'braevitae-pub'
-        S3Key: 'AutoSite/layers/provisioner.layer.zip'
+        S3Bucket: '{{sourceBucket}}'
+        S3Key: 'AutoSite{{version}}/layers/provisioner.layer.zip'
 
   ProvisionSite:
     Type: 'AWS::Lambda::Function'
