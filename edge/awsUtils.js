@@ -675,5 +675,39 @@ AwsUtils.prototype.updateSiteDomain = async function(domain) {
   }
 }
 
+/** Get the latest 50 log streams details for the given group name. */
+AwsUtils.prototype.getLogStreams = async function(logGroupName) {
+  const ret = await this.logs.describeLogStreams({
+    logGroupName: logGroupName,
+    orderBy: 'LastEventTime',
+    descending: true,
+    // limit: 50 // default is up to 50 items.
+    // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
+  }).promise
+  ret.logStreams
+  //ret.nextToken
+  return ret.logStreams.map(stream => {
+    return {
+      name: stream.logStreamName,
+      firstEventTs: stream.firstEventTimestamp,
+      lastEventTs: stream.firstEventTimestamp
+    }
+  })
+}
+
+/** Get the events from the given log stream, limited to the given start/end timestamps. */
+AwsUtils.prototype.getLogEvents = async function(logGroupName, logStreamName, startTs, endTs) {
+  const ret = await this.logs.getLogEvents({
+    logGroupName: logGroupName,
+    logStreamName: logStreamName,
+    startFromHead: false,  // Must be true is nextToken is provided.
+    startTime: startTs,
+    endTime: endTs
+    // limit: 50 // default is up to 1MB, or 100k items
+    // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
+  }).promise
+  return ret.events
+}
+
 //
 module.exports = AwsUtils

@@ -9,6 +9,33 @@ const Mime = require('mime');
 const Zip = require('zip-a-folder')
 
 const JsonContentType = 'application/json'
+const HoursToMs = 60 * 60 * 1000
+
+const LogGroupsTemplate = [{
+  groupName: '/aws/lambda/@SITE_NAME@-admin-worker',
+  name: 'Admin Worker'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-builder',
+  name: 'Builder'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-provisioner',
+  name: 'Provisioner'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-publisher',
+  name: 'Publisher'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-state-pump',
+  name: 'State Pump'
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-admin',
+  name: 'Admin Edge'
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-edge',
+  name: 'Site Edge'
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
+  name: 'Amazon URL Forwarder'
+}]
 
 const publicBucket = process.env.publicBucket
 const version = process.env.version
@@ -28,7 +55,8 @@ const aws = new AwsUtils({
   stateQueueUrl: stateQueueUrl,
   cf: new sdk.CloudFront(),
   cm: new sdk.ACM(),
-  r53: new sdk.Route53()
+  r53: new sdk.Route53(),
+  logs: new sdk.CloudWatchLogs()
 })
 
 /** Worker for admin tasks forwarded from admin@Edge lambda.
@@ -67,7 +95,9 @@ exports.handler = async (event, _context) => {
       return getAvailableDomains(adminBucket, event.body)
     case 'setSiteDomain':
       return setSiteDomain(adminBucket, event.body)
-    default:
+      case 'captureLogs':
+        return captureLogs(adminBucket, event.body)
+      default:
       return {
         status: '404',
         statusDescription: `Unknown admin acion: ${event.command}`
@@ -671,10 +701,10 @@ async function setSiteDomain(adminBucket, params) {
       await removeCustomDomain(hostedZoneId, params.domains)
       await aws.updateSiteDomain({ current: domains.base, currentTest: domains.baseTest })
     }
-    await aws.displayUpdate({ setDomains: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
+    await aws.displayUpdate({ setDomain: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
     console.log(`Failed to set domain.`, e)
-    await aws.displayUpdate({ setDomains: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
+    await aws.displayUpdate({ setDomain: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
   }
 }
 
@@ -791,4 +821,60 @@ async function getHostedZoneId(domainName) {
   zone = zones.find(p => p.name === rootDomainName)
   if (zone) return zone.id
   return null
+}
+
+/** Get all log events, from all AutoSite related streams (for this site), for the requested time range. */
+async function captureLogs(adminBucket, options) {
+  try {
+    await aws.displayUpdate({ getLogs: true, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', `Start getLogs for the last ${options.durationH} hours.`)
+    const siteName = adminBucket.split('-')[0]
+    const logGroups = LogGroupsTemplate.map(tpl => {
+      return {
+        groupName: tpl.groupName.replace('@SITE_NAME@', siteName),
+        name: tpl.name
+      }
+    })
+    const endTs = Date.now()
+    const startTs = endTs - (options.durationH * HoursToMs)
+    // Get all events for this site's groups within this timerange from AWS CloudWatch
+    const groupedMessages = await Promise.all(logGroups.map(async group => {
+      const streamsRaw = aws.getLogStreams(group.groupName)
+      const streamsInRange = streamsRaw.filter(group => {
+        return (group.lastEventTs > startTs) && (group.firstEventTs < endTs)
+      })
+      return {
+        group: group.name,
+        streams: await Promise.all(streamsInRange.map(async stream => {
+            aws.getLogEvents(group.name, stream.name, startTs, endTs)
+          }))
+      }
+    }))
+    await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'Got AWS logs. Saving to Site storage.')
+    // Coallate all event arrays in groupedMessages, with group name
+    const events = []
+    groupedMessages.forEach(group => {
+      group.streams.forEach(stream => {
+        stream.events.forEach(event => {
+          events.push({
+            group: group.name,
+            timestamp: event.timestamp,
+            message: event.message
+          })
+        })
+      })
+    })
+    // Sort all events in timestamp order
+    events.sort((a, b) => a.timestamp - b.timestamp)
+    //
+    const eventMsgs = []
+    events.forEach(event => {
+      const displayTs = new Date(event.timestamp).toISOString()
+      eventMsgs.push(displayTs + ' ' + event.group + ' ' + event.message)
+    })
+    const endTsFmt = new Date(endTs).toISOString()
+    aws.put(adminUiBucket, 'logs/log-' + endTsFmt, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
+    await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'AWS Logs ready for download.')
+  } catch (e) {
+    await aws.displayUpdate({ getLogs: false, getLogsError: true, getLogsErrMsg: `Failed to get AWS logs: ${e.message}` }, 'getLogs', 'Error: Failed to get AWS Logs.')
+  }
 }
