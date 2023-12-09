@@ -31,6 +31,7 @@ function AwsUtils(options) {
   this.acm = options.acm
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
+  this.logSnapshotTtlMs = 1 * 60 * 60 * 1000  // 1 hour
 }
 
 AwsUtils.prototype.getS3 = function() {
@@ -465,6 +466,17 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         console.log(`Save the state (admin.json)`, stateCache.state)
         await this.put(adminUiBucket, 'admin/admin.json', 'application/json', Buffer.from(JSON.stringify(stateCache.state)), 0, 0)
       }
+
+      // Delete any log snapshot files that are older than the configured TTL.
+      const logFiles = await this.list(adminUiBucket, '/logs/log-')
+      Promise.all(logFiles.map(async logFile => {
+        const logTs = new Date(logFile.Key.substring(4))
+        const diffMs = (new Date.now()) - logTs.getTime()
+        if (diffMs > this.logSnapshotTtlMs) {
+          console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
+          await this.delete(adminUiBucket, logFile.Key)
+        }
+      }))
 
       //console.log(`Delete ${sqsResp.Messages.length} merged messages`)
       const msgsForDelete = sqsResp.Messages.map(msg => {
