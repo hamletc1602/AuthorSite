@@ -78,6 +78,8 @@ const LIST_DOMAIN_TOOLTIP = 'Set Site domain. The browser page may reload if thi
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
+const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a doanloadable text file.'
+const BUTTON_DOWNLOAD_LOGS = 'Captured log files available for download. Log files will be removed 1 hour after capture.'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -157,6 +159,13 @@ function App() {
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
   const availableDomains = useRef([])
+  const capturedLogs = useRef([])
+
+  // DEBUG
+  //capturedLogs.current.push({ name: '2024-12-08T14:15:04Z', url: '/logs/log-2024-12-08T14:15:04Z.log' })
+  //capturedLogs.current.push({ name: '2024-12-08T14:10:04Z', url: '/logs/log-2024-12-08T14:10:04Z.log' })
+
+  // END DEBUG
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id, editorId) => {
@@ -245,6 +254,12 @@ function App() {
     setDisplay('settingPwd', true)
     controller.sendCommand('setPassword', { newPassword: newPassword.current.value })
     newPassword.current.value = ''
+    startFastPolling()
+  }
+
+  const onCaptureLogs = () => {
+    setDisplay('capturingLogs', true)
+    controller.sendCommand('captureLogs', { durationH: 1 })
     startFastPolling()
   }
 
@@ -351,8 +366,12 @@ function App() {
       setAdminConfig(adminState.config)
       setAdminTemplates(adminState.templates)
       adminDisplay.current = adminState.display
-      adminDomains.current = adminState.domains
-      availableDomains.current = adminState.availableDomains
+      if (adminState.domains) {
+        adminDomains.current = adminState.domains
+      }
+      if (adminState.availableDomains && adminState.availableDomains.length) {
+        availableDomains.current = adminState.availableDomains
+      }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
@@ -374,17 +393,21 @@ function App() {
         setAdminTemplates(adminState.templates)
       }
       if ( ! deepEqual(adminState.domains, adminDomains.current)) {
-        adminDomains.current = adminState.domains
-        if (adminDomains.current.current !== window.location.host) {
-          if (showChangingDomain) {
-            // Upate browser location to match expected domain in adminConfig
-            setShowChangingDomain(false)
-            window.location.host = adminDomains.current.current
+        if (adminState.domains) {
+          adminDomains.current = adminState.domains
+          if (adminDomains.current.current !== window.location.host) {
+            if (showChangingDomain) {
+              // Upate browser location to match expected domain in adminConfig
+              setShowChangingDomain(false)
+              window.location.host = adminDomains.current.current
+            }
           }
         }
       }
       if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
-        availableDomains.current = adminState.availableDomains
+        if (adminState.availableDomains && adminState.availableDomains.length) {
+          availableDomains.current = adminState.availableDomains
+        }
       }
     }
   }
@@ -513,7 +536,7 @@ function App() {
               label={LIST_DOMAIN_TOOLTIP}
             >
               <Select size='sm' m='2px' border='none' color='accentText'
-                defaultValue={availableDomains.current.indexOf(adminDomains.current.current)} disabled={locked}
+                defaultValue={availableDomains.current ? availableDomains.current.indexOf(adminDomains.current.current) : null} disabled={locked}
                 onFocus={async ev => {
                   await controller.sendCommand('getAvailableDomains')
                 }}
@@ -585,6 +608,36 @@ function App() {
                 isDisabled={!authenticated || locked}/>,
               ]
             : null}
+            <ActionButton text='Capture Logs' onClick={onCaptureLogs} buttonStyle={{ size: 'xs' }}
+                tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
+                isLoading={adminDisplay.capturingLogs && !advancedMode} loadingText='Capturing...'
+                isDisabled={!authenticated || locked}/>
+            {capturedLogs.current.length > 0 ?
+              <Popover placement='top-end' gutter={20}>
+                {({ onClose }) => {
+                  return <><PopoverTrigger>
+                    <Button size='xs' h='1.5em' m='0 0.5em'
+                      color='accent' _hover={{ bg: 'gray.400' }} bg='accentText'
+                      disabled={!authenticated || locked}
+                    >Download Logs...</Button>
+                  </PopoverTrigger>
+                  <Portal>
+                    <PopoverContent>
+                      <PopoverArrow />
+                      <PopoverBody>
+                        <Text>{adminDisplay.setPwdError ? BUTTON_DOWNLOAD_LOGS + '\n\n' + adminDisplay.setPwdErrMsg : BUTTON_DOWNLOAD_LOGS}</Text>
+                        <VStack margin='0.5em 0'>
+                          {capturedLogs.current.map(logFile => {
+                            return <Link href="{logFile.url}">{logFile.name}</Link>
+                          })}
+                        </VStack>
+                      </PopoverBody>
+                    </PopoverContent>
+                  </Portal></>
+                }}
+              </Popover>
+              : null
+            }
             <Popover placement='top-end' initialFocusRef={newPassword} gutter={20}>
               {({ onClose }) => {
                 return <><PopoverTrigger>

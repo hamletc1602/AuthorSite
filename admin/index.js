@@ -886,7 +886,7 @@ async function captureLogs(adminBucket, options) {
       eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
     })
     const endTsFmt = new Date(endTs).toISOString()
-    aws.put(adminUiBucket, 'logs/log-' + endTsFmt, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
+    aws.put(adminUiBucket, 'logs/log-' + endTsFmt + '.log', 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
     await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'AWS Logs ready for download.')
   } catch (e) {
     await aws.displayUpdate({ getLogs: false, getLogsError: true, getLogsErrMsg: `Failed to get AWS logs: ${e.message}` }, 'getLogs', 'Error: Failed to get AWS Logs.')
