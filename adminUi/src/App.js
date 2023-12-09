@@ -185,7 +185,7 @@ function App() {
     }
     // If the selected domain is the CF base domain, then _remove_ the custom domain, otherwise,
     // change/add custom domain.
-    if (domain.domain === domains.current.base) {
+    if (domain.domain === adminDomains.current.base) {
       controller.sendCommand('setDomain', { domains: adminDomains.current })
     } else {
       controller.sendCommand('setDomain', { domains: adminDomains.current, newDomain: domain })

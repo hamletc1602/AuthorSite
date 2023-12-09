@@ -37,6 +37,16 @@ const LogGroupsTemplate = [{
   name: 'Amazon URL Forwarder'
 }]
 
+let MaxGroupNameLength = 0
+{
+  // Static: Calculate the Max. group name length from the existing data.
+  LogGroupsTemplate.forEach(group => {
+    if (MaxGroupNameLength < group.name.length) {
+      MaxGroupNameLength = group.name.length
+    }
+  })
+}
+
 const publicBucket = process.env.publicBucket
 const version = process.env.version
 const sharedBucket = process.env.sharedBucket
@@ -92,7 +102,7 @@ exports.handler = async (event, _context) => {
     case 'setPassword':
       return setPassword(adminBucket, event.body)
     case 'getAvailableDomains':
-      return getAvailableDomains(adminBucket, event.body)
+      return getAvailableDomains(event.body)
     case 'setSiteDomain':
       return setSiteDomain(adminBucket, event.body)
       case 'captureLogs':
@@ -175,10 +185,11 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
       }, 'prepare', `Starting prepare with ${templateName} template.`)
     const sourceLoc = await getLocationForTemplate(templateName)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
+    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     // Copy all the site template files to the local buckets
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
@@ -228,9 +239,10 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     // Copy template archive to local FS.
     const sourceLoc = await getLocationForTemplate(templateName)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
+    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
@@ -653,7 +665,7 @@ async function setPassword(adminBucket, params) {
    sites. Using available certificates as a proxy for available domain names (later steps may need to create R53 records to support
    the routing to CloudFront for the custom domain).
  */
-async function getAvailableDomains(adminBucket, params) {
+async function getAvailableDomains(_params) {
   try {
     await aws.displayUpdate({ getDomains: true, getDomError: false, getDomErrMsg: '' }, 'getDomains', `Start get available domains`)
     const validDomains = []
@@ -693,13 +705,13 @@ async function setSiteDomain(adminBucket, params) {
       const hostedZoneId = getHostedZoneId(params.newDomain.domain)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain to ${params.domain}`)
       await upsertCustomDomain(hostedZoneId, params.domains, params.newDomain)
-      await aws.updateSiteDomain({ current: newDomain.domain, currentTest: newDomain.testDomain })
+      await aws.updateSiteDomain({ current: params.newDomain.domain, currentTest: params.newDomain.testDomain })
     } else {
       // remove the custom domain (Site will only be accessable via the base CloudFront domain)
       const hostedZoneId = getHostedZoneId(params.domains.current)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain`)
       await removeCustomDomain(hostedZoneId, params.domains)
-      await aws.updateSiteDomain({ current: domains.base, currentTest: domains.baseTest })
+      await aws.updateSiteDomain({ current: params.domains.base, currentTest: params.domains.baseTest })
     }
     await aws.displayUpdate({ setDomain: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
@@ -711,7 +723,7 @@ async function setSiteDomain(adminBucket, params) {
 /** */
 async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
   // Add/Update R53 domain records for main and test domain
-  await r53.changeResourceRecordSets({
+  await aws.r53.changeResourceRecordSets({
     ChangeBatch: {
       Changes: [
         createUpsertChange(newDomain.domain, domains.base),
@@ -725,24 +737,24 @@ async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
   // Add alt domain names to CF
   const cfDistId =  domains.base.split('.')[0]
   const cfTestDistId = domains.baseTest.split('.')[0]
-  await cf.associateAlias({
+  await aws.cf.associateAlias({
     Alias: newDomain.domain,
     TargetDistributionId: cfDistId
   }).promise()
-  await cf.associateAlias({
+  await aws.cf.associateAlias({
     Alias: newDomain.testDomain,
     TargetDistributionId: cfTestDistId
   }).promise()
 
   // Add/update custom cert from to CF
-  const config = await cf.getDistributionConfig({ id: cfDistId })
+  const config = await aws.cf.getDistributionConfig({ id: cfDistId })
   config.ViewerCertificate.CloudFrontDefaultCertificate = false
   config.ViewerCertificate.ACMCertificateArn = newDomain.arn
-  await cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
-  const testConfig = await cf.getDistributionConfig({ id: cfTestDistId })
+  await aws.cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
+  const testConfig = await aws.cf.getDistributionConfig({ id: cfTestDistId })
   testConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
   testConfig.ViewerCertificate.ACMCertificateArn = newDomain.testArn
-  await cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
+  await aws.cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
 }
 
 /** */
@@ -752,28 +764,30 @@ async function removeCustomDomain(hostedZoneId, domains) {
     const param = {
       ChangeBatch: {
         Changes: [
-          createDeleteChange(domains.current, domains.base),
-          createDeleteChange(domains.currentTest, domains.baseTest)
+          createDeleteChange(domains.current, domains.base, 'A'),
+          createDeleteChange(domains.currentTest, domains.baseTest, 'A')
         ],
         comment: 'Remove custom domain'
       },
       HostedZoneId: hostedZoneId
     }
-    await r53.changeResourceRecordSets(param).promise()
+    await aws.r53.changeResourceRecordSets(param).promise()
   }
 
   // Remove alt domain names from old CF
   // remove custom cert from old CF
-  const config = await cf.getDistributionConfig({ id: cfDistId })
+  const cfDistId =  domains.base.split('.')[0]
+  const cfTestDistId = domains.baseTest.split('.')[0]
+  const config = await aws.cf.getDistributionConfig({ id: cfDistId })
   config.Aliases.Quantity = 0
   config.Items = []
   config.ViewerCertificate.CloudFrontDefaultCertificate = true
-  await cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
-  const testConfig = await cf.getDistributionConfig({ id: cfTestDistId })
+  await aws.cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
+  const testConfig = await aws.cf.getDistributionConfig({ id: cfTestDistId })
   testConfig.Aliases.Quantity = 0
   testConfig.Items = []
   testConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
-  await cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
+  await aws.cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
 }
 
 /** Create a change to upsert a new record into R53. */
@@ -793,8 +807,8 @@ async function createUpsertChange(type, domain, cfDomain) {
   }
 }
 
-/** Create a record to delete an existing record from R53. */
-async function createDeleteChange(domain, cfDomain) {
+/** Create a change record to delete an existing record from R53. */
+async function createDeleteChange(domain, cfDomain, type) {
   return {
     Action: "DELETE",
     ResourceRecordSet: {
@@ -814,7 +828,7 @@ async function createDeleteChange(domain, cfDomain) {
     exists. Return null if neither this domain or the parent domain can be found.
 */
 async function getHostedZoneId(domainName) {
-  const zones = await r53.listHostedZones({}).promise()
+  const zones = await aws.r53.listHostedZones({}).promise()
   let zone = zones.find(p => p.name === domainName)
   if (zone) return zone.id
   const rootDomainName = domainName.split('.').slice(1).join('.')
@@ -869,7 +883,7 @@ async function captureLogs(adminBucket, options) {
     const eventMsgs = []
     events.forEach(event => {
       const displayTs = new Date(event.timestamp).toISOString()
-      eventMsgs.push(displayTs + ' ' + event.group + ' ' + event.message)
+      eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
     })
     const endTsFmt = new Date(endTs).toISOString()
     aws.put(adminUiBucket, 'logs/log-' + endTsFmt, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)

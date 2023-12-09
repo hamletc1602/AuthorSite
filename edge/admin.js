@@ -260,10 +260,13 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
       case 'setSiteDomain':
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
+      case 'captureLogs':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
       default:
         ret = {
           status: '404',
-          statusDescription: `Unknown admin acion: ${command}`
+          statusDescription: `Unknown admin action: ${command}`
         }
     }
     //console.log(`Return: ${JSON.stringify(ret)}`)
