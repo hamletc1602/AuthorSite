@@ -7,6 +7,7 @@ const Files = require('./files')
 const Path = require('path')
 const Mime = require('mime');
 const Zip = require('zip-a-folder')
+const Uuid = require('uuid')
 
 const JsonContentType = 'application/json'
 const HoursToMs = 60 * 60 * 1000
@@ -184,7 +185,7 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
     const sourceLoc = await getLocationForTemplate(templateName)
-    const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
     const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
@@ -848,29 +849,31 @@ async function captureLogs(adminBucket, options) {
         name: tpl.name
       }
     })
+    console.log('Log Groups: ' + JSON.stringify(logGroups))
     const endTs = Date.now()
     const startTs = endTs - (options.durationH * HoursToMs)
     // Get all events for this site's groups within this timerange from AWS CloudWatch
     const groupedMessages = await Promise.all(logGroups.map(async group => {
-      const streamsRaw = aws.getLogStreams(group.groupName)
+      const streamsRaw = await aws.getLogStreams(group.groupName)
       const streamsInRange = streamsRaw.filter(group => {
         return (group.lastEventTs > startTs) && (group.firstEventTs < endTs)
       })
+      console.log(`Got ${streamsInRange.length} log streams in range for group: ${group.groupName}`)
       return {
         group: group.name,
         streams: await Promise.all(streamsInRange.map(async stream => {
-            aws.getLogEvents(group.name, stream.name, startTs, endTs)
-          }))
+           return await aws.getLogEvents(group.groupName, stream.name, startTs, endTs)
+        }))
       }
     }))
     await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'Got AWS logs. Saving to Site storage.')
-    // Coallate all event arrays in groupedMessages, with group name
+    // Collate all event arrays in groupedMessages, with group name
     const events = []
     groupedMessages.forEach(group => {
       group.streams.forEach(stream => {
-        stream.events.forEach(event => {
+        stream.forEach(event => {
           events.push({
-            group: group.name,
+            group: group.group,
             timestamp: event.timestamp,
             message: event.message
           })
@@ -886,9 +889,12 @@ async function captureLogs(adminBucket, options) {
       eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
     })
     const endTsFmt = new Date(endTs).toISOString()
-    aws.put(adminUiBucket, 'logs/log-' + endTsFmt + '.log', 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
+    const logFileName = 'logs/log-' + Uuid.v1() + '_' + endTsFmt + '.log'
+    console.log(`Write ${events.length} events to ${logFileName}`)
+    await aws.put(adminUiBucket, logFileName, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
     await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'AWS Logs ready for download.')
   } catch (e) {
+    console.log(`Error in captureLogs:`, e)
     await aws.displayUpdate({ getLogs: false, getLogsError: true, getLogsErrMsg: `Failed to get AWS logs: ${e.message}` }, 'getLogs', 'Error: Failed to get AWS Logs.')
   }
 }

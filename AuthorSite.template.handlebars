@@ -218,6 +218,9 @@ Resources:
     Properties:
       BucketName: !Join ['', [!Ref AWS::StackName, '-logs']]
       AccessControl: Private
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -237,6 +240,9 @@ Resources:
     Properties:
       BucketName: !Join ['.', ['test', !Join ['', [!Ref AWS::StackName, '-logs']]]]
       AccessControl: Private
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -783,7 +789,7 @@ Resources:
       FunctionName: !Join ['-',[!Ref AWS::StackName,'admin-worker']]
       PackageType: Zip
       Runtime: nodejs16.x
-      Role: !GetAtt AdminRole.Arn
+      Role: !GetAtt AdminWorkerRole.Arn
       MemorySize: 1024
       Timeout: 300
       Tags:
@@ -822,7 +828,7 @@ Resources:
       FunctionName: !Join ['-',[!Ref AWS::StackName,'state-pump']]
       PackageType: Zip
       Runtime: nodejs16.x
-      Role: !GetAtt AdminRole.Arn
+      Role: !GetAtt StatePumpRole.Arn
       Timeout: 90
       Tags:
         - Key: 'Service'
@@ -1137,6 +1143,114 @@ Resources:
                  - 'sqs:GetQueueAttributes'
                  - 'sqs:DeleteMessage'
                 Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  AdminWorkerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-admin-worker']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ListS3Resources
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - s3:Get*
+                 - s3:List*
+                 - s3-object-lambda:Get*
+                 - s3-object-lambda:List*
+                Resource: '*'
+        - PolicyName: SharedDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', ['arn:aws:s3:::', !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName], '*']]
+        - PolicyName: AdminDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
+        - PolicyName: WebDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt WebData.Arn, '*']]
+        - PolicyName: TestWebDataRead
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:GetObjectTagging'
+                Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: InvokeWorkerLambdas
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'lambda:InvokeFunction'
+                 - 'lambda:InvokeAsync'
+                Resource: !Join ['', [!Join [':', ['arn:aws:lambda', !Ref AWS::Region, !Ref 'AWS::AccountId', 'function', !Ref AWS::StackName]], '*']]
+        - PolicyName: StatusQueueAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'sqs:SendMessage'
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
         - PolicyName: CloudFrontAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -1147,7 +1261,13 @@ Resources:
                  - 'cloudfront:GetDistribution'
                  - 'cloudfront:ListDistributions'
                  - 'cloudfront:UpdateDistribution'
-                Resource: !Join [',', [!GetAtt WebCache.Arn, !Join ['', [!GetAtt WebCache.Arn, '*'], !GetAtt TestWebCache.Arn, !Join ['', [!GetAtt TestWebCache.Arn, '*']] ]
+                Resource: !Join
+                  - ','
+                  -
+                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache]]
+                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache, '*']]
+                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache]]
+                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache, '*']]
         - PolicyName: CertificatesAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -1156,6 +1276,118 @@ Resources:
                 Action:
                  - 'acm:ListCertificates'
                 Resource: !Join ['', [!Join [':', ['arn:aws:acm', !Ref AWS::Region, !Ref 'AWS::AccountId', 'certificate']], '*']]
+        - PolicyName: LogsReadAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'logs:DescribeLogStreams'
+                 - 'logs:GetLogEvents'
+                 - 'logs:FilterLogEvents'
+                Resource: !Join ['', [!Join [':', ['arn:aws:logs', !Ref AWS::Region, !Ref 'AWS::AccountId', '']], '*']]
+        - PolicyName: logging
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref 'AWS::StackName'
+
+  StatePumpRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-state-pump']]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ListS3Resources
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - s3:Get*
+                 - s3:List*
+                 - s3-object-lambda:Get*
+                 - s3-object-lambda:List*
+                Resource: '*'
+        - PolicyName: SharedDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', ['arn:aws:s3:::', !If [SharedBucket, !Ref SharedData, !Ref SharedStorageName], '*']]
+        - PolicyName: AdminDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
+        - PolicyName: WebDataReadWrite
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:PutObject'
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:DeleteObject'
+                 - 's3:GetObjectTagging'
+                 - 's3:PutObjectTagging'
+                Resource: !Join ['', [!GetAtt WebData.Arn, '*']]
+        - PolicyName: TestWebDataRead
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:GetObject'
+                 - 's3:ListBucket'
+                 - 's3:GetObjectTagging'
+                Resource: !Join ['', [!GetAtt TestWebData.Arn, '*']]
+        - PolicyName: StatusQueueAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'sqs:ReceiveMessage'
+                 - 'sqs:SendMessage'
+                 - 'sqs:GetQueueAttributes'
+                 - 'sqs:DeleteMessage'
+                Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

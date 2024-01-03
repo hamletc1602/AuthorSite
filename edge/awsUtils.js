@@ -1,4 +1,5 @@
 const mime = require('mime');
+const deepEqual = require('fast-deep-equal')
 
 const logMsgTimeoutMS = 24 * 60 * 60 * 1000  // 24 hours
 const lockTimeoutMs = 5 * 60 * 1000  // 5 Mins
@@ -29,6 +30,7 @@ function AwsUtils(options) {
   this.stateQueueUrl = options.stateQueueUrl
   this.cf = options.cf
   this.acm = options.acm
+  this.logs = options.logs
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
   this.logSnapshotTtlMs = 1 * 60 * 60 * 1000  // 1 hour
@@ -457,6 +459,31 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         }
       }
 
+      // Capture the current set of Log snapshot files to the admin state
+      // And delete any log snapshot files that are older than the configured TTL.
+      {
+        const logFiles = await this.list(adminUiBucket, '/logs/log-')
+        const capturedLogsState = await Promise.all(logFiles.map(async logFile => {
+          const logTsStr = logFile.Key.substring(4, -4)
+          const logTs = new Date(logTsStr)
+          const diffMs = (new Date.now()) - logTs.getTime()
+          if (diffMs > this.logSnapshotTtlMs) {
+            console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
+            await this.delete(adminUiBucket, logFile.Key)
+          } else {
+            return {
+              name: logTsStr,
+              url: '/logs/' +logFile.Key
+            }
+          }
+          return null
+        })).filter(p => p != null)
+        if ( ! deepEqual(stateCache.state.capturedLogs, capturedLogsState)) {
+          stateCache.state.capturedLogs = logFilesState
+          stateUpdated = true
+        }
+      }
+
       // Store logs and state back into S3, if they've been updated
       if (logsUpdated) {
         //console.log(`Save the logs (log.json)`, stateCache.logs)
@@ -466,17 +493,6 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         console.log(`Save the state (admin.json)`, stateCache.state)
         await this.put(adminUiBucket, 'admin/admin.json', 'application/json', Buffer.from(JSON.stringify(stateCache.state)), 0, 0)
       }
-
-      // Delete any log snapshot files that are older than the configured TTL.
-      const logFiles = await this.list(adminUiBucket, '/logs/log-')
-      Promise.all(logFiles.map(async logFile => {
-        const logTs = new Date(logFile.Key.substring(4))
-        const diffMs = (new Date.now()) - logTs.getTime()
-        if (diffMs > this.logSnapshotTtlMs) {
-          console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
-          await this.delete(adminUiBucket, logFile.Key)
-        }
-      }))
 
       //console.log(`Delete ${sqsResp.Messages.length} merged messages`)
       const msgsForDelete = sqsResp.Messages.map(msg => {
@@ -689,22 +705,30 @@ AwsUtils.prototype.updateSiteDomain = async function(domain) {
 
 /** Get the latest 50 log streams details for the given group name. */
 AwsUtils.prototype.getLogStreams = async function(logGroupName) {
-  const ret = await this.logs.describeLogStreams({
-    logGroupName: logGroupName,
-    orderBy: 'LastEventTime',
-    descending: true,
-    // limit: 50 // default is up to 50 items.
-    // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
-  }).promise
-  ret.logStreams
-  //ret.nextToken
-  return ret.logStreams.map(stream => {
-    return {
-      name: stream.logStreamName,
-      firstEventTs: stream.firstEventTimestamp,
-      lastEventTs: stream.firstEventTimestamp
+  try {
+    const ret = await this.logs.describeLogStreams({
+      logGroupName: logGroupName,
+      orderBy: 'LastEventTime',
+      descending: true,
+      // limit: 50 // default is up to 50 items.
+      // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
+    }).promise()
+    //ret.nextToken
+    return ret.logStreams.map(stream => {
+      return {
+        name: stream.logStreamName,
+        firstEventTs: stream.firstEventTimestamp,
+        lastEventTs: stream.firstEventTimestamp
+      }
+    })
+  } catch (e) {
+    // Return empty array if no log streams are found, re-throw anything else
+    if (e.code == 'ResourceNotFoundException') {
+      return []
+    } else {
+      throw e
     }
-  })
+  }
 }
 
 /** Get the events from the given log stream, limited to the given start/end timestamps. */
@@ -717,7 +741,7 @@ AwsUtils.prototype.getLogEvents = async function(logGroupName, logStreamName, st
     endTime: endTs
     // limit: 50 // default is up to 1MB, or 100k items
     // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
-  }).promise
+  }).promise()
   return ret.events
 }
 
