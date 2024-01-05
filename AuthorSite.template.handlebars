@@ -422,6 +422,11 @@ Resources:
             ViewerProtocolPolicy: allow-all
             ForwardedValues:
               QueryString: false
+          - PathPattern: /logs/*
+            TargetOriginId: AdminUiData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
         CustomErrorResponses:
           - ErrorCachingMinTTL: 300
             ErrorCode: 403
@@ -542,6 +547,11 @@ Resources:
                 LambdaFunctionARN: !Ref OnCacheVersion
                 IncludeBody: true
           - PathPattern: /content/*
+            TargetOriginId: AdminUiData
+            ViewerProtocolPolicy: allow-all
+            ForwardedValues:
+              QueryString: false
+          - PathPattern: /logs/*
             TargetOriginId: AdminUiData
             ViewerProtocolPolicy: allow-all
             ForwardedValues:
@@ -1275,7 +1285,7 @@ Resources:
               - Effect: Allow
                 Action:
                  - 'acm:ListCertificates'
-                Resource: !Join ['', [!Join [':', ['arn:aws:acm', !Ref AWS::Region, !Ref 'AWS::AccountId', 'certificate']], '*']]
+                Resource: '*'
         - PolicyName: LogsReadAccess
           PolicyDocument:
             Version: 2012-10-17

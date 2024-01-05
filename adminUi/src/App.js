@@ -78,8 +78,9 @@ const LIST_DOMAIN_TOOLTIP = 'Set Site domain. The browser page may reload if thi
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
-const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a doanloadable text file.'
-const BUTTON_DOWNLOAD_LOGS = 'Captured log files available for download. Log files will be removed 1 hour after capture.'
+const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a text file.'
+const BUTTON_DOWNLOAD_LOGS_1 = 'Captured log files available for download.'
+const BUTTON_DOWNLOAD_LOGS_2 = 'Log files will be removed 1 hour after capture.'
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -160,12 +161,6 @@ function App() {
   const newPassword = useRef({})
   const availableDomains = useRef([])
   const capturedLogs = useRef([])
-
-  // DEBUG
-  //capturedLogs.current.push({ name: '2024-12-08T14:15:04Z', url: '/logs/log-2024-12-08T14:15:04Z.log' })
-  //capturedLogs.current.push({ name: '2024-12-08T14:10:04Z', url: '/logs/log-2024-12-08T14:10:04Z.log' })
-
-  // END DEBUG
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id, editorId) => {
@@ -375,6 +370,9 @@ function App() {
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
+      if (adminState.capturedLogs) {
+        capturedLogs.current = adminState.capturedLogs
+      }
       setAdminLive(true)
     } else {
       if ( ! deepEqual(adminState.config, adminConfig)) {
@@ -407,6 +405,11 @@ function App() {
       if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
         if (adminState.availableDomains && adminState.availableDomains.length) {
           availableDomains.current = adminState.availableDomains
+        }
+      }
+      if ( ! deepEqual(adminState.capturedLogs, capturedLogs.current)) {
+        if (adminState.capturedLogs && adminState.capturedLogs.length) {
+          capturedLogs.current = adminState.capturedLogs
         }
       }
     }
@@ -625,12 +628,13 @@ function App() {
                     <PopoverContent>
                       <PopoverArrow />
                       <PopoverBody>
-                        <Text>{adminDisplay.setPwdError ? BUTTON_DOWNLOAD_LOGS + '\n\n' + adminDisplay.setPwdErrMsg : BUTTON_DOWNLOAD_LOGS}</Text>
-                        <VStack margin='0.5em 0'>
+                        <Text>{BUTTON_DOWNLOAD_LOGS_1}</Text>
+                        <VStack spacing={0} align='stretch' margin='0.5em 0'>
                           {capturedLogs.current.map(logFile => {
-                            return <Link href="{logFile.url}">{logFile.name}</Link>
+                            return <Link key={logFile.url} href={logFile.url} target='_blank'>{logFile.name}</Link>
                           })}
                         </VStack>
+                        <Text>{BUTTON_DOWNLOAD_LOGS_2}</Text>
                       </PopoverBody>
                     </PopoverContent>
                   </Portal></>

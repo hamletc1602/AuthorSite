@@ -462,24 +462,31 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       // Capture the current set of Log snapshot files to the admin state
       // And delete any log snapshot files that are older than the configured TTL.
       {
-        const logFiles = await this.list(adminUiBucket, '/logs/log-')
-        const capturedLogsState = await Promise.all(logFiles.map(async logFile => {
-          const logTsStr = logFile.Key.substring(4, -4)
-          const logTs = new Date(logTsStr)
-          const diffMs = (new Date.now()) - logTs.getTime()
-          if (diffMs > this.logSnapshotTtlMs) {
-            console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
-            await this.delete(adminUiBucket, logFile.Key)
-          } else {
-            return {
-              name: logTsStr,
-              url: '/logs/' +logFile.Key
+        const logFiles = await this.list(adminUiBucket, 'logs/log-')
+        const capturedLogsState = (await Promise.all(logFiles.map(async logFile => {
+          if (logFile.Key.length > 14) {
+            let logTsStr = logFile.Key.substring(9, logFile.Key.length - 4)
+            // remove the UUID added for security
+            const parts = logTsStr.split('_')
+            if (parts.length > 1) {
+              logTsStr = parts[1]
+            }
+            const logTs = new Date(logTsStr)
+            const diffMs = (Date.now()) - logTs.getTime()
+            if (diffMs > this.logSnapshotTtlMs) {
+              console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
+              await this.delete(adminUiBucket, logFile.Key)
+            } else {
+              return {
+                name: logTsStr,
+                url: '/' +logFile.Key
+              }
             }
           }
           return null
-        })).filter(p => p != null)
+        }))).filter(p => p != null)
         if ( ! deepEqual(stateCache.state.capturedLogs, capturedLogsState)) {
-          stateCache.state.capturedLogs = logFilesState
+          stateCache.state.capturedLogs = capturedLogsState
           stateUpdated = true
         }
       }
@@ -652,7 +659,7 @@ AwsUtils.prototype.listCertificates = async function() {
   if ( ! this.cf) {
     throw new Error("CloudFront service not initilaized.")
   }
-  const ret = await this.cf.listCertificates({
+  const ret = await this.acm.listCertificates({
     CertificateStatuses: ['ISSUED'],
     SortBy: 'CREATED_AT',
     SortOrder: 'DESCENDING'

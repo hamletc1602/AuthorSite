@@ -65,7 +65,7 @@ const aws = new AwsUtils({
   sqs: new sdk.SQS(),
   stateQueueUrl: stateQueueUrl,
   cf: new sdk.CloudFront(),
-  cm: new sdk.ACM(),
+  acm: new sdk.ACM(),
   r53: new sdk.Route53(),
   logs: new sdk.CloudWatchLogs()
 })
