@@ -899,7 +899,7 @@ Resources:
       Handler: index.handler
       Code:
         S3Bucket: '{{sourceBucket}}'
-        S3Key: 'AutoSite/lambdas/provisioner.zip'
+        S3Key: 'AutoSite{{version}}/lambdas/provisioner.zip'
       Layers:
         - !Ref ProvisionerNMLayer
 
