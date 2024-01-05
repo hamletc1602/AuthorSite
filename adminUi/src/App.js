@@ -94,6 +94,20 @@ let fastPollingTimeoutId = null
 let pollLoopCount = 0
 let passwordChangingDebounce = null
 
+// Known Server States (If true, check for end fast polling. false here implies server state may not be reliably cleaned up.)
+const serverStates = {
+  deploying: true,
+  building: true,
+  updatingTemplate: true,
+  updatingUi: true,
+  getLogs: true,
+  savingTemplate: true,
+  settingPassword: true,
+
+  // Unreliable server state:
+  preparing: false
+}
+
 // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
 function startFastPolling() {
   console.log('Start fast polling')
@@ -174,6 +188,9 @@ function App() {
   }
 
   const setDisplay = (prop, value) => {
+    if (serverStates[prop] === undefined) {
+      console.log(`Using unsupported display state: ${prop}`)
+    }
     adminDisplay.current[prop] = value
   }
 
@@ -253,7 +270,7 @@ function App() {
   }
 
   const onCaptureLogs = () => {
-    setDisplay('capturingLogs', true)
+    setDisplay('getLogs', true)
     controller.sendCommand('captureLogs', { durationH: 1 })
     startFastPolling()
   }
@@ -366,6 +383,8 @@ function App() {
       }
       if (adminState.availableDomains && adminState.availableDomains.length) {
         availableDomains.current = adminState.availableDomains
+        // Always add base domain:
+        availableDomains.current.push(adminState.domains.base)
       }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
@@ -381,9 +400,8 @@ function App() {
       if ( ! deepEqual(adminState.display, adminDisplay.current)) {
         console.log('Update display state', adminState.display)
         adminDisplay.current = adminState.display
-        if ( ! (adminState.display.deploying || adminState.display.building || adminState.display.preparing
-          || adminState.display.updatingTemplate || adminState.display.updatingUi)
-        ) {
+        const activeStates = Object.keys(serverStates).filter(p => serverStates[p] && adminState.display[p])
+        if (activeStates.length === 0) {
           endFastPolling()
         }
       }
@@ -393,7 +411,7 @@ function App() {
       if ( ! deepEqual(adminState.domains, adminDomains.current)) {
         if (adminState.domains) {
           adminDomains.current = adminState.domains
-          if (adminDomains.current.current !== window.location.host) {
+          if (adminDomains.current.current !== window.location.host && window.location.host !== adminState.domains.base) {
             if (showChangingDomain) {
               // Upate browser location to match expected domain in adminConfig
               setShowChangingDomain(false)
@@ -405,6 +423,8 @@ function App() {
       if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
         if (adminState.availableDomains && adminState.availableDomains.length) {
           availableDomains.current = adminState.availableDomains
+          // Always add base domain:
+          availableDomains.current.push(adminState.domains.base)
         }
       }
       if ( ! deepEqual(adminState.capturedLogs, capturedLogs.current)) {
