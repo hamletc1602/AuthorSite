@@ -672,6 +672,7 @@ async function getAvailableDomains(_params) {
     const validDomains = []
     const allFreeCerts = await aws.listCertificates()
     allFreeCerts.map(cert => {
+      // Pair each cert with its test cert (all valid domains will come in domain and test pairs.)
       const testCert = allFreeCerts.find(p => p.domain === ('test.' + cert.domain))
       if (testCert) {
         validDomains.push({
@@ -685,6 +686,10 @@ async function getAvailableDomains(_params) {
     // Send event to update admin state
     aws.updateAvailableDomains(validDomains)
     await aws.displayUpdate({ getDomains: false, getDomError: false, getDomErrMsg: '' }, 'getDomains', `End get available domains`)
+    return {
+      status: '200',
+      statusDescription: `Found ${validDomains.length} domains.`
+    }
   } catch (e) {
     console.log(`Failed to get available domains.`, e)
     await aws.displayUpdate({ getDomains: false, getDomError: true, getDomErrMsg: `Failed to get domains ${e.message}` }, 'getDomains', `End get available domains. Failed: ${e.message}`)

@@ -666,7 +666,7 @@ AwsUtils.prototype.listCertificates = async function() {
   }).promise()
   const list = ret.CertificateSummaryList
   return list
-    .filter(p => p.inUse)
+    .filter(p => !(p.InUse))
     .map(p => {
       return {
         arn: p.CertificateArn,
@@ -680,7 +680,7 @@ AwsUtils.prototype.updateAvailableDomains = async function(domains) {
   try {
     const msg = {
       time: Date.now(),
-      setAvailableDomains: domains
+      availableDomains: domains
     }
     const ret = await this.sqs.sendMessage({
       QueueUrl: this.stateQueueUrl,
