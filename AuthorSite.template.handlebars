@@ -1295,7 +1295,7 @@ Resources:
                  - 'logs:DescribeLogStreams'
                  - 'logs:GetLogEvents'
                  - 'logs:FilterLogEvents'
-                Resource: !Join ['', [!Join [':', ['arn:aws:logs', !Ref AWS::Region, !Ref 'AWS::AccountId', '']], '*']]
+                Resource: !Join ['', [!Join [':', ['arn:aws:logs', '*', !Ref 'AWS::AccountId', '']], '*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17

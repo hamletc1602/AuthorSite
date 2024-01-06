@@ -29,13 +29,16 @@ const LogGroupsTemplate = [{
   name: 'State Pump'
 },{
   groupName: '/aws/lambda/us-east-1.@SITE_NAME@-admin',
-  name: 'Admin Edge'
+  name: 'Admin Edge',
+  edge: true
 },{
   groupName: '/aws/lambda/us-east-1.@SITE_NAME@-edge',
-  name: 'Site Edge'
+  name: 'Site Edge',
+  edge: true
 },{
   groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
-  name: 'Amazon URL Forwarder'
+  name: 'Amazon URL Forwarder',
+  edge: true
 }]
 
 let MaxGroupNameLength = 0
@@ -74,6 +77,9 @@ const aws = new AwsUtils({
  - Publish: Sync all site files from the test site to the public site.
 */
 exports.handler = async (event, _context) => {
+  //
+  aws.logsEdge = new sdk.CloudWatchLogs({ region: event.body.edgeRegion })
+
   //
   if (event.command === 'setPassword') {
     console.log('Event: setPassword')
@@ -851,7 +857,8 @@ async function captureLogs(adminBucket, options) {
     const logGroups = LogGroupsTemplate.map(tpl => {
       return {
         groupName: tpl.groupName.replace('@SITE_NAME@', siteName),
-        name: tpl.name
+        name: tpl.name,
+        edge: tpl.edge
       }
     })
     console.log('Log Groups: ' + JSON.stringify(logGroups))
@@ -859,15 +866,15 @@ async function captureLogs(adminBucket, options) {
     const startTs = endTs - (options.durationH * HoursToMs)
     // Get all events for this site's groups within this timerange from AWS CloudWatch
     const groupedMessages = await Promise.all(logGroups.map(async group => {
-      const streamsRaw = await aws.getLogStreams(group.groupName)
+      const streamsRaw = await aws.getLogStreams(group.groupName, group.edge)
       const streamsInRange = streamsRaw.filter(group => {
         return (group.lastEventTs > startTs) && (group.firstEventTs < endTs)
       })
-      console.log(`Got ${streamsInRange.length} log streams in range for group: ${group.groupName}`)
+      console.log(`Got ${streamsInRange.length} log streams in range for group: ${group.groupName}, region: ${group.edge ? options.edgeRegion : process.env['AWS_REGION']}`)
       return {
         group: group.name,
         streams: await Promise.all(streamsInRange.map(async stream => {
-           return await aws.getLogEvents(group.groupName, stream.name, startTs, endTs)
+           return await aws.getLogEvents(group.groupName, group.edge, stream.name, startTs, endTs)
         }))
       }
     }))

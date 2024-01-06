@@ -711,9 +711,10 @@ AwsUtils.prototype.updateSiteDomain = async function(domain) {
 }
 
 /** Get the latest 50 log streams details for the given group name. */
-AwsUtils.prototype.getLogStreams = async function(logGroupName) {
+AwsUtils.prototype.getLogStreams = async function(logGroupName, edge) {
   try {
-    const ret = await this.logs.describeLogStreams({
+    const logsClient = edge ? this.logsEdge : this.logs
+    const ret = await logsClient.describeLogStreams({
       logGroupName: logGroupName,
       orderBy: 'LastEventTime',
       descending: true,
@@ -739,8 +740,9 @@ AwsUtils.prototype.getLogStreams = async function(logGroupName) {
 }
 
 /** Get the events from the given log stream, limited to the given start/end timestamps. */
-AwsUtils.prototype.getLogEvents = async function(logGroupName, logStreamName, startTs, endTs) {
-  const ret = await this.logs.getLogEvents({
+AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamName, startTs, endTs) {
+  const logsClient = edge ? this.logsEdge : this.logs
+  const ret = await logsClient.getLogEvents({
     logGroupName: logGroupName,
     logStreamName: logStreamName,
     startFromHead: false,  // Must be true is nextToken is provided.

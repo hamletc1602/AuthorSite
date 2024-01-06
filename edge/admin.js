@@ -215,6 +215,8 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
     if (body) {
       params = JSON.parse(body.toString())
     }
+    params.edgeRegion = process.env['AWS_REGION']
+    //
     switch (command) {
       case 'validate':
         ret = {
