@@ -24,12 +24,14 @@ function AwsUtils(options) {
   if (!(this instanceof AwsUtils)) {
     return new AwsUtils(options);
   }
+  //console.log('AWS Options:', options)
   this.files = options.files
   this.s3 = options.s3
   this.sqs = options.sqs
   this.stateQueueUrl = options.stateQueueUrl
   this.cf = options.cf
   this.acm = options.acm
+  this.r53 = options.r53
   this.logs = options.logs
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds

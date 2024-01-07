@@ -914,7 +914,9 @@ Resources:
       AdminBucket: !Ref AdminData
       AdminUiBucket: !Ref AdminUiData
       WebDataBucket: !Ref WebData
+      WebCache: !Ref WebCache
       TestWebDataBucket: !Ref TestWebData
+      TestWebCache: !Ref TestWebCache
       WebLogsBucket: !Ref WebCacheLogs
       TestWebLogsBucket: !Ref TestWebCacheLogs
       FeedbackBucket: !Ref FeedbackData
@@ -923,7 +925,9 @@ Resources:
       BaseDomainTest: !GetAtt TestWebCache.DomainName
       {{#domain}}
       DomainName: !Ref DomainName
+      DomainCertArn: !Ref Certificate
       DomainNameTest: !Join ['.', ['test', !Ref DomainName]]
+      DomainCertTestArn: !Ref TestCertificate
       {{/domain}}
       MaxAgeBrowser: 86400
       MaxAgeCloudFront: 0
@@ -1269,15 +1273,14 @@ Resources:
                 Action:
                  - 'cloudfront:AssociateAlias'
                  - 'cloudfront:GetDistribution'
+                 - 'cloudfront:GetDistributionConfig'
                  - 'cloudfront:ListDistributions'
                  - 'cloudfront:UpdateDistribution'
-                Resource: !Join
-                  - ','
-                  -
-                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache]]
-                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache, '*']]
-                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache]]
-                    - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache, '*']]
+                Resource:
+                 - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache]]
+                 - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache, '*']]
+                 - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache]]
+                 - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache, '*']]
         - PolicyName: CertificatesAccess
           PolicyDocument:
             Version: 2012-10-17
@@ -1285,6 +1288,15 @@ Resources:
               - Effect: Allow
                 Action:
                  - 'acm:ListCertificates'
+                Resource: '*'
+        - PolicyName: Route53
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'route53:ListHostedZones'
+                 - 'route53:ChangeResourceRecordSets'
                 Resource: '*'
         - PolicyName: LogsReadAccess
           PolicyDocument:
@@ -1415,7 +1427,7 @@ Resources:
   ProvisionerRole:
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Join ['_',[!Ref AWS::StackName,'l-provison']]
+      RoleName: !Join ['_',[!Ref AWS::StackName,'l-provision']]
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

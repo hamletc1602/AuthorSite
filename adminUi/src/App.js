@@ -207,9 +207,9 @@ function App() {
     // If the selected domain is the CF base domain, then _remove_ the custom domain, otherwise,
     // change/add custom domain.
     if (domain.domain === adminDomains.current.base) {
-      controller.sendCommand('setDomain', { domains: adminDomains.current })
+      controller.sendCommand('setSiteDomain', { domains: adminDomains.current })
     } else {
-      controller.sendCommand('setDomain', { domains: adminDomains.current, newDomain: domain })
+      controller.sendCommand('setSiteDomain', { domains: adminDomains.current, newDomain: domain })
     }
   }
 
@@ -383,8 +383,17 @@ function App() {
       }
       if (adminState.availableDomains && adminState.availableDomains.length) {
         availableDomains.current = adminState.availableDomains
-        // Always add base domain:
-        availableDomains.current.push(adminState.domains.base)
+        // Always add current domain at top, and base domain at bottom
+        availableDomains.current.unshift({
+          domain: adminState.domains.current,
+          arn: adminState.domains.currentArn,
+          testDomain: adminState.domains.currentTest,
+          testArn: adminState.domains.currentTestArn
+        })
+        availableDomains.current.push({
+          domain: adminState.domains.base,
+          testDomain: adminState.domains.baseTest,
+        })
       }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
@@ -423,8 +432,17 @@ function App() {
       if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
         if (adminState.availableDomains && adminState.availableDomains.length) {
           availableDomains.current = adminState.availableDomains
-          // Always add base domain:
-          availableDomains.current.push(adminState.domains.base)
+          // Always add current domain at top, and base domain at bottom
+          availableDomains.current.unshift({
+            domain: adminState.domains.current,
+            arn: adminState.domains.currentArn,
+            testDomain: adminState.domains.currentTest,
+            testArn: adminState.domains.currentTestArn
+          })
+          availableDomains.current.push({
+            domain: adminState.domains.base,
+            testDomain: adminState.domains.baseTest,
+          })
         }
       }
       if ( ! deepEqual(adminState.capturedLogs, capturedLogs.current)) {
@@ -559,7 +577,9 @@ function App() {
               label={LIST_DOMAIN_TOOLTIP}
             >
               <Select size='sm' m='2px' border='none' color='accentText'
-                defaultValue={availableDomains.current ? availableDomains.current.indexOf(adminDomains.current.current) : null} disabled={locked}
+                // Current domain should always be first in list
+                //defaultValue={availableDomains.current ? availableDomains.current.indexOf(adminDomains.current.current) : null}
+                disabled={locked}
                 onFocus={async ev => {
                   await controller.sendCommand('getAvailableDomains')
                 }}

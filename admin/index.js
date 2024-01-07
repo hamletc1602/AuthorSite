@@ -714,20 +714,20 @@ async function setSiteDomain(adminBucket, params) {
   try {
     if (params.newDomain) {
       // Change to or add a custom domain
-      const hostedZoneId = getHostedZoneId(params.newDomain.domain)
-      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain to ${params.domain}`)
+      const hostedZoneId = await getHostedZoneId(params.newDomain.domain)
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain for ${hostedZoneId} to ${params.domain}`)
       await upsertCustomDomain(hostedZoneId, params.domains, params.newDomain)
       await aws.updateSiteDomain({ current: params.newDomain.domain, currentTest: params.newDomain.testDomain })
     } else {
       // remove the custom domain (Site will only be accessable via the base CloudFront domain)
-      const hostedZoneId = getHostedZoneId(params.domains.current)
-      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain`)
+      const hostedZoneId = await getHostedZoneId(params.domains.current)
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain for ${hostedZoneId}`)
       await removeCustomDomain(hostedZoneId, params.domains)
       await aws.updateSiteDomain({ current: params.domains.base, currentTest: params.domains.baseTest })
     }
     await aws.displayUpdate({ setDomain: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
-    console.log(`Failed to set domain.`, e)
+    console.log(`Failed to set domain: ${JSON.stringify(e)}`, e)
     await aws.displayUpdate({ setDomain: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
   }
 }
@@ -735,75 +735,94 @@ async function setSiteDomain(adminBucket, params) {
 /** */
 async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
   // Add/Update R53 domain records for main and test domain
-  await aws.r53.changeResourceRecordSets({
-    ChangeBatch: {
-      Changes: [
-        createUpsertChange(newDomain.domain, domains.base),
-        createUpsertChange(newDomain.testDomain, domains.baseTest)
-      ],
-      comment: 'Add/Update custom domain'
-    },
-    HostedZoneId: hostedZoneId
-  }).promise()
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.domain, domains.base, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.domain, domains.base, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.domain, domains.base, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.domain, domains.base, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.testDomain, domains.baseTest, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.testDomain, domains.baseTest, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'AAAA')])
+  // Update CF Ditros domain aliases and certificates. Add a pause since AWS will only allow one dist. cert change at a time.
+  await updateDistributionDomain(domains.dist, newDomain.domain, newDomain.arn)
+  await sleep(1)
+  await updateDistributionDomain(domains.distTest, newDomain.testDomain, newDomain.testArn)
+}
 
-  // Add alt domain names to CF
-  const cfDistId =  domains.base.split('.')[0]
-  const cfTestDistId = domains.baseTest.split('.')[0]
-  await aws.cf.associateAlias({
-    Alias: newDomain.domain,
-    TargetDistributionId: cfDistId
-  }).promise()
-  await aws.cf.associateAlias({
-    Alias: newDomain.testDomain,
-    TargetDistributionId: cfTestDistId
-  }).promise()
-
-  // Add/update custom cert from to CF
-  const config = await aws.cf.getDistributionConfig({ id: cfDistId })
-  config.ViewerCertificate.CloudFrontDefaultCertificate = false
-  config.ViewerCertificate.ACMCertificateArn = newDomain.arn
-  await aws.cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
-  const testConfig = await aws.cf.getDistributionConfig({ id: cfTestDistId })
-  testConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
-  testConfig.ViewerCertificate.ACMCertificateArn = newDomain.testArn
-  await aws.cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
+/** Replace the existing domain cert and aliases with the given values.
+    Does NOT handle these aliases being in-use by another CF distribution, so aliases will need to be cleared
+    first before this call.
+*/
+async function updateDistributionDomain(cfDistId, domain, certArn) {
+  const resp = await aws.cf.getDistributionConfig({ Id: cfDistId }).promise()
+  //console.log('CF Config:', resp)
+  resp.DistributionConfig.Aliases.Quantity = 2
+  resp.DistributionConfig.Aliases.Items = [domain, 'www.' + domain]
+  resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
+  resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = certArn
+  resp.IfMatch = resp.ETag
+  delete resp.ETag
+  resp.Id = cfDistId
+  await aws.cf.updateDistribution(resp).promise()
 }
 
 /** */
 async function removeCustomDomain(hostedZoneId, domains) {
   // Remove any R53 domain records for main and test domain
   if (hostedZoneId) {
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.current, domains.base, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.current, domains.base, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.current, domains.base, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.current, domains.base, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.currentTest, domains.baseTest, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.currentTest, domains.baseTest, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.currentTest, domains.baseTest, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.currentTest, domains.baseTest, 'AAAA')])
+  }
+  // Remove alt domain names and custom cert from old CF. Add a pause since AWS will only allow one dist. cert change at a time.
+  await clearDistributionDomain(domains.dist)
+  await sleep(1)
+  await clearDistributionDomain(domains.distTest)
+}
+
+/** Remove any existing domain cert and aliases. */
+async function clearDistributionDomain(cfDistId) {
+  const resp = await aws.cf.getDistributionConfig({ Id: cfDistId }).promise()
+  //console.log('CF Config:', resp)
+  resp.DistributionConfig.Aliases.Quantity = 0
+  resp.DistributionConfig.Aliases.Items = []
+  resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
+  resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = null
+  resp.IfMatch = resp.ETag
+  delete resp.ETag
+  resp.Id = cfDistId
+  await aws.cf.updateDistribution(resp).promise()
+}
+
+/** */
+async function execR53Changes(hostedZoneId, changes) {
+  try {
     const param = {
       ChangeBatch: {
-        Changes: [
-          createDeleteChange(domains.current, domains.base, 'A'),
-          createDeleteChange(domains.currentTest, domains.baseTest, 'A')
-        ],
-        comment: 'Remove custom domain'
+        Changes: changes,
+        Comment: 'Remove custom domain'
       },
       HostedZoneId: hostedZoneId
     }
     await aws.r53.changeResourceRecordSets(param).promise()
+  } catch (e) {
+    if (e.message.indexOf('not found') !== -1) {
+      console.log(`Domain to remove not found. Likely already removed by a previous operation. ${e.message}`)
+    } else if (e.message.indexOf('values provided do not match the current values')) {
+      console.log(`Domain to remove does not match expected config. Will likely be resolved by other updates, but may require manual change via AWS console. ${e.message}`)
+    } else {
+      throw e
+    }
   }
-
-  // Remove alt domain names from old CF
-  // remove custom cert from old CF
-  const cfDistId =  domains.base.split('.')[0]
-  const cfTestDistId = domains.baseTest.split('.')[0]
-  const config = await aws.cf.getDistributionConfig({ id: cfDistId })
-  config.Aliases.Quantity = 0
-  config.Items = []
-  config.ViewerCertificate.CloudFrontDefaultCertificate = true
-  await aws.cf.updateDistributionConfig({ id: cfDistId, DistributionConfig: config })
-  const testConfig = await aws.cf.getDistributionConfig({ id: cfTestDistId })
-  testConfig.Aliases.Quantity = 0
-  testConfig.Items = []
-  testConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
-  await aws.cf.updateDistributionConfig({ id: cfTestDistId, DistributionConfig: testConfig })
 }
 
 /** Create a change to upsert a new record into R53. */
-async function createUpsertChange(type, domain, cfDomain) {
+function createUpsertChange(domain, cfDomain, type) {
   return {
     Action: "UPSERT",
     ResourceRecordSet: {
@@ -813,14 +832,13 @@ async function createUpsertChange(type, domain, cfDomain) {
         EvaluateTargetHealth: false,
         HostedZoneId: "Z2FDTNDATAQYW2"
       },
-      TTL: 60,
       Type: type
     }
   }
 }
 
 /** Create a change record to delete an existing record from R53. */
-async function createDeleteChange(domain, cfDomain, type) {
+function createDeleteChange(domain, cfDomain, type) {
   return {
     Action: "DELETE",
     ResourceRecordSet: {
@@ -830,7 +848,6 @@ async function createDeleteChange(domain, cfDomain, type) {
         EvaluateTargetHealth: false,
         HostedZoneId: "Z2FDTNDATAQYW2"
       },
-      TTL: 60,
       Type: type
     }
   }
@@ -841,11 +858,13 @@ async function createDeleteChange(domain, cfDomain, type) {
 */
 async function getHostedZoneId(domainName) {
   const zones = await aws.r53.listHostedZones({}).promise()
-  let zone = zones.find(p => p.name === domainName)
-  if (zone) return zone.id
+  // Exact match
+  let zone = zones.HostedZones.find(p => p.Name === (domainName + '.'))
+  if (zone) return zone.Id.replace('/hostedzone/', '')
+  // root domain match
   const rootDomainName = domainName.split('.').slice(1).join('.')
-  zone = zones.find(p => p.name === rootDomainName)
-  if (zone) return zone.id
+  zone = zones.HostedZones.find(p => p.Name === (rootDomainName + '.'))
+  if (zone) return zone.Id.replace('/hostedzone/', '')
   return null
 }
 
@@ -897,16 +916,36 @@ async function captureLogs(adminBucket, options) {
     //
     const eventMsgs = []
     events.forEach(event => {
-      const displayTs = new Date(event.timestamp).toISOString()
-      eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
+      if ( ! isLambdaFramingLogMessage(event.message)) {
+        const displayTs = new Date(event.timestamp).toISOString()
+        eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
+      }
     })
     const endTsFmt = new Date(endTs).toISOString()
     const logFileName = 'logs/log-' + Uuid.v1() + '_' + endTsFmt + '.log'
-    console.log(`Write ${events.length} events to ${logFileName}`)
+    console.log(`Write ${eventMsgs.length} events to ${logFileName}`)
     await aws.put(adminUiBucket, logFileName, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
     await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'AWS Logs ready for download.')
   } catch (e) {
     console.log(`Error in captureLogs:`, e)
     await aws.displayUpdate({ getLogs: false, getLogsError: true, getLogsErrMsg: `Failed to get AWS logs: ${e.message}` }, 'getLogs', 'Error: Failed to get AWS Logs.')
   }
+}
+
+/** Detect AWS Lambda framing messages
+  Example:
+  024-01-06T08:56:13.686Z Admin Edge           START RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e Version: 4
+  2024-01-06T08:56:14.060Z Admin Edge           END RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e
+  2024-01-06T08:56:14.060Z Admin Edge           REPORT RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e	Duration:
+*/
+function isLambdaFramingLogMessage(message) {
+  if (message.indexOf('RequestId:') !== -1) {
+    if (message.indexOf('START RequestId:') === 0
+      || message.indexOf('END RequestId:') === 0
+      || message.indexOf('REPORT RequestId:') === 0)
+    {
+      return true
+    }
+  }
+  return false
 }

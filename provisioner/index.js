@@ -65,10 +65,14 @@ const cfnCreateHandler = async (params) => {
     }
 
     const domains = {
+      dist: params.WebCache,
+      distTest: params.TestWebCache,
       base: params.BaseDomain,
       baseTest: params.BaseDomainTest,
       current: params.DomainName || params.BaseDomain,
-      currentTest: params.DomainNameTest || params.BaseDomainTest
+      currentArn: params.DomainCertArn,
+      currentTest: params.DomainNameTest || params.BaseDomainTest,
+      currentTestArn: params.DomainCertTestArn
     }
 
     // Generate default admin data in Admin UI bucket.
