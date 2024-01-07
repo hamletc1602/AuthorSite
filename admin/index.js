@@ -743,9 +743,8 @@ async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
   await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'A')])
   await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.testDomain, domains.baseTest, 'AAAA')])
   await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'AAAA')])
-  // Update CF Ditros domain aliases and certificates. Add a pause since AWS will only allow one dist. cert change at a time.
+  // Update CF Ditros domain aliases and certificates.
   await updateDistributionDomain(domains.dist, newDomain.domain, newDomain.arn)
-  await sleep(1)
   await updateDistributionDomain(domains.distTest, newDomain.testDomain, newDomain.testArn)
 }
 
@@ -779,9 +778,8 @@ async function removeCustomDomain(hostedZoneId, domains) {
     await execR53Changes(hostedZoneId, [createDeleteChange(domains.currentTest, domains.baseTest, 'AAAA')])
     await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.currentTest, domains.baseTest, 'AAAA')])
   }
-  // Remove alt domain names and custom cert from old CF. Add a pause since AWS will only allow one dist. cert change at a time.
+  // Remove alt domain names and custom cert from old CF.
   await clearDistributionDomain(domains.dist)
-  await sleep(1)
   await clearDistributionDomain(domains.distTest)
 }
 
