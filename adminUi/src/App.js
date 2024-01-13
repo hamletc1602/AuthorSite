@@ -156,6 +156,8 @@ function App() {
   const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
   const [uploadError, setUploadError] = useState(null)
+  const [capturedLogs, setCapturedLogs] = useState([])
+  const [availableDomains, setAvailableDomains] = useState([])
 
   // Calculated State
   const authenticated = authState === 'success'
@@ -173,8 +175,6 @@ function App() {
   const saveTemplateName = useRef({})
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
-  const availableDomains = useRef([])
-  const capturedLogs = useRef([])
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id, editorId) => {
@@ -382,24 +382,24 @@ function App() {
         adminDomains.current = adminState.domains
       }
       if (adminState.availableDomains && adminState.availableDomains.length) {
-        availableDomains.current = adminState.availableDomains
-        // Always add current domain at top, and base domain at bottom
-        availableDomains.current.unshift({
-          domain: adminState.domains.current,
-          arn: adminState.domains.currentArn,
-          testDomain: adminState.domains.currentTest,
-          testArn: adminState.domains.currentTestArn
-        })
-        availableDomains.current.push({
-          domain: adminState.domains.base,
-          testDomain: adminState.domains.baseTest,
-        })
+        const domains = [{
+            domain: adminState.domains.current,
+            arn: adminState.domains.currentArn,
+            testDomain: adminState.domains.currentTest,
+            testArn: adminState.domains.currentTestArn
+          },
+          ...adminState.availableDomains,
+          {
+            domain: adminState.domains.base,
+            testDomain: adminState.domains.baseTest,
+          }]
+        setAvailableDomains(domains)
       }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
       if (adminState.capturedLogs) {
-        capturedLogs.current = adminState.capturedLogs
+        setCapturedLogs(adminState.capturedLogs)
       }
       setAdminLive(true)
     } else {
@@ -429,25 +429,25 @@ function App() {
           }
         }
       }
-      if ( ! deepEqual(adminState.availableDomains, availableDomains.current)) {
+      if ( ! deepEqual(adminState.availableDomains, availableDomains)) {
         if (adminState.availableDomains && adminState.availableDomains.length) {
-          availableDomains.current = adminState.availableDomains
-          // Always add current domain at top, and base domain at bottom
-          availableDomains.current.unshift({
-            domain: adminState.domains.current,
-            arn: adminState.domains.currentArn,
-            testDomain: adminState.domains.currentTest,
-            testArn: adminState.domains.currentTestArn
-          })
-          availableDomains.current.push({
-            domain: adminState.domains.base,
-            testDomain: adminState.domains.baseTest,
-          })
+          const domains = [{
+              domain: adminState.domains.current,
+              arn: adminState.domains.currentArn,
+              testDomain: adminState.domains.currentTest,
+              testArn: adminState.domains.currentTestArn
+            },
+            ...adminState.availableDomains,
+            {
+              domain: adminState.domains.base,
+              testDomain: adminState.domains.baseTest,
+            }]
+          setAvailableDomains(domains)
         }
       }
-      if ( ! deepEqual(adminState.capturedLogs, capturedLogs.current)) {
+      if ( ! deepEqual(adminState.capturedLogs, capturedLogs)) {
         if (adminState.capturedLogs && adminState.capturedLogs.length) {
-          capturedLogs.current = adminState.capturedLogs
+          setCapturedLogs(adminState.capturedLogs)
         }
       }
     }
@@ -577,17 +577,15 @@ function App() {
               label={LIST_DOMAIN_TOOLTIP}
             >
               <Select size='sm' m='2px' border='none' color='accentText'
-                // Current domain should always be first in list
-                //defaultValue={availableDomains.current ? availableDomains.current.indexOf(adminDomains.current.current) : null}
                 disabled={locked}
                 onFocus={async ev => {
                   await controller.sendCommand('getAvailableDomains')
                 }}
                 onChange={ev => {
-                  setDomain(availableDomains.current[ev.target.value])
+                  setDomain(availableDomains[ev.target.value])
                 }}
               >
-                {availableDomains.current.map((listValue, index) => {
+                {availableDomains.map((listValue, index) => {
                   return <option key={index} value={index}>{listValue.domain}</option>
                 })}
               </Select>
@@ -655,7 +653,7 @@ function App() {
                 tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
                 isLoading={adminDisplay.capturingLogs && !advancedMode} loadingText='Capturing...'
                 isDisabled={!authenticated || locked}/>
-            {capturedLogs.current.length > 0 ?
+            {capturedLogs.length > 0 ?
               <Popover placement='top-end' gutter={20}>
                 {({ onClose }) => {
                   return <><PopoverTrigger>
@@ -670,7 +668,7 @@ function App() {
                       <PopoverBody>
                         <Text>{BUTTON_DOWNLOAD_LOGS_1}</Text>
                         <VStack spacing={0} align='stretch' margin='0.5em 0'>
-                          {capturedLogs.current.map(logFile => {
+                          {capturedLogs.map(logFile => {
                             return <Link key={logFile.url} href={logFile.url} target='_blank'>{logFile.name}</Link>
                           })}
                         </VStack>
