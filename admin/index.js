@@ -759,10 +759,8 @@ async function updateDistributionDomain(cfDistId, domain, certArn) {
   resp.DistributionConfig.Aliases.Items = [domain, 'www.' + domain]
   resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
   resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = certArn
-  //
-  if (resp.DistributionConfig.ViewerCertificate.SSLSupportMethod === 'vip') {
-    console.log("AWS Bug!!!: SSLSupportMethod === 'vip', which is NEVER intentonally enabled! Force back to 'sni-only'.")
-  }
+  // AWS Sets Legacy Client Support (SSLSupportMethod === 'vip') when using the CloudFront default certificate, but does
+  // not set it back to sni-only when a custome cert is added, so we need to ensure it's set back manually.
   resp.DistributionConfig.ViewerCertificate.SSLSupportMethod = 'sni-only'
   //
   resp.IfMatch = resp.ETag
@@ -798,11 +796,6 @@ async function clearDistributionDomain(cfDistId) {
   resp.DistributionConfig.Aliases.Items = []
   resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
   resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = null
-  //
-  if (resp.DistributionConfig.ViewerCertificate.SSLSupportMethod === 'vip') {
-    console.log("AWS Bug!!!: SSLSupportMethod === 'vip', which is NEVER intentonally enabled! Force back to 'sni-only'.")
-  }
-  resp.DistributionConfig.ViewerCertificate.SSLSupportMethod = 'sni-only'
   //
   resp.IfMatch = resp.ETag
   delete resp.ETag
