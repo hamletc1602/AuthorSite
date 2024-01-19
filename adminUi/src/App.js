@@ -381,7 +381,7 @@ function App() {
       if (adminState.domains) {
         adminDomains.current = adminState.domains
       }
-      if (adminState.availableDomains && adminState.availableDomains.length) {
+      if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
         const domains = [{
             domain: adminState.domains.current,
             arn: adminState.domains.currentArn,
@@ -413,6 +413,18 @@ function App() {
         if (activeStates.length === 0) {
           endFastPolling()
         }
+        if (showChangingDomain && adminState.display.setDomain === false) {
+          setShowChangingDomain(false)
+          // Clear available domains so it will get re-set to the current admin state. This will ensure the dropdown list
+          // and it's active selection is kept up to date.
+          setAvailableDomains([])
+          // Check for, and dispay error conditions?
+          // ??
+
+          // Check for any CF operations in progress for main or test distro?
+             // Grey-out the domain selection dropdown if in progress.
+
+        }
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -423,14 +435,13 @@ function App() {
           if (adminDomains.current.current !== window.location.host && window.location.host !== adminState.domains.base) {
             if (showChangingDomain) {
               // Upate browser location to match expected domain in adminConfig
-              setShowChangingDomain(false)
               window.location.host = adminDomains.current.current
             }
           }
         }
       }
       if ( ! deepEqual(adminState.availableDomains, availableDomains)) {
-        if (adminState.availableDomains && adminState.availableDomains.length) {
+        if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
           const domains = [{
               domain: adminState.domains.current,
               arn: adminState.domains.currentArn,

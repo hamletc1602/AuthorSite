@@ -52,6 +52,7 @@ exports.handler = async (event, context) => {
   const aws = new AwsUtils({
     files: null,  // Not needed (though perhaps this suggests we need two different modules)
     s3: new AWS.S3(),
+    cf: new AWS.CloudFront(),
     sqs: new AWS.SQS(),
     stateQueueUrl: `https://sqs.${targetRegion}.amazonaws.com/${awsAccountId}/${rootName}.fifo`
   })

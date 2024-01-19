@@ -481,16 +481,39 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
             } else {
               return {
                 name: logTsStr,
-                url: '/' +logFile.Key
+                url: '/' +logFile.Key,
+                ts: logTs
               }
             }
           }
           return null
-        }))).filter(p => p != null)
+        })))
+          .filter(p => p != null)
+          .sort((a, b) => a.ts - b.ts)
         if ( ! deepEqual(stateCache.state.capturedLogs, capturedLogsState)) {
           stateCache.state.capturedLogs = capturedLogsState
           stateUpdated = true
         }
+      }
+
+      // Get the current state of all the distributions this site has access to. If any are not in 'deployed' state,
+      // set the 'cfDistUpdating' flag in display properties to true. There should really only be 2 distributions accessible,
+      // the main and test distros.
+      try {
+        const resp = await this.cf.listDistributions({ MaxItems: 4 }).promise()
+        console.log(`CF domains state:`, resp.DistributionList.Items)
+        let updating = false
+        resp.DistributionList.Items.forEach(dist => {
+          if (dist.Status !== 'Deployed') {
+            updating = true
+          }
+        })
+        if (stateCache.display.cfDistUpdating !== updating) {
+          stateCache.display.cfDistUpdating = updating
+          stateUpdated = true
+        }
+      } catch (e) {
+        console.log('Failed to get CF update state.', e)
       }
 
       // Store logs and state back into S3, if they've been updated
