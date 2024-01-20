@@ -422,7 +422,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
     }).promise()
     if (sqsResp.Messages) {
       //console.log(`Received ${sqsResp.Messages.length} messages.`)
-      console.log(`${sqsResp.Messages.length} messages to merge into current state.${warmCache ? ' Warm Cache.' : ''}`, stateCache)
+      console.log(`${sqsResp.Messages.length} messages to merge into current state.${warmCache ? ' Warm Cache.' : ''}`, stateCache.state)
       sqsResp.Messages.forEach(msg => {
         let msgObj = null
         try {
@@ -496,20 +496,28 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         }
       }
 
-      // Get the current state of all the distributions this site has access to. If any are not in 'deployed' state,
-      // set the 'cfDistUpdating' flag in display properties to true. There should really only be 2 distributions accessible,
-      // the main and test distros.
+      // Get the current state of all this site's distributions. If any are not in 'deployed' state,
+      // set the 'cfDistUpdating' flag in display properties to true.
+
+      // TODO: Looks like admin is timing out, since this was added - likely the wait for CF Dist list.
+      // Need to move this processing to admin-worker, and send a display-state update message when it's done
+
       try {
-        const resp = await this.cf.listDistributions({ MaxItems: 4 }).promise()
-        console.log(`CF domains state:`, resp.DistributionList.Items)
+        const resp = await this.cf.listDistributions().promise()
+        //console.log(`CF domains state:`, resp.DistributionList.Items)
         let updating = false
         resp.DistributionList.Items.forEach(dist => {
+          console.log(`Domain: ${dist.DomainName} Status: ${dist.Status}`)
           if (dist.Status !== 'Deployed') {
-            updating = true
+            console.log(`Domains:`, stateCache.state.domains)
+            if (stateCache.state.domains.base === dist.DomainName || stateCache.state.domains.baseTest === dist.DomainName) {
+              console.log(`Set in updating state`)
+              updating = true
+            }
           }
         })
-        if (stateCache.display.cfDistUpdating !== updating) {
-          stateCache.display.cfDistUpdating = updating
+        if (stateCache.state.display.cfDistUpdating !== updating) {
+          stateCache.state.display.cfDistUpdating = updating
           stateUpdated = true
         }
       } catch (e) {

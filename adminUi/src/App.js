@@ -75,6 +75,7 @@ const BUTTON_PUBLISH_TOOLTIP = 'Replace your current live site content with the 
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
 const LIST_DOMAIN_TOOLTIP = 'Set Site domain. The browser page may reload if this setting is changed.'
+const LIST_DOMAIN_TOOLTIP_UPDATING = 'The domain name can not be changed while AWS is currently updating this site.'
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
@@ -158,6 +159,7 @@ function App() {
   const [uploadError, setUploadError] = useState(null)
   const [capturedLogs, setCapturedLogs] = useState([])
   const [availableDomains, setAvailableDomains] = useState([])
+  const [cfDistUpdating, setCfDistUpdating] = useState(false)
 
   // Calculated State
   const authenticated = authState === 'success'
@@ -378,6 +380,7 @@ function App() {
       setAdminConfig(adminState.config)
       setAdminTemplates(adminState.templates)
       adminDisplay.current = adminState.display
+      setCfDistUpdating(adminDisplay.current.cfDistUpdating)
       if (adminState.domains) {
         adminDomains.current = adminState.domains
       }
@@ -425,6 +428,8 @@ function App() {
              // Grey-out the domain selection dropdown if in progress.
 
         }
+        console.log(`cfDistUpdating? ` + adminDisplay.current.cfDistUpdating)
+        setCfDistUpdating(adminDisplay.current.cfDistUpdating)
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -584,11 +589,11 @@ function App() {
             <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer m='3px'/>
             <Tooltip
-              openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end'
-              label={LIST_DOMAIN_TOOLTIP}
+              openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end'
+              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING : LIST_DOMAIN_TOOLTIP}
             >
               <Select size='sm' m='2px' border='none' color='accentText'
-                disabled={locked}
+                disabled={locked || cfDistUpdating}
                 onFocus={async ev => {
                   await controller.sendCommand('getAvailableDomains')
                 }}
