@@ -415,9 +415,6 @@ function App() {
       if (adminState.domains) {
         adminDomains.current = adminState.domains
       }
-      if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
-        setAvailableDomains(adminState.availableDomains.filter(p => p.domain !== adminState.domains.current))
-      }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       }
@@ -458,11 +455,6 @@ function App() {
           adminDomains.current = adminState.domains
         }
       }
-      if ( ! deepEqual(adminState.availableDomains, availableDomains)) {
-        if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
-          setAvailableDomains(adminState.availableDomains.filter(p => p.domain !== adminState.domains.current))
-        }
-      }
       if ( ! deepEqual(adminState.capturedLogs, capturedLogs)) {
         if (adminState.capturedLogs && adminState.capturedLogs.length !== undefined) {
           setCapturedLogs(adminState.capturedLogs)
@@ -470,23 +462,26 @@ function App() {
         }
       }
     }
-    // Ensure the current and base domains are in the domains list, even if no others.
-    if (adminState.domains) {
+    // Update available domains
+    //    Ensure the current and base domains are in the domains list, even if no others.
+    if (adminState.domains && adminState.availableDomains) {
+      const domains = [...adminState.availableDomains]
       if (adminState.domains.current) {
-        availableDomains.unshift({
+        domains.unshift({
           domain: adminState.domains.current,
           arn: adminState.domains.currentArn,
           testDomain: adminState.domains.currentTest,
           testArn: adminState.domains.currentTestArn
         })
       }
-      if (adminState.domains.base) {
-        availableDomains.push({
+      if (adminState.domains.base && adminState.domains.base !== adminState.domains.current) {
+        domains.push({
           domain: adminState.domains.base,
           testDomain: adminState.domains.baseTest,
           listName: adminState.domains.base + ((adminState.domains.current !== adminState.domains.base) ? ' (Browser will reload)' : '')
         })
       }
+      setAvailableDomains(domains)
     }
   }
 
