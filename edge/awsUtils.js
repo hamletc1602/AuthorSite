@@ -387,30 +387,21 @@ AwsUtils.prototype.addTemplate = async function(newTemplate) {
     This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
     calls this must also call for /admin/lock to check if there's any other active admin UI running.
 */
-AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminBucket, adminUiBucket, opts) {
+AwsUtils.prototype.updateAdminStateFromQueue = async function(adminBucket, adminUiBucket, opts) {
   opts = opts || {}
+  const stateCache = {}
   try {
-    // Read current state of the admin and logs json (unless cached in global var already)
-    let warmCache = false
-    if ( ! stateCache.state) {
+    // Read current state of the admin and logs json. The logs file may not exist.
+    {
       const stateStr = (await this.get(adminUiBucket, 'admin/admin.json')).Body.toString()
       stateCache.state = JSON.parse(stateStr)
-    } else {
-      warmCache = true
-    }
-    if ( ! stateCache.logs) {
-      stateCache.logs = []
       try {
         const logStr = (await this.get(adminBucket, 'log.json')).Body.toString()
         stateCache.logs = JSON.parse(logStr)
-      } catch(e) {
-        // ignore
+      } catch (e) {
+        stateCache.logs = []
       }
-    } else {
-      warmCache = true
     }
-    //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
-
     //
     let logsUpdated = false
     let stateUpdated = false
@@ -421,8 +412,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       MessageAttributeNames: ['All']
     }).promise()
     if (sqsResp.Messages) {
-      //console.log(`Received ${sqsResp.Messages.length} messages.`)
-      console.log(`${sqsResp.Messages.length} messages to merge into current state.${warmCache ? ' Warm Cache.' : ''}`, stateCache.state)
+      console.log(`${sqsResp.Messages.length} messages to merge into current state.`, stateCache.state)
       sqsResp.Messages.forEach(msg => {
         let msgObj = null
         try {
@@ -444,6 +434,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         }
       })
 
+      // Clean up state log
       if (opts.deleteOldLogs) {
         console.log(`Clean up any old (>24 hours) log messages.`)
         console.log(`State: ${JSON.stringify(stateCache.state)}`)
@@ -496,34 +487,6 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         }
       }
 
-      // Get the current state of all this site's distributions. If any are not in 'deployed' state,
-      // set the 'cfDistUpdating' flag in display properties to true.
-
-      // TODO: Looks like admin is timing out, since this was added - likely the wait for CF Dist list.
-      // Need to move this processing to admin-worker, and send a display-state update message when it's done
-
-      try {
-        const resp = await this.cf.listDistributions().promise()
-        //console.log(`CF domains state:`, resp.DistributionList.Items)
-        let updating = false
-        resp.DistributionList.Items.forEach(dist => {
-          console.log(`Domain: ${dist.DomainName} Status: ${dist.Status}`)
-          if (dist.Status !== 'Deployed') {
-            console.log(`Domains:`, stateCache.state.domains)
-            if (stateCache.state.domains.base === dist.DomainName || stateCache.state.domains.baseTest === dist.DomainName) {
-              console.log(`Set in updating state`)
-              updating = true
-            }
-          }
-        })
-        if (stateCache.state.display.cfDistUpdating !== updating) {
-          stateCache.state.display.cfDistUpdating = updating
-          stateUpdated = true
-        }
-      } catch (e) {
-        console.log('Failed to get CF update state.', e)
-      }
-
       // Store logs and state back into S3, if they've been updated
       if (logsUpdated) {
         //console.log(`Save the logs (log.json)`, stateCache.logs)
@@ -551,14 +514,15 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         //console.log(`Deleted all processed messages.`)
       }
     }
-    // keep @Edge default handling
-    return false
+    return {
+      state: stateCache,
+    }
   } catch(error) {
     const msg = 'Failed to get messages or update status data: ' + error.message
     console.log(msg, error)
     return {
-      status: '500',
-      statusDescription: msg
+      state: stateCache,
+      error: msg
     }
   }
 }
@@ -617,8 +581,10 @@ const _mergeState = (state, logs, message) => {
   if (message.siteDomain) {
     stateUpdated = true
     console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
-    state.domains.current = message.siteDomain.current
-    state.domains.currentTest = message.siteDomain.currentTest
+    state.domains.current = message.siteDomain.domain
+    state.domains.currentArn = message.siteDomain.arn
+    state.domains.currentTest = message.siteDomain.testDomain
+    state.domains.currentTestArn = message.siteDomain.testArn
   }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }

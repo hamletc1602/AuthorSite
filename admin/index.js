@@ -112,9 +112,11 @@ exports.handler = async (event, _context) => {
       return getAvailableDomains(event.body)
     case 'setSiteDomain':
       return setSiteDomain(adminBucket, event.body)
-      case 'captureLogs':
-        return captureLogs(adminBucket, event.body)
-      default:
+    case 'captureLogs':
+      return captureLogs(adminBucket, event.body)
+    case 'checkCfDistroState':
+      return checkCfDistroState(event.body)
+    default:
       return {
         status: '404',
         statusDescription: `Unknown admin acion: ${event.command}`
@@ -717,13 +719,19 @@ async function setSiteDomain(adminBucket, params) {
       const hostedZoneId = await getHostedZoneId(params.newDomain.domain)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain for ${hostedZoneId} to ${params.domain}`)
       await upsertCustomDomain(hostedZoneId, params.domains, params.newDomain)
-      await aws.updateSiteDomain({ current: params.newDomain.domain, currentTest: params.newDomain.testDomain })
+      await aws.updateSiteDomain(params.newDomain)
+      await aws.displayUpdate({ cfDistUpdating: true }, 'setDomain', 'Force to true since we know CF will be updating')
     } else {
       // remove the custom domain (Site will only be accessable via the base CloudFront domain)
       const hostedZoneId = await getHostedZoneId(params.domains.current)
       await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain for ${hostedZoneId}`)
-      await removeCustomDomain(hostedZoneId, params.domains)
-      await aws.updateSiteDomain({ current: params.domains.base, currentTest: params.domains.baseTest })
+      try {
+        await removeCustomDomain(hostedZoneId, params.domains)
+      } finally {
+        // Always update to the base domain if there's a failure - more likely the site will keep working, and user can try again.
+        await aws.updateSiteDomain({ domain: params.domains.base, testDomain: params.domains.baseTest })
+        await aws.displayUpdate({ cfDistUpdating: true }, 'setDomain', 'Force to true since we know CF will be updating')
+      }
     }
     await aws.displayUpdate({ setDomain: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
   } catch (e) {
@@ -953,4 +961,34 @@ function isLambdaFramingLogMessage(message) {
     }
   }
   return false
+}
+
+/**
+  Get the current state of all this site's distributions. If any are not in 'deployed' state,
+  set the 'cfDistUpdating' flag in display properties to true. Otherwise, set it to false.
+  Params:
+    domain: {
+      main: CF base domain for the main distro.
+      test: CF base domain for the test distro.
+    }
+*/
+async function checkCfDistroState(params) {
+  try {
+    const resp = await aws.cf.listDistributions().promise()
+    //console.log(`CF domains state:`, resp.DistributionList.Items)
+    let updating = false
+    resp.DistributionList.Items.forEach(dist => {
+      //console.log(`Domain: ${dist.DomainName} Status: ${dist.Status}`)
+      if (dist.Status !== 'Deployed') {
+        //console.log(`Domains:`, stateCache.state.domains)
+        if (params.domains.main === dist.DomainName || params.domains.test === dist.DomainName) {
+          updating = true
+        }
+      }
+    })
+    console.log(`CF Distros Updating: ` + updating)
+    await aws.displayUpdate({ cfDistUpdating: updating }, 'checkCfDistroState', 'Got distros status.')
+  } catch (e) {
+    console.log('Failed to get CF update state.', e)
+  }
 }

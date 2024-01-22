@@ -1265,22 +1265,28 @@ Resources:
                 Action:
                  - 'sqs:SendMessage'
                 Resource: !Join ['', [!Join [':', ['arn:aws:sqs', !Ref AWS::Region, !Ref 'AWS::AccountId', !Ref AWS::StackName]], '*']]
-        - PolicyName: CloudFrontAccess
+        - PolicyName: CloudFront
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
-                 - 'cloudfront:AssociateAlias'
                  - 'cloudfront:GetDistribution'
                  - 'cloudfront:GetDistributionConfig'
-                 - 'cloudfront:ListDistributions'
                  - 'cloudfront:UpdateDistribution'
                 Resource:
                  - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache]]
                  - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref WebCache, '*']]
                  - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache]]
                  - !Join ['', ['arn:aws:cloudfront::', !Ref 'AWS::AccountId', ':distribution/', !Ref TestWebCache, '*']]
+        - PolicyName: CloudFrontList
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 'cloudfront:ListDistributions'
+                Resource: '*'
         - PolicyName: CertificatesAccess
           PolicyDocument:
             Version: 2012-10-17

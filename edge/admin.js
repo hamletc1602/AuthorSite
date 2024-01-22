@@ -10,9 +10,9 @@ const MaxAuthFailedAttempts = 10
 
 const CONTENT_ROOT_PATH = '/admin/site-content/'
 
-// When run in rapid succession, AWS may retain some state between executions so we defined some
-// globals where it would be useful to retain state.
-let stateCache = {}
+// When run in rapid succession, AWS may retain some state between executions so we have the opportunity to cache
+// some READ ONLY state. NOTE: Since different physical machines may handle successive lambda executions, this
+// pattern is NOT safe for use with read/write cache.
 let editorsList = null
 
 /**
@@ -108,8 +108,22 @@ exports.handler = async (event, context) => {
       // pages will just get the current state returned.
       const queryObj = new URLSearchParams(req.querystring)
       if (queryObj.get('active') === 'true') {
-        const resp = await aws.updateAdminStateFromQueue(stateCache, adminBucket, adminUiBucket)
-        if (resp) { return resp }
+        // Process queued state messages
+        const resp = await aws.updateAdminStateFromQueue(adminBucket, adminUiBucket)
+        // Async invoke a check of CloudFront Distro state so we can give feedback to the user about when it's
+        // possible to request changes.
+        invokeAdminWorker('checkCfDistroState', arnPrefix + '-admin-worker', {
+          domains: {
+            main: resp.state.state.domains.base,
+            test: resp.state.state.domains.baseTest
+          }
+        })
+        if (resp.error) {
+          return {
+            status: '500',
+            statusDescription: resp.error
+          }
+        }
       }
     }
     else if (req.uri.indexOf('/admin/lock') === 0) {

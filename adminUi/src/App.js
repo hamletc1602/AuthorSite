@@ -4,7 +4,7 @@ import {
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
   PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea, Select, Tooltip
 } from '@chakra-ui/react'
-import { ExternalLinkIcon, InfoOutlineIcon } from '@chakra-ui/icons'
+import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import Editor from './Editor'
@@ -63,8 +63,6 @@ const customTheme = extendTheme({
   }
 })
 
-let siteHost = window.location.host
-
 //
 const controller = new Controller()
 
@@ -74,14 +72,15 @@ const BUTTON_GENERATE_DEBUG_TOOLTIP = 'Generate a test site from your configurat
 const BUTTON_PUBLISH_TOOLTIP = 'Replace your current live site content with the test site content.'
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
-const LIST_DOMAIN_TOOLTIP = 'Set Site domain. The browser page may reload if this setting is changed.'
-const LIST_DOMAIN_TOOLTIP_UPDATING = 'The domain name can not be changed while AWS is currently updating this site.'
-const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
+const LIST_DOMAIN_TOOLTIP = 'Set this site\'s custom domain to one of the available, unused domains.'
+const LIST_DOMAIN_TOOLTIP_UPDATING = 'AWS is currently updating this site\'s domain routing.'
+const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use this if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
 const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a text file.'
 const BUTTON_DOWNLOAD_LOGS_1 = 'Captured log files available for download.'
 const BUTTON_DOWNLOAD_LOGS_2 = 'Log files will be removed 1 hour after capture.'
+const REFRESH_DOMAIN_TOOLTIP = 'Refresh the browser page to match the current active domain: '
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -97,6 +96,7 @@ let passwordChangingDebounce = null
 
 // Known Server States (If true, check for end fast polling. false here implies server state may not be reliably cleaned up.)
 const serverStates = {
+  preparing: true,
   deploying: true,
   building: true,
   updatingTemplate: true,
@@ -104,9 +104,7 @@ const serverStates = {
   getLogs: true,
   savingTemplate: true,
   settingPassword: true,
-
-  // Unreliable server state:
-  preparing: false
+  setDomain: true
 }
 
 // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
@@ -142,6 +140,7 @@ document.addEventListener("visibilitychange", () => {
 //
 function App() {
   // State
+  const [windowReload, setWindowReload] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
   const [showChangingDomain, setShowChangingDomain] = useState(false)
   const [showSelectTemplate, setShowSelectTemplate] = useState(false)
@@ -160,6 +159,7 @@ function App() {
   const [capturedLogs, setCapturedLogs] = useState([])
   const [availableDomains, setAvailableDomains] = useState([])
   const [cfDistUpdating, setCfDistUpdating] = useState(false)
+  const [capturingLogs, setCapturingLogs] = useState(false)
 
   // Calculated State
   const authenticated = authState === 'success'
@@ -198,20 +198,43 @@ function App() {
 
   // Handlers
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
+  const refreshLocationClick = () => refreshLocation()
+
+  // Browser window reload as needed
+  //   windowReload is set to the URL to us for the reload.
+  //   reload will happen in 2s after this effect is triggered.
+  useEffect(() => {
+    if (windowReload) {
+      setTimeout(() => {
+        window.location.host = windowReload
+      }, 2000)
+    }
+  }, [windowReload])
 
   const setDomain = (domain) => {
-    // Current location is NOT the base (default CF domain), so the site will be unstable while
-    // the swap is happening and we'll need to refresh the browser to the new domain.
-    if (siteHost !== adminDomains.current.base) {
-      startFastPolling()
-      setShowChangingDomain(true)
-    }
+    setDisplay('setDomain', true)
+    startFastPolling()
     // If the selected domain is the CF base domain, then _remove_ the custom domain, otherwise,
     // change/add custom domain.
     if (domain.domain === adminDomains.current.base) {
       controller.sendCommand('setSiteDomain', { domains: adminDomains.current })
+      setShowChangingDomain(true)
+      // Auto-update browser location to the base domain before we lose access to the custom domain
+      setWindowReload(adminDomains.current.base)
     } else {
       controller.sendCommand('setSiteDomain', { domains: adminDomains.current, newDomain: domain })
+      // Don't upate browser here. Let the user select that if they want it.
+      setShowChangingDomain(true)
+    }
+  }
+
+  // Update the browser to the domain listed as current in the state.
+  const refreshLocation = () => {
+    // TODO: What happens when the state dissagrees with the current setting in the dropdown list? Seems like that
+    // could be unnexpected for the user? We'll keep this button disabled while CF is updating, and while setDomain
+    // is running, so the list and state _should_ agree, but might not?
+    if ( ! cfDistUpdating && window.location.host !== adminDomains.current.current) {
+      window.location.host = adminDomains.current.current
     }
   }
 
@@ -274,6 +297,7 @@ function App() {
   const onCaptureLogs = () => {
     setDisplay('getLogs', true)
     controller.sendCommand('captureLogs', { durationH: 1 })
+    setCapturingLogs(true)
     startFastPolling()
   }
 
@@ -380,23 +404,19 @@ function App() {
       setAdminConfig(adminState.config)
       setAdminTemplates(adminState.templates)
       adminDisplay.current = adminState.display
+      // Show domain change UI on reload if it's still active.
+      if (adminState.display.setDomain === true) {
+        setShowChangingDomain(true)
+      }
       setCfDistUpdating(adminDisplay.current.cfDistUpdating)
+      if ( ! cfDistUpdating) {
+        controller.sendCommand('getAvailableDomains')
+      }
       if (adminState.domains) {
         adminDomains.current = adminState.domains
       }
       if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
-        const domains = [{
-            domain: adminState.domains.current,
-            arn: adminState.domains.currentArn,
-            testDomain: adminState.domains.currentTest,
-            testArn: adminState.domains.currentTestArn
-          },
-          ...adminState.availableDomains,
-          {
-            domain: adminState.domains.base,
-            testDomain: adminState.domains.baseTest,
-          }]
-        setAvailableDomains(domains)
+        setAvailableDomains(adminState.availableDomains.filter(p => p.domain !== adminState.domains.current))
       }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
@@ -421,15 +441,14 @@ function App() {
           // Clear available domains so it will get re-set to the current admin state. This will ensure the dropdown list
           // and it's active selection is kept up to date.
           setAvailableDomains([])
-          // Check for, and dispay error conditions?
-          // ??
-
-          // Check for any CF operations in progress for main or test distro?
-             // Grey-out the domain selection dropdown if in progress.
-
         }
-        console.log(`cfDistUpdating? ` + adminDisplay.current.cfDistUpdating)
-        setCfDistUpdating(adminDisplay.current.cfDistUpdating)
+        {
+          const prev = cfDistUpdating
+          setCfDistUpdating(adminDisplay.current.cfDistUpdating)
+          if (prev && ! cfDistUpdating) {
+            controller.sendCommand('getAvailableDomains')
+          }
+        }
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
@@ -437,34 +456,36 @@ function App() {
       if ( ! deepEqual(adminState.domains, adminDomains.current)) {
         if (adminState.domains) {
           adminDomains.current = adminState.domains
-          if (adminDomains.current.current !== window.location.host && window.location.host !== adminState.domains.base) {
-            if (showChangingDomain) {
-              // Upate browser location to match expected domain in adminConfig
-              window.location.host = adminDomains.current.current
-            }
-          }
         }
       }
       if ( ! deepEqual(adminState.availableDomains, availableDomains)) {
         if (adminState.availableDomains && adminState.availableDomains.length !== undefined) {
-          const domains = [{
-              domain: adminState.domains.current,
-              arn: adminState.domains.currentArn,
-              testDomain: adminState.domains.currentTest,
-              testArn: adminState.domains.currentTestArn
-            },
-            ...adminState.availableDomains,
-            {
-              domain: adminState.domains.base,
-              testDomain: adminState.domains.baseTest,
-            }]
-          setAvailableDomains(domains)
+          setAvailableDomains(adminState.availableDomains.filter(p => p.domain !== adminState.domains.current))
         }
       }
       if ( ! deepEqual(adminState.capturedLogs, capturedLogs)) {
-        if (adminState.capturedLogs && adminState.capturedLogs.length) {
+        if (adminState.capturedLogs && adminState.capturedLogs.length !== undefined) {
           setCapturedLogs(adminState.capturedLogs)
+          setCapturingLogs(false)
         }
+      }
+    }
+    // Ensure the current and base domains are in the domains list, even if no others.
+    if (adminState.domains) {
+      if (adminState.domains.current) {
+        availableDomains.unshift({
+          domain: adminState.domains.current,
+          arn: adminState.domains.currentArn,
+          testDomain: adminState.domains.currentTest,
+          testArn: adminState.domains.currentTestArn
+        })
+      }
+      if (adminState.domains.base) {
+        availableDomains.push({
+          domain: adminState.domains.base,
+          testDomain: adminState.domains.baseTest,
+          listName: adminState.domains.base + ((adminState.domains.current !== adminState.domains.base) ? ' (Browser will reload)' : '')
+        })
       }
     }
   }
@@ -592,21 +613,29 @@ function App() {
               openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end'
               label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING : LIST_DOMAIN_TOOLTIP}
             >
-              <Select size='sm' m='2px' border='none' color='accentText'
+              <Select size='sm' m='-2px 0 2px 0' border='none' color='accentText' autoFocus={false}
                 disabled={locked || cfDistUpdating}
-                onFocus={async ev => {
-                  await controller.sendCommand('getAvailableDomains')
-                }}
                 onChange={ev => {
                   setDomain(availableDomains[ev.target.value])
                 }}
               >
                 {availableDomains.map((listValue, index) => {
-                  return <option key={index} value={index}>{listValue.domain}</option>
+                  return <option key={index} value={index} align='right'>{listValue.listName || listValue.domain}</option>
                 })}
               </Select>
             </Tooltip>
-            <Spacer/>
+            <Tooltip
+              openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end'
+              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING :
+                  (window.location.host !== adminDomains.current.current ?
+                    REFRESH_DOMAIN_TOOLTIP + ' ' + adminDomains.current.current : '')}
+            >
+              <RepeatIcon m='3px'
+                color={(cfDistUpdating || window.location.host === adminDomains.current.current) ? 'gray' : 'accentText'}
+                focusable={true} autoFocus={false} onClick={refreshLocationClick}
+              />
+            </Tooltip>
+            <Spacer m='8px'/>
             {advancedMode ?
               <ActionButton text='Generate Debug' onClick={onGenerate}
                 tooltip={{ text: BUTTON_GENERATE_DEBUG_TOOLTIP, placement: 'left-end' }}
@@ -667,7 +696,7 @@ function App() {
             : null}
             <ActionButton text='Capture Logs' onClick={onCaptureLogs} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
-                isLoading={adminDisplay.capturingLogs && !advancedMode} loadingText='Capturing...'
+                isLoading={capturingLogs && !advancedMode} loadingText='Capturing...'
                 isDisabled={!authenticated || locked}/>
             {capturedLogs.length > 0 ?
               <Popover placement='top-end' gutter={20}>
