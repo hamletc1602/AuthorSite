@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "homepage": ".",
-  "proxy": "http://demo2.braevitae.com:80",
+  "proxy": "http://d3qxvdlnz0x0x6.cloudfront.net:80",
   "jest": {
     "transformIgnorePatterns": [
       "node_modules/(?!strip-json-comments)"
