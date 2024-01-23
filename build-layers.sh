@@ -43,6 +43,10 @@ mv app/node_modules nodejs
 echo Insert node-saas binding into layer zip file
 mkdir -p nodejs/node_modules/node-sass/vendor/linux-x64-93
 cp $wdir/generators/lib/linux-x64-93_binding.node nodejs/node_modules/node-sass/vendor/linux-x64-93/binding.node
+# Add Hugo static site generator (and supporting libs)
+mkdir -p nodejs/hugo
+unzip -q $wdir/generators/lib/lambda-layer-libstdc.zip -d nodejs/hugo
+cp $wdir/generators/hugo/hugo-app-linux-x64/* -d nodejs/hugo
 #
 zip -qr $wdir/target/AutoSite/layers/authorsite.layer.zip nodejs/*
 cd $wdir
