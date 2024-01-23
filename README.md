@@ -1,4 +1,4 @@
-# Static Website Template
+# Static Website Template 0.9.0
 
 If you're looking to build a static website with worldwide reach for very low hosting cost, 100% under your control, and with no significant limits on data size or bandwidth, you are welcome use this template with your own AWS account. This template is free for use disributed under the Open Source Apache License 2.0.
 
@@ -21,7 +21,11 @@ This template creates all the infrastructure necessary to host a mostly static w
 - Built-in forwarder to the Amazon store for the user's country for book links.
 - Custom 404 (not found) page (returns to index.html).
 
-## AWS Amplify
+## Beta Period
+
+This software is still in 'beta' state. All functions are complete, but there are likely still some bugs lurking. Mostly these will be cosmetic issues, but serious issues, up to and including loss of any data entered into the site(s) is possible.
+
+## Other Options
 
 This static site service fills a simillar role as using AWS Amplify, but with less $/GB for data transfer. there's also less chance of obscelescence and maintenance due to shifting AWS priorities since it works directly with AWS core building blocks. If you are planning to use your own website/generator code (Not the default site templates provided), and are comfortable with git and build pipelines, then you may want to check out AWS Amplify instead of this service.
 
@@ -36,6 +40,13 @@ Costs will vary depending on traffic volume, but for the relatively low traffic 
 If you also host your domain with AWS each domain will cost $0.50 USD/month, but you can have effectively unlimited subdomains and run a different static site on each subdomain. Each site can have it's own style and data (ie. series1.authordomain.com, series2.authordomain.com)
 
 If you see a huge amount of traffic, or are storing a large amoount of data in the site's S3 bucket, you may see some extra charges. It's always a good idea to keep an eye on your [current and projected billing](https://console.aws.amazon.com/billing/home).
+
+## Demo Sites
+
+- Publisher: https://www.braevitae.com/
+- Author: https://rebeccabrae.braevitae.com/
+- Author - 1 Book: https://demo1.braevitae.com/
+-
 
 ## Building your site
 
@@ -75,7 +86,10 @@ If you want to upload your own raw content to the site (perhaps created with too
 
 Once the AWS Cloud Formation stack has been sucessfully generated, enter the domain name you provided to the stack, and you will be redirected to the Site Admin UI. To log in, enter the password you provided to the stack.
 
-You will then be prompted to select a default template. For now, there is only one template available (Publisher).
+You will then be prompted to select a default template. Currently there are two templates available:
+
+- Author: A site for authors to showcase their books.
+- Publisher: A site for publishers to showcase books from multiple authors.
 
 The Site Admin UI allows you to edit all template properties, and upload images to appear on your site. Tooltips are available on most action buttons and property names to better explain their function.
 
@@ -83,7 +97,11 @@ Your best guide will likely be to generate a test site (Click the Generate butto
 
 ![Diagram](vizualization/adminUi.png)
 
-## Author Template Features
+## Bug Reporting
+
+If you encounter any issues working with the administration UI or a generated site, please click on the 'Capture Logs' button in the footer. This will capture all server-side logs for the site and make them available for download in a single file. Please include this file in any bug report.
+
+## Template Features
 
 ### Email Feeback Form
 
@@ -93,7 +111,7 @@ The template will ask you for an email address, and shortly after running the te
 
 To take advantage of this feature, you will need to include a form on your website, and HTTP POST the data to /feedback/*  (Where * is a name that identifies this form wihin this website.)
 
-### Localized Amazon Store
+### Localized Amazon Store Links
 
 A challenge for book publishers and buyers wanting to send customers to Amazon stores, is that Amazon uses distinct sites for different countries and regions. It's agravating for customers to have to navigate out of the store you sent them to, and search again for your book in their country's storefront. To ensure they don't lose interest before buying, it's much better to send them to the correct store to begin with.
 
@@ -126,7 +144,7 @@ Unfortunatey, The first attempt to delete the stack will likely fail, since AWS 
 
 Occaisionally, even though the stack is designed to clear all S3 buckets os they can be deleted, somtimes one or two buckets retain some data. These leftover buckets will be listed when you try to delete the stack. Open each bucket and delete all files, then delete the stack again.
 
-### Diagram of the Stack
+### A Diagram of the AWS Resources Created for each Site
 
 (Some resources exlcluded for clarity)
 
