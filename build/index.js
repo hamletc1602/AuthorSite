@@ -7,7 +7,6 @@ async function main() {
   const templateFilePath = args[0]
   const sourceBucket = args[1]
   const version = args[2] || ''  // Default version to empty string
-
   const templateSource = await Fs.readFile(templateFilePath)
   const template = Handlebars.compile(templateSource.toString());
 

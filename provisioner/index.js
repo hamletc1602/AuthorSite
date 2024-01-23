@@ -64,6 +64,17 @@ const cfnCreateHandler = async (params) => {
       })
     }
 
+    const domains = {
+      dist: params.WebCache,
+      distTest: params.TestWebCache,
+      base: params.BaseDomain,
+      baseTest: params.BaseDomainTest,
+      current: params.DomainName || params.BaseDomain,
+      currentArn: params.DomainCertArn,
+      currentTest: params.DomainNameTest || params.BaseDomainTest,
+      currentTestArn: params.DomainCertTestArn
+    }
+
     // Generate default admin data in Admin UI bucket.
     //    This data object will be replaced/updated in S3 by other admin processes as needed.
     console.log('Create default admin state file.')
@@ -74,6 +85,7 @@ const cfnCreateHandler = async (params) => {
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
         generator: params.SiteGenerator,
+        domains: domains,
         templates: templates,
         config: {},
         display: {}
@@ -99,12 +111,7 @@ const cfnCreateHandler = async (params) => {
     }))
 
     // Add default index.html to site buckets with redirect to the admin site
-    let siteUrl = null
-    if (params.DomainName) {
-      siteUrl = `https://${params.DomainName}/admin/index`
-    } else {
-      siteUrl = '/admin/index'
-    }
+    let siteUrl = `https://${domains.current}/admin/index`
     const indexPage = `
       <!DOCTYPE html>
       <html>

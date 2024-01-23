@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
-  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea
+  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea, Select, Tooltip
 } from '@chakra-ui/react'
-import { ExternalLinkIcon, InfoOutlineIcon } from '@chakra-ui/icons'
+import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import Editor from './Editor'
 import Login from './Login'
+import ChangingDomain from './ChangingDomain'
 import SelectTemplate from './SelectTemplate'
 import PreparingTemplate from './PreparingTemplate'
 import deepEqual from 'deep-equal'
@@ -62,28 +63,6 @@ const customTheme = extendTheme({
   }
 })
 
-// fill in site links from current URL host (Or from the environment, if we're in local dev. mode)
-let siteHost = null
-let testSiteHost = null
-if (process.env.NODE_ENV !== 'development') {
-  if (window.location.host.indexOf('test.') === 0) {
-    testSiteHost = window.location.host
-    siteHost = testSiteHost.substring(5)
-  } else {
-    siteHost = window.location.host
-    if (siteHost) {
-      siteHost = siteHost.replace('www.', '')
-      testSiteHost = 'test.' + siteHost
-    }
-  }
-} else {
-  siteHost = process.env.REACT_APP_TARGET_HOST
-  if (siteHost) {
-    siteHost = siteHost.replace('www.', '')
-    testSiteHost = 'test.' + siteHost
-  }
-}
-
 //
 const controller = new Controller()
 
@@ -93,9 +72,15 @@ const BUTTON_GENERATE_DEBUG_TOOLTIP = 'Generate a test site from your configurat
 const BUTTON_PUBLISH_TOOLTIP = 'Replace your current live site content with the test site content.'
 const BUTTON_UPDATE_TEMPLATE_TOOLTIP = 'Update to the latest template without impacting your site configuration.'
 const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The current version will be backed up at /restore/index'
-const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use it if you are cetain it is needed'
+const LIST_DOMAIN_TOOLTIP = 'Set this site\'s custom domain to one of the available, unused domains.'
+const LIST_DOMAIN_TOOLTIP_UPDATING = 'AWS is currently updating this site\'s domain routing.'
+const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use this if you are cetain it is needed'
 const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
+const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a text file.'
+const BUTTON_DOWNLOAD_LOGS_1 = 'Captured log files available for download.'
+const BUTTON_DOWNLOAD_LOGS_2 = 'Log files will be removed 1 hour after capture.'
+const REFRESH_DOMAIN_TOOLTIP = 'Refresh the browser page to match the current active domain: '
 
 // Drive controller logic at a rate set by the UI:
 // Check state as needed (variable rate)
@@ -108,6 +93,19 @@ const FastPollingTimeoutMs = 5 * 60 * 1000
 let fastPollingTimeoutId = null
 let pollLoopCount = 0
 let passwordChangingDebounce = null
+
+// Known Server States (If true, check for end fast polling. false here implies server state may not be reliably cleaned up.)
+const serverStates = {
+  preparing: true,
+  deploying: true,
+  building: true,
+  updatingTemplate: true,
+  updatingUi: true,
+  getLogs: true,
+  savingTemplate: true,
+  settingPassword: true,
+  setDomain: true
+}
 
 // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
 function startFastPolling() {
@@ -142,13 +140,14 @@ document.addEventListener("visibilitychange", () => {
 //
 function App() {
   // State
+  const [windowReload, setWindowReload] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
+  const [showChangingDomain, setShowChangingDomain] = useState(false)
   const [showSelectTemplate, setShowSelectTemplate] = useState(false)
   const [showPreparingTemplate, setShowPreparingTemplate] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
   const [adminLive, setAdminLive] = useState(false)
   const [adminConfig, setAdminConfig] = useState({ new: true })
-  const [adminDisplay, setAdminDisplay] = useState({})
   const [adminTemplates, setAdminTemplates] = useState([])
   const [authState, setAuthState] = useState('unknown')
   const [authErrorMsg, setAuthErrorMsg] = useState('')
@@ -157,6 +156,10 @@ function App() {
   const [path, setPath] = useState([])
   const [contentToGet, setContentToGet] = useState(null)
   const [uploadError, setUploadError] = useState(null)
+  const [capturedLogs, setCapturedLogs] = useState([])
+  const [availableDomains, setAvailableDomains] = useState([])
+  const [cfDistUpdating, setCfDistUpdating] = useState(false)
+  const [capturingLogs, setCapturingLogs] = useState(false)
 
   // Calculated State
   const authenticated = authState === 'success'
@@ -164,6 +167,8 @@ function App() {
   // Global Refs
   const editors = useRef([])
   const configs = useRef({})
+  const adminDisplay = useRef({})
+  const adminDomains = useRef({})
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
   const putContentComplete = useRef({})
@@ -184,8 +189,54 @@ function App() {
     }
   }
 
+  const setDisplay = (prop, value) => {
+    if (serverStates[prop] === undefined) {
+      console.log(`Using unsupported display state: ${prop}`)
+    }
+    adminDisplay.current[prop] = value
+  }
+
   // Handlers
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
+  const refreshLocationClick = () => refreshLocation()
+
+  // Browser window reload as needed
+  //   windowReload is set to the URL to us for the reload.
+  //   reload will happen in 2s after this effect is triggered.
+  useEffect(() => {
+    if (windowReload) {
+      setTimeout(() => {
+        window.location.host = windowReload
+      }, 2000)
+    }
+  }, [windowReload])
+
+  const setDomain = (domain) => {
+    setDisplay('setDomain', true)
+    startFastPolling()
+    // If the selected domain is the CF base domain, then _remove_ the custom domain, otherwise,
+    // change/add custom domain.
+    if (domain.domain === adminDomains.current.base) {
+      controller.sendCommand('setSiteDomain', { domains: adminDomains.current })
+      setShowChangingDomain(true)
+      // Auto-update browser location to the base domain before we lose access to the custom domain
+      setWindowReload(adminDomains.current.base)
+    } else {
+      controller.sendCommand('setSiteDomain', { domains: adminDomains.current, newDomain: domain })
+      // Don't upate browser here. Let the user select that if they want it.
+      setShowChangingDomain(true)
+    }
+  }
+
+  // Update the browser to the domain listed as current in the state.
+  const refreshLocation = () => {
+    // TODO: What happens when the state dissagrees with the current setting in the dropdown list? Seems like that
+    // could be unnexpected for the user? We'll keep this button disabled while CF is updating, and while setDomain
+    // is running, so the list and state _should_ agree, but might not?
+    if ( ! cfDistUpdating && window.location.host !== adminDomains.current.current) {
+      window.location.host = adminDomains.current.current
+    }
+  }
 
   const setTemplateId = (templateId) => {
     if (templateId) {
@@ -211,14 +262,14 @@ function App() {
   }
 
   const onUpdateTemplate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { updatingTemplate: true }))
+    setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
     controller.sendCommand('updateTemplate', { id: adminConfig.templateId })
     startFastPolling()
   }
 
   const onUpdateAdminUi = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { updatingUi: true }))
+    setDisplay('updatingUi', true)
     // Don't update the recovery path if we're currently running an update _from_ the recovery path!
     const recoveryPath = /recovery/.test(window.location.path)
     controller.sendCommand('updateAdminUi', { updateRecoveryPath: !recoveryPath })
@@ -226,7 +277,7 @@ function App() {
   }
 
   const doSaveTemplate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { savingTemplate: true }))
+    setDisplay('savingTemplate', true)
     controller.sendCommand('saveTemplate', {
       id: adminConfig.templateId,
       name: saveTemplateName.current.value,
@@ -237,28 +288,35 @@ function App() {
   }
 
   const doSetPassword = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { settingPwd: true }))
+    setDisplay('settingPwd', true)
     controller.sendCommand('setPassword', { newPassword: newPassword.current.value })
     newPassword.current.value = ''
     startFastPolling()
   }
 
+  const onCaptureLogs = () => {
+    setDisplay('getLogs', true)
+    controller.sendCommand('captureLogs', { durationH: 1 })
+    setCapturingLogs(true)
+    startFastPolling()
+  }
+
   const onGenerate = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { building: true }))
+    setDisplay('building', true)
     controller.sendCommand('build', { id: adminConfig.templateId, debug: advancedMode })
     setTimeout(() => {
       console.log(`Cancel generating state after 15 minutes. Server-side generator timed out.`)
-      setAdminDisplay(Object.assign({}, adminDisplay, { building: false }))
+      setDisplay('building', false)
     }, 15 * 60 * 1000)
     startFastPolling()
   }
 
   const onPublish = () => {
-    setAdminDisplay(Object.assign({}, adminDisplay, { deploying: true }))
+    setDisplay('deploying', true)
     controller.sendCommand('publish')
     setTimeout(() => {
       console.log(`Cancel publishing state after 5 minutes. Server-side generator timed out.`)
-      setAdminDisplay(Object.assign({}, adminDisplay, { deploying: false }))
+      setDisplay('deploying', false)
     }, 5 * 60 * 1000)
     startFastPolling()
   }
@@ -344,28 +402,86 @@ function App() {
   const setAdminState = (adminState) => {
     if ( ! adminLive) {
       setAdminConfig(adminState.config)
-      setAdminDisplay(adminState.display)
       setAdminTemplates(adminState.templates)
+      adminDisplay.current = adminState.display
+      // Show domain change UI on reload if it's still active.
+      if (adminState.display.setDomain === true) {
+        setShowChangingDomain(true)
+      }
+      setCfDistUpdating(adminDisplay.current.cfDistUpdating)
+      if ( ! cfDistUpdating) {
+        controller.sendCommand('getAvailableDomains')
+      }
+      if (adminState.domains) {
+        adminDomains.current = adminState.domains
+      }
       if (adminState.config.templateId) {
         currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
+      }
+      if (adminState.capturedLogs) {
+        setCapturedLogs(adminState.capturedLogs)
       }
       setAdminLive(true)
     } else {
       if ( ! deepEqual(adminState.config, adminConfig)) {
         setAdminConfig(adminState.config)
       }
-      if ( ! deepEqual(adminState.display, adminDisplay)) {
+      if ( ! deepEqual(adminState.display, adminDisplay.current)) {
         console.log('Update display state', adminState.display)
-        setAdminDisplay(adminState.display)
-        if ( ! (adminState.display.deploying || adminState.display.building || adminState.display.preparing
-          || adminState.display.updatingTemplate || adminState.display.updatingUi)
-        ) {
+        adminDisplay.current = adminState.display
+        const activeStates = Object.keys(serverStates).filter(p => serverStates[p] && adminState.display[p])
+        if (activeStates.length === 0) {
           endFastPolling()
+        }
+        if (showChangingDomain && adminState.display.setDomain === false) {
+          setShowChangingDomain(false)
+          // Clear available domains so it will get re-set to the current admin state. This will ensure the dropdown list
+          // and it's active selection is kept up to date.
+          setAvailableDomains([])
+        }
+        {
+          const prev = cfDistUpdating
+          setCfDistUpdating(adminDisplay.current.cfDistUpdating)
+          if (prev && ! cfDistUpdating) {
+            controller.sendCommand('getAvailableDomains')
+          }
         }
       }
       if ( ! deepEqual(adminState.templates, adminTemplates)) {
         setAdminTemplates(adminState.templates)
       }
+      if ( ! deepEqual(adminState.domains, adminDomains.current)) {
+        if (adminState.domains) {
+          adminDomains.current = adminState.domains
+        }
+      }
+      if ( ! deepEqual(adminState.capturedLogs, capturedLogs)) {
+        if (adminState.capturedLogs && adminState.capturedLogs.length !== undefined) {
+          setCapturedLogs(adminState.capturedLogs)
+          setCapturingLogs(false)
+        }
+      }
+    }
+    // Update available domains
+    //    Ensure the current and base domains are in the domains list, even if no others.
+    if (adminState.domains && adminState.availableDomains) {
+      const domains = [...adminState.availableDomains]
+      if (adminState.domains.current) {
+        domains.unshift({
+          domain: adminState.domains.current,
+          arn: adminState.domains.currentArn,
+          testDomain: adminState.domains.currentTest,
+          testArn: adminState.domains.currentTestArn
+        })
+      }
+      if (adminState.domains.base && adminState.domains.base !== adminState.domains.current) {
+        domains.push({
+          domain: adminState.domains.base,
+          testDomain: adminState.domains.baseTest,
+          listName: adminState.domains.base + ((adminState.domains.current !== adminState.domains.base) ? ' (Browser will reload)' : '')
+        })
+      }
+      setAvailableDomains(domains)
     }
   }
 
@@ -485,9 +601,36 @@ function App() {
         <GridItem color='baseText' bg='accent' h='2.75em'>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
-            <Text color='accentText' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
-            <Text color='danger' m='2px' hidden={!locked}>(Read Only)</Text>
-            <Spacer/>
+            <Text color='accentText' whiteSpace='nowrap' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
+            <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
+            <Spacer m='3px'/>
+            <Tooltip
+              openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end'
+              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING : LIST_DOMAIN_TOOLTIP}
+            >
+              <Select size='sm' m='-2px 0 2px 0' border='none' color='accentText' autoFocus={false}
+                disabled={locked || cfDistUpdating}
+                onChange={ev => {
+                  setDomain(availableDomains[ev.target.value])
+                }}
+              >
+                {availableDomains.map((listValue, index) => {
+                  return <option key={index} value={index} align='right'>{listValue.listName || listValue.domain}</option>
+                })}
+              </Select>
+            </Tooltip>
+            <Tooltip
+              openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end'
+              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING :
+                  (window.location.host !== adminDomains.current.current ?
+                    REFRESH_DOMAIN_TOOLTIP + ' ' + adminDomains.current.current : '')}
+            >
+              <RepeatIcon m='3px'
+                color={(cfDistUpdating || window.location.host === adminDomains.current.current) ? 'gray' : 'accentText'}
+                focusable={true} autoFocus={false} onClick={refreshLocationClick}
+              />
+            </Tooltip>
+            <Spacer m='8px'/>
             {advancedMode ?
               <ActionButton text='Generate Debug' onClick={onGenerate}
                 tooltip={{ text: BUTTON_GENERATE_DEBUG_TOOLTIP, placement: 'left-end' }}
@@ -495,18 +638,18 @@ function App() {
                 isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
                 isLoading={adminDisplay.building && !advancedMode} loadingText='Generating Debug...'/>
             : null}
-            <ActionButton text='Generate' onClick={onGenerate}
+            <ActionButton text='Generate' onClick={onGenerate} w='12em'
                 tooltip={{ text: BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.buildError} errorText={adminDisplay.buildErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
                 isLoading={adminDisplay.building && !advancedMode} loadingText='Generating...'/>
-            <Link href={`https://${testSiteHost}/`} size='sm' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <ActionButton text='Publish' onClick={onPublish}
+            <Link href={`https://${adminDomains.current.currentTest}/`} size='sm' whiteSpace='nowrap' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
+            <ActionButton text='Publish' onClick={onPublish} w='10em'
                 tooltip={{ text: BUTTON_PUBLISH_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.publishError} errorText={adminDisplay.publishErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.deploying) && !advancedMode}
                 isLoading={adminDisplay.deploying && !advancedMode} loadingText='Publishing...'/>
-            <Link href={`https://${siteHost}/`} size='sm' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
+            <Link href={`https://${adminDomains.current.current}/`} size='sm' whiteSpace='nowrap' color='accentText' isExternal>Site <ExternalLinkIcon mx='2px'/></Link>
           </Flex>
         </GridItem>
         <GridItem bg='editorBg' >
@@ -546,6 +689,37 @@ function App() {
                 isDisabled={!authenticated || locked}/>,
               ]
             : null}
+            <ActionButton text='Capture Logs' onClick={onCaptureLogs} buttonStyle={{ size: 'xs' }}
+                tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
+                isLoading={capturingLogs && !advancedMode} loadingText='Capturing...'
+                isDisabled={!authenticated || locked}/>
+            {capturedLogs.length > 0 ?
+              <Popover placement='top-end' gutter={20}>
+                {({ onClose }) => {
+                  return <><PopoverTrigger>
+                    <Button size='xs' h='1.5em' m='0 0.5em'
+                      color='accent' _hover={{ bg: 'gray.400' }} bg='accentText'
+                      disabled={!authenticated || locked}
+                    >Download Logs...</Button>
+                  </PopoverTrigger>
+                  <Portal>
+                    <PopoverContent>
+                      <PopoverArrow />
+                      <PopoverBody>
+                        <Text>{BUTTON_DOWNLOAD_LOGS_1}</Text>
+                        <VStack spacing={0} align='stretch' margin='0.5em 0'>
+                          {capturedLogs.map(logFile => {
+                            return <Link key={logFile.url} href={logFile.url} target='_blank'>{logFile.name}</Link>
+                          })}
+                        </VStack>
+                        <Text>{BUTTON_DOWNLOAD_LOGS_2}</Text>
+                      </PopoverBody>
+                    </PopoverContent>
+                  </Portal></>
+                }}
+              </Popover>
+              : null
+            }
             <Popover placement='top-end' initialFocusRef={newPassword} gutter={20}>
               {({ onClose }) => {
                 return <><PopoverTrigger>
@@ -629,6 +803,11 @@ function App() {
         </GridItem>
       </Grid>
 
+      <Modal isOpen={showChangingDomain}>
+        <ModalOverlay />
+        <ChangingDomain/>
+      </Modal>
+
       <Modal isOpen={showPreparingTemplate && ! showSelectTemplate && ! showLogin}>
         <ModalOverlay />
         <PreparingTemplate adminTemplates={adminTemplates} adminConfig={adminConfig} />
@@ -655,6 +834,8 @@ function useAdminStatePolling(adminLive, setAdminState) {
       //console.log(`First admin state`)
       setAdminState(controller.getConfig())
     })
+    // Sneak in a call here to pre-load the list of available domains.
+    controller.sendCommand('getAvailableDomains')
   }
   useEffect(() => {
     if ( ! adminStatePoller) {

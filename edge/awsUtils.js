@@ -1,4 +1,5 @@
 const mime = require('mime');
+const deepEqual = require('fast-deep-equal')
 
 const logMsgTimeoutMS = 24 * 60 * 60 * 1000  // 24 hours
 const lockTimeoutMs = 5 * 60 * 1000  // 5 Mins
@@ -23,12 +24,18 @@ function AwsUtils(options) {
   if (!(this instanceof AwsUtils)) {
     return new AwsUtils(options);
   }
+  //console.log('AWS Options:', options)
   this.files = options.files
   this.s3 = options.s3
   this.sqs = options.sqs
   this.stateQueueUrl = options.stateQueueUrl
+  this.cf = options.cf
+  this.acm = options.acm
+  this.r53 = options.r53
+  this.logs = options.logs
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
+  this.logSnapshotTtlMs = 1 * 60 * 60 * 1000  // 1 hour
 }
 
 AwsUtils.prototype.getS3 = function() {
@@ -380,30 +387,21 @@ AwsUtils.prototype.addTemplate = async function(newTemplate) {
     This architecture is sensitve to more than one admin UI running at the same time from multiple pages so the UI that
     calls this must also call for /admin/lock to check if there's any other active admin UI running.
 */
-AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminBucket, adminUiBucket, opts) {
+AwsUtils.prototype.updateAdminStateFromQueue = async function(adminBucket, adminUiBucket, opts) {
   opts = opts || {}
+  const stateCache = {}
   try {
-    // Read current state of the admin and logs json (unless cached in global var already)
-    let warmCache = false
-    if ( ! stateCache.state) {
+    // Read current state of the admin and logs json. The logs file may not exist.
+    {
       const stateStr = (await this.get(adminUiBucket, 'admin/admin.json')).Body.toString()
       stateCache.state = JSON.parse(stateStr)
-    } else {
-      warmCache = true
-    }
-    if ( ! stateCache.logs) {
-      stateCache.logs = []
       try {
         const logStr = (await this.get(adminBucket, 'log.json')).Body.toString()
         stateCache.logs = JSON.parse(logStr)
-      } catch(e) {
-        // ignore
+      } catch (e) {
+        stateCache.logs = []
       }
-    } else {
-      warmCache = true
     }
-    //console.log(`Get all messages from the status queue: ${this.stateQueueUrl}`)
-
     //
     let logsUpdated = false
     let stateUpdated = false
@@ -414,8 +412,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
       MessageAttributeNames: ['All']
     }).promise()
     if (sqsResp.Messages) {
-      //console.log(`Received ${sqsResp.Messages.length} messages.`)
-      console.log(`${sqsResp.Messages.length} messages to merge into current state.${warmCache ? ' Warm Cache.' : ''}`, stateCache)
+      console.log(`${sqsResp.Messages.length} messages to merge into current state.`, stateCache.state)
       sqsResp.Messages.forEach(msg => {
         let msgObj = null
         try {
@@ -437,6 +434,7 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         }
       })
 
+      // Clean up state log
       if (opts.deleteOldLogs) {
         console.log(`Clean up any old (>24 hours) log messages.`)
         console.log(`State: ${JSON.stringify(stateCache.state)}`)
@@ -451,6 +449,41 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
             logsUpdated = true
             console.log(`Cleaned ${cleaned} messages from log.`)
           }
+        }
+      }
+
+      // Capture the current set of Log snapshot files to the admin state
+      // And delete any log snapshot files that are older than the configured TTL.
+      {
+        const logFiles = await this.list(adminUiBucket, 'logs/log-')
+        const capturedLogsState = (await Promise.all(logFiles.map(async logFile => {
+          if (logFile.Key.length > 14) {
+            let logTsStr = logFile.Key.substring(9, logFile.Key.length - 4)
+            // remove the UUID added for security
+            const parts = logTsStr.split('_')
+            if (parts.length > 1) {
+              logTsStr = parts[1]
+            }
+            const logTs = new Date(logTsStr)
+            const diffMs = (Date.now()) - logTs.getTime()
+            if (diffMs > this.logSnapshotTtlMs) {
+              console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
+              await this.delete(adminUiBucket, logFile.Key)
+            } else {
+              return {
+                name: logTsStr,
+                url: '/' +logFile.Key,
+                ts: logTs
+              }
+            }
+          }
+          return null
+        })))
+          .filter(p => p != null)
+          .sort((a, b) => a.ts - b.ts)
+        if ( ! deepEqual(stateCache.state.capturedLogs, capturedLogsState)) {
+          stateCache.state.capturedLogs = capturedLogsState
+          stateUpdated = true
         }
       }
 
@@ -481,14 +514,15 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(stateCache, adminB
         //console.log(`Deleted all processed messages.`)
       }
     }
-    // keep @Edge default handling
-    return false
+    return {
+      state: stateCache,
+    }
   } catch(error) {
     const msg = 'Failed to get messages or update status data: ' + error.message
     console.log(msg, error)
     return {
-      status: '500',
-      statusDescription: msg
+      state: stateCache,
+      error: msg
     }
   }
 }
@@ -536,6 +570,21 @@ const _mergeState = (state, logs, message) => {
     stateUpdated = true
     console.log(`Delete templates ${JSON.stringify(message.deleteTemplates)} from templates ${JSON.stringify(state.templates)}`)
     state.templates = state.templates.filter(t => message.deleteTemplates[t.id] ? false : true)
+  }
+  // Update available domains
+  if (message.availableDomains) {
+    stateUpdated = true
+    console.log(`Update available domains ${JSON.stringify(message.availableDomains)}}`)
+    state.availableDomains = message.availableDomains
+  }
+  // Update site domain
+  if (message.siteDomain) {
+    stateUpdated = true
+    console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
+    state.domains.current = message.siteDomain.domain
+    state.domains.currentArn = message.siteDomain.arn
+    state.domains.currentTest = message.siteDomain.testDomain
+    state.domains.currentTestArn = message.siteDomain.testArn
   }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }
@@ -601,6 +650,107 @@ AwsUtils.prototype.bucketExists = async function(bucketName) {
     console.log('Failed to get list of buckets:', e)
   }
   return false
+}
+
+/** Return a list of all certificates associated with this account that are not currently in use.
+*/
+AwsUtils.prototype.listCertificates = async function() {
+  if ( ! this.cf) {
+    throw new Error("CloudFront service not initilaized.")
+  }
+  const ret = await this.acm.listCertificates({
+    CertificateStatuses: ['ISSUED'],
+    SortBy: 'CREATED_AT',
+    SortOrder: 'DESCENDING'
+  }).promise()
+  const list = ret.CertificateSummaryList
+  return list
+    .filter(p => !(p.InUse))
+    .map(p => {
+      return {
+        arn: p.CertificateArn,
+        domain: p.DomainName,
+        altNames: p.SubjectAlternativeNameSummaries
+      }
+    })
+}
+
+AwsUtils.prototype.updateAvailableDomains = async function(domains) {
+  try {
+    const msg = {
+      time: Date.now(),
+      availableDomains: domains
+    }
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send available domains update: ${JSON.stringify(error)}`)
+  }
+}
+
+AwsUtils.prototype.updateSiteDomain = async function(domain) {
+  try {
+    const msg = {
+      time: Date.now(),
+      siteDomain: domain
+    }
+    const ret = await this.sqs.sendMessage({
+      QueueUrl: this.stateQueueUrl,
+      MessageBody: JSON.stringify(msg),
+      MessageGroupId: 'admin'
+    }).promise()
+    return ret
+  } catch (error) {
+    console.error(`Failed to send site domain update: ${JSON.stringify(error)}`)
+  }
+}
+
+/** Get the latest 50 log streams details for the given group name. */
+AwsUtils.prototype.getLogStreams = async function(logGroupName, edge) {
+  try {
+    const logsClient = edge ? this.logsEdge : this.logs
+    const ret = await logsClient.describeLogStreams({
+      logGroupName: logGroupName,
+      orderBy: 'LastEventTime',
+      descending: true,
+      // limit: 50 // default is up to 50 items.
+      // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
+    }).promise()
+    //ret.nextToken
+    return ret.logStreams.map(stream => {
+      return {
+        name: stream.logStreamName,
+        firstEventTs: stream.firstEventTimestamp,
+        lastEventTs: stream.firstEventTimestamp
+      }
+    })
+  } catch (e) {
+    // Return empty array if no log streams are found, re-throw anything else
+    if (e.code == 'ResourceNotFoundException') {
+      return []
+    } else {
+      throw e
+    }
+  }
+}
+
+/** Get the events from the given log stream, limited to the given start/end timestamps. */
+AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamName, startTs, endTs) {
+  const logsClient = edge ? this.logsEdge : this.logs
+  const ret = await logsClient.getLogEvents({
+    logGroupName: logGroupName,
+    logStreamName: logStreamName,
+    startFromHead: false,  // Must be true is nextToken is provided.
+    startTime: startTs,
+    endTime: endTs
+    // limit: 50 // default is up to 1MB, or 100k items
+    // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
+  }).promise()
+  return ret.events
 }
 
 //

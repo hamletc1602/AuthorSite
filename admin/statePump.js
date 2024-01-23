@@ -22,5 +22,5 @@ exports.handler = async (_event, _context) => {
   if (lock) {
     console.log(`State locked by ${lock.id}, skipping this update.`)
   }
-  await aws.updateAdminStateFromQueue({}, adminBucket, adminUiBucket, { deleteOldLogs: true })
+  await aws.updateAdminStateFromQueue(adminBucket, adminUiBucket, { deleteOldLogs: true })
 }

@@ -71,6 +71,8 @@ export default class Controller {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       // Skip page update if the etag has not changed since the last response (ie. must be cached)
+      // TODO: Seems like AWS is always returning 304 now, as expected, when ETag matches?  Maybe this was a workaround
+      // for a prior server-side bug?  Can likely remove this code and just check for 304 response?
       const etag = response.headers.get('etag')
       if (this.lastETag === null || etag !== this.lastETag) {
         this.lastETag = etag

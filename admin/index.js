@@ -7,8 +7,49 @@ const Files = require('./files')
 const Path = require('path')
 const Mime = require('mime');
 const Zip = require('zip-a-folder')
+const Uuid = require('uuid')
 
 const JsonContentType = 'application/json'
+const HoursToMs = 60 * 60 * 1000
+
+const LogGroupsTemplate = [{
+  groupName: '/aws/lambda/@SITE_NAME@-admin-worker',
+  name: 'Admin Worker'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-builder',
+  name: 'Builder'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-provisioner',
+  name: 'Provisioner'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-publisher',
+  name: 'Publisher'
+},{
+  groupName: '/aws/lambda/@SITE_NAME@-state-pump',
+  name: 'State Pump'
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-admin',
+  name: 'Admin Edge',
+  edge: true
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-edge',
+  name: 'Site Edge',
+  edge: true
+},{
+  groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
+  name: 'Amazon URL Forwarder',
+  edge: true
+}]
+
+let MaxGroupNameLength = 0
+{
+  // Static: Calculate the Max. group name length from the existing data.
+  LogGroupsTemplate.forEach(group => {
+    if (MaxGroupNameLength < group.name.length) {
+      MaxGroupNameLength = group.name.length
+    }
+  })
+}
 
 const publicBucket = process.env.publicBucket
 const version = process.env.version
@@ -25,13 +66,20 @@ const aws = new AwsUtils({
   files: Files,
   s3: new sdk.S3(),
   sqs: new sdk.SQS(),
-  stateQueueUrl: stateQueueUrl
+  stateQueueUrl: stateQueueUrl,
+  cf: new sdk.CloudFront(),
+  acm: new sdk.ACM(),
+  r53: new sdk.Route53(),
+  logs: new sdk.CloudWatchLogs()
 })
 
 /** Worker for admin tasks forwarded from admin@Edge lambda.
  - Publish: Sync all site files from the test site to the public site.
 */
 exports.handler = async (event, _context) => {
+  //
+  aws.logsEdge = new sdk.CloudWatchLogs({ region: event.body.edgeRegion })
+
   //
   if (event.command === 'setPassword') {
     console.log('Event: setPassword')
@@ -60,6 +108,14 @@ exports.handler = async (event, _context) => {
       return saveTemplate(sharedBucket, adminBucket, event.body)
     case 'setPassword':
       return setPassword(adminBucket, event.body)
+    case 'getAvailableDomains':
+      return getAvailableDomains(event.body)
+    case 'setSiteDomain':
+      return setSiteDomain(adminBucket, event.body)
+    case 'captureLogs':
+      return captureLogs(adminBucket, event.body)
+    case 'checkCfDistroState':
+      return checkCfDistroState(event.body)
     default:
       return {
         status: '404',
@@ -137,11 +193,12 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
     const sourceLoc = await getLocationForTemplate(templateName)
-    const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
+    const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
     // Copy template archive to local FS.
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
+    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     // Copy all the site template files to the local buckets
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
@@ -191,9 +248,10 @@ async function upateTemplate(publicBucket, adminBucket, params) {
     // Copy template archive to local FS.
     const sourceLoc = await getLocationForTemplate(templateName)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(getSourceBucket(sourceLoc), `${keyRoot}/site-config/${templateName}.zip`)
+    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${templateName}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
@@ -609,5 +667,328 @@ async function setPassword(adminBucket, params) {
   } catch (e) {
     console.log(`Failed to set new password.`, e)
     await aws.displayUpdate({ settingPwd: false, setPwdError: true, setPwdErrMsg: `Failed to change password ${e.message}` }, 'changePassword', `End change password. Failed: ${e.message}`)
+  }
+}
+
+/** Return a list of all domains names that are not currently in use, and that match the domain/test.domain pattern required for administered
+   sites. Using available certificates as a proxy for available domain names (later steps may need to create R53 records to support
+   the routing to CloudFront for the custom domain).
+ */
+async function getAvailableDomains(_params) {
+  try {
+    await aws.displayUpdate({ getDomains: true, getDomError: false, getDomErrMsg: '' }, 'getDomains', `Start get available domains`)
+    const validDomains = []
+    const allFreeCerts = await aws.listCertificates()
+    allFreeCerts.map(cert => {
+      // Pair each cert with its test cert (all valid domains will come in domain and test pairs.)
+      const testCert = allFreeCerts.find(p => p.domain === ('test.' + cert.domain))
+      if (testCert) {
+        validDomains.push({
+          domain: cert.domain,
+          testDomain: testCert.domain,
+          arn: cert.arn,
+          testArn: testCert.arn
+        })
+      }
+    })
+    // Send event to update admin state
+    aws.updateAvailableDomains(validDomains)
+    await aws.displayUpdate({ getDomains: false, getDomError: false, getDomErrMsg: '' }, 'getDomains', `End get available domains`)
+    return {
+      status: '200',
+      statusDescription: `Found ${validDomains.length} domains.`
+    }
+  } catch (e) {
+    console.log(`Failed to get available domains.`, e)
+    await aws.displayUpdate({ getDomains: false, getDomError: true, getDomErrMsg: `Failed to get domains ${e.message}` }, 'getDomains', `End get available domains. Failed: ${e.message}`)
+    return {
+      status: '500',
+      statusDescription: `Unable to get list of valid domains. ${e.message}. Please check logs.`
+    }
+  }
+}
+
+/**
+  domains: Existing domains (object from adminState.domains)
+  newDomain: Selected domain (from adminState.availableDomains)
+*/
+async function setSiteDomain(adminBucket, params) {
+  try {
+    if (params.newDomain) {
+      // Change to or add a custom domain
+      const hostedZoneId = await getHostedZoneId(params.newDomain.domain)
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start set/update custom domain for ${hostedZoneId} to ${params.domain}`)
+      await upsertCustomDomain(hostedZoneId, params.domains, params.newDomain)
+      await aws.updateSiteDomain(params.newDomain)
+      await aws.displayUpdate({ cfDistUpdating: true }, 'setDomain', 'Force to true since we know CF will be updating')
+    } else {
+      // remove the custom domain (Site will only be accessable via the base CloudFront domain)
+      const hostedZoneId = await getHostedZoneId(params.domains.current)
+      await aws.displayUpdate({ setDomain: true, setDomError: false, setDomErrMsg: '' }, 'setDomain', `Start remove custom domain for ${hostedZoneId}`)
+      try {
+        await removeCustomDomain(hostedZoneId, params.domains)
+      } finally {
+        // Always update to the base domain if there's a failure - more likely the site will keep working, and user can try again.
+        await aws.updateSiteDomain({ domain: params.domains.base, testDomain: params.domains.baseTest })
+        await aws.displayUpdate({ cfDistUpdating: true }, 'setDomain', 'Force to true since we know CF will be updating')
+      }
+    }
+    await aws.displayUpdate({ setDomain: false, setDomError: false, setDomErrMsg: '' }, 'setDomain', `End set domain`)
+  } catch (e) {
+    console.log(`Failed to set domain: ${JSON.stringify(e)}`, e)
+    await aws.displayUpdate({ setDomain: false, setDomError: true, setDomErrMsg: `Failed to set domain ${e.message}` }, 'setDomain', `End set domain. Failed: ${e.message}`)
+  }
+}
+
+/** */
+async function upsertCustomDomain(hostedZoneId, domains, newDomain) {
+  // Add/Update R53 domain records for main and test domain
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.domain, domains.base, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.domain, domains.base, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.domain, domains.base, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.domain, domains.base, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.testDomain, domains.baseTest, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'A')])
+  await execR53Changes(hostedZoneId, [createUpsertChange(newDomain.testDomain, domains.baseTest, 'AAAA')])
+  await execR53Changes(hostedZoneId, [createUpsertChange('www.' + newDomain.testDomain, domains.baseTest, 'AAAA')])
+  // Update CF Ditros domain aliases and certificates.
+  await updateDistributionDomain(domains.dist, newDomain.domain, newDomain.arn)
+  await updateDistributionDomain(domains.distTest, newDomain.testDomain, newDomain.testArn)
+}
+
+/** Replace the existing domain cert and aliases with the given values.
+    Does NOT handle these aliases being in-use by another CF distribution, so aliases will need to be cleared
+    first before this call.
+*/
+async function updateDistributionDomain(cfDistId, domain, certArn) {
+  const resp = await aws.cf.getDistributionConfig({ Id: cfDistId }).promise()
+  //console.log('CF Config:', resp)
+  resp.DistributionConfig.Aliases.Quantity = 2
+  resp.DistributionConfig.Aliases.Items = [domain, 'www.' + domain]
+  resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = false
+  resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = certArn
+  // AWS Sets Legacy Client Support (SSLSupportMethod === 'vip') when using the CloudFront default certificate, but does
+  // not set it back to sni-only when a custome cert is added, so we need to ensure it's set back manually.
+  resp.DistributionConfig.ViewerCertificate.SSLSupportMethod = 'sni-only'
+  //
+  resp.IfMatch = resp.ETag
+  delete resp.ETag
+  //
+  resp.Id = cfDistId
+  await aws.cf.updateDistribution(resp).promise()
+}
+
+/** */
+async function removeCustomDomain(hostedZoneId, domains) {
+  // Remove any R53 domain records for main and test domain
+  if (hostedZoneId) {
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.current, domains.base, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.current, domains.base, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.current, domains.base, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.current, domains.base, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.currentTest, domains.baseTest, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.currentTest, domains.baseTest, 'A')])
+    await execR53Changes(hostedZoneId, [createDeleteChange(domains.currentTest, domains.baseTest, 'AAAA')])
+    await execR53Changes(hostedZoneId, [createDeleteChange('www.' + domains.currentTest, domains.baseTest, 'AAAA')])
+  }
+  // Remove alt domain names and custom cert from old CF.
+  await clearDistributionDomain(domains.dist)
+  await clearDistributionDomain(domains.distTest)
+}
+
+/** Remove any existing domain cert and aliases. */
+async function clearDistributionDomain(cfDistId) {
+  const resp = await aws.cf.getDistributionConfig({ Id: cfDistId }).promise()
+  //console.log('CF Config:', resp)
+  resp.DistributionConfig.Aliases.Quantity = 0
+  resp.DistributionConfig.Aliases.Items = []
+  resp.DistributionConfig.ViewerCertificate.CloudFrontDefaultCertificate = true
+  resp.DistributionConfig.ViewerCertificate.ACMCertificateArn = null
+  //
+  resp.IfMatch = resp.ETag
+  delete resp.ETag
+  //
+  resp.Id = cfDistId
+  await aws.cf.updateDistribution(resp).promise()
+}
+
+/** */
+async function execR53Changes(hostedZoneId, changes) {
+  try {
+    const param = {
+      ChangeBatch: {
+        Changes: changes,
+        Comment: 'Remove custom domain'
+      },
+      HostedZoneId: hostedZoneId
+    }
+    await aws.r53.changeResourceRecordSets(param).promise()
+  } catch (e) {
+    if (e.message.indexOf('not found') !== -1) {
+      console.log(`Domain to remove not found. Likely already removed by a previous operation. ${e.message}`)
+    } else if (e.message.indexOf('values provided do not match the current values')) {
+      console.log(`Domain to remove does not match expected config. Will likely be resolved by other updates, but may require manual change via AWS console. ${e.message}`)
+    } else {
+      throw e
+    }
+  }
+}
+
+/** Create a change to upsert a new record into R53. */
+function createUpsertChange(domain, cfDomain, type) {
+  return {
+    Action: "UPSERT",
+    ResourceRecordSet: {
+      Name: domain,
+      AliasTarget: {
+        DNSName: cfDomain,
+        EvaluateTargetHealth: false,
+        HostedZoneId: "Z2FDTNDATAQYW2"
+      },
+      Type: type
+    }
+  }
+}
+
+/** Create a change record to delete an existing record from R53. */
+function createDeleteChange(domain, cfDomain, type) {
+  return {
+    Action: "DELETE",
+    ResourceRecordSet: {
+      Name: domain,
+      AliasTarget: {
+        DNSName: cfDomain,
+        EvaluateTargetHealth: false,
+        HostedZoneId: "Z2FDTNDATAQYW2"
+      },
+      Type: type
+    }
+  }
+}
+
+/** Find the AWS hosted zone ID for this domain, or this domain's parent domain, if no zone
+    exists. Return null if neither this domain or the parent domain can be found.
+*/
+async function getHostedZoneId(domainName) {
+  const zones = await aws.r53.listHostedZones({}).promise()
+  // Exact match
+  let zone = zones.HostedZones.find(p => p.Name === (domainName + '.'))
+  if (zone) return zone.Id.replace('/hostedzone/', '')
+  // root domain match
+  const rootDomainName = domainName.split('.').slice(1).join('.')
+  zone = zones.HostedZones.find(p => p.Name === (rootDomainName + '.'))
+  if (zone) return zone.Id.replace('/hostedzone/', '')
+  return null
+}
+
+/** Get all log events, from all AutoSite related streams (for this site), for the requested time range. */
+async function captureLogs(adminBucket, options) {
+  try {
+    await aws.displayUpdate({ getLogs: true, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', `Start getLogs for the last ${options.durationH} hours.`)
+    const siteName = adminBucket.split('-')[0]
+    const logGroups = LogGroupsTemplate.map(tpl => {
+      return {
+        groupName: tpl.groupName.replace('@SITE_NAME@', siteName),
+        name: tpl.name,
+        edge: tpl.edge
+      }
+    })
+    console.log('Log Groups: ' + JSON.stringify(logGroups))
+    const endTs = Date.now()
+    const startTs = endTs - (options.durationH * HoursToMs)
+    // Get all events for this site's groups within this timerange from AWS CloudWatch
+    const groupedMessages = await Promise.all(logGroups.map(async group => {
+      const streamsRaw = await aws.getLogStreams(group.groupName, group.edge)
+      const streamsInRange = streamsRaw.filter(group => {
+        return (group.lastEventTs > startTs) && (group.firstEventTs < endTs)
+      })
+      console.log(`Got ${streamsInRange.length} log streams in range for group: ${group.groupName}, region: ${group.edge ? options.edgeRegion : process.env['AWS_REGION']}`)
+      return {
+        group: group.name,
+        streams: await Promise.all(streamsInRange.map(async stream => {
+           return await aws.getLogEvents(group.groupName, group.edge, stream.name, startTs, endTs)
+        }))
+      }
+    }))
+    await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'Got AWS logs. Saving to Site storage.')
+    // Collate all event arrays in groupedMessages, with group name
+    const events = []
+    groupedMessages.forEach(group => {
+      group.streams.forEach(stream => {
+        stream.forEach(event => {
+          events.push({
+            group: group.group,
+            timestamp: event.timestamp,
+            message: event.message
+          })
+        })
+      })
+    })
+    // Sort all events in timestamp order
+    events.sort((a, b) => a.timestamp - b.timestamp)
+    //
+    const eventMsgs = []
+    events.forEach(event => {
+      if ( ! isLambdaFramingLogMessage(event.message)) {
+        const displayTs = new Date(event.timestamp).toISOString()
+        eventMsgs.push(displayTs + ' ' + event.group.padEnd(MaxGroupNameLength, ' ') + ' ' + event.message)
+      }
+    })
+    const endTsFmt = new Date(endTs).toISOString()
+    const logFileName = 'logs/log-' + Uuid.v1() + '_' + endTsFmt + '.log'
+    console.log(`Write ${eventMsgs.length} events to ${logFileName}`)
+    await aws.put(adminUiBucket, logFileName, 'application/octet-stream', eventMsgs.join('\n'), 0, 0)
+    await aws.displayUpdate({ getLogs: false, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', 'AWS Logs ready for download.')
+  } catch (e) {
+    console.log(`Error in captureLogs:`, e)
+    await aws.displayUpdate({ getLogs: false, getLogsError: true, getLogsErrMsg: `Failed to get AWS logs: ${e.message}` }, 'getLogs', 'Error: Failed to get AWS Logs.')
+  }
+}
+
+/** Detect AWS Lambda framing messages
+  Example:
+  024-01-06T08:56:13.686Z Admin Edge           START RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e Version: 4
+  2024-01-06T08:56:14.060Z Admin Edge           END RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e
+  2024-01-06T08:56:14.060Z Admin Edge           REPORT RequestId: 28da71e6-a9f6-4778-9315-c47332f94a8e	Duration:
+*/
+function isLambdaFramingLogMessage(message) {
+  if (message.indexOf('RequestId:') !== -1) {
+    if (message.indexOf('START RequestId:') === 0
+      || message.indexOf('END RequestId:') === 0
+      || message.indexOf('REPORT RequestId:') === 0)
+    {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+  Get the current state of all this site's distributions. If any are not in 'deployed' state,
+  set the 'cfDistUpdating' flag in display properties to true. Otherwise, set it to false.
+  Params:
+    domain: {
+      main: CF base domain for the main distro.
+      test: CF base domain for the test distro.
+    }
+*/
+async function checkCfDistroState(params) {
+  try {
+    const resp = await aws.cf.listDistributions().promise()
+    //console.log(`CF domains state:`, resp.DistributionList.Items)
+    let updating = false
+    resp.DistributionList.Items.forEach(dist => {
+      //console.log(`Domain: ${dist.DomainName} Status: ${dist.Status}`)
+      if (dist.Status !== 'Deployed') {
+        //console.log(`Domains:`, stateCache.state.domains)
+        if (params.domains.main === dist.DomainName || params.domains.test === dist.DomainName) {
+          updating = true
+        }
+      }
+    })
+    console.log(`CF Distros Updating: ` + updating)
+    await aws.displayUpdate({ cfDistUpdating: updating }, 'checkCfDistroState', 'Got distros status.')
+  } catch (e) {
+    console.log('Failed to get CF update state.', e)
   }
 }
