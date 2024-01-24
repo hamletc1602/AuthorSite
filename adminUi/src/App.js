@@ -94,19 +94,6 @@ let fastPollingTimeoutId = null
 let pollLoopCount = 0
 let passwordChangingDebounce = null
 
-// Known Server States (If true, check for end fast polling. false here implies server state may not be reliably cleaned up.)
-const serverStates = {
-  preparing: true,
-  deploying: true,
-  building: true,
-  updatingTemplate: true,
-  updatingUi: true,
-  getLogs: true,
-  savingTemplate: true,
-  settingPassword: true,
-  setDomain: true
-}
-
 // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
 function startFastPolling() {
   console.log('Start fast polling')
@@ -177,6 +164,70 @@ function App() {
   const saveTemplateName = useRef({})
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
+
+  // Known Server States (If true, check for end fast polling. false here implies server state may not be reliably cleaned up.)
+  const serverStates = {
+    preparing: true,
+    deploying: true,
+    building: true,
+    updatingTemplate: true,
+    updatingUi: true,
+    getLogs: true,
+    savingTemplate: true,
+    settingPassword: true,
+    setDomain: true
+  }
+
+  // Known error states, and the associated local state vars
+  // const serverErrorStates = {
+  //   getDom: null,
+  //   setDom: null,
+  //   getLogs: null,
+  //   prepare: null,
+  //   deploy: null,
+  //   setPwd: null,
+  //   build: null,
+  //   saveTpl: null
+  // }
+
+  // function getValue(funcOrVar) {
+  //   if (typeof funcOrVar === 'function') {
+  //     return funcOrVar.call()
+  //   }
+  //   return funcOrVar
+  // }
+
+  // function getTooltip(stateType, standard, stdErr) {
+  //   if (adminDisplay[stateType + 'Error']) {
+  //     return adminDisplay[stateType + 'ErrMsg'] || getValue(stdErr)
+  //   }
+  //   return getValue(standard)
+  // }
+
+  // function hasError(stateType) {
+  //   if (adminDisplay[stateType + 'Error']) {
+  //     return true
+  //   }
+  //   return false
+  // }
+
+  function domainControlTooltip(isRefresh) {
+    if (adminDisplay.getDomError) {
+      return adminDisplay.getDomErrMsg || `Failed to get list of available domains.`
+    }
+    if (adminDisplay.setDomError) {
+      return adminDisplay.setDomErrMsg || `Failed to set site domain.`
+    }
+    if (cfDistUpdating) {
+      return LIST_DOMAIN_TOOLTIP_UPDATING
+    }
+    if (isRefresh) {
+      return window.location.host !== adminDomains.current.current
+      ? REFRESH_DOMAIN_TOOLTIP + ' ' + adminDomains.current.current
+      : ''
+    }
+    return LIST_DOMAIN_TOOLTIP
+  }
 
   // Indicate there's new content to put on this path
   const scheduleContentPush = (path, source, id, editorId) => {
@@ -604,12 +655,10 @@ function App() {
             <Text color='accentText' whiteSpace='nowrap' m='2px'>{adminConfig.templateId ? `${adminConfig.templateId} Site Admin` : 'Site Admin'}</Text>
             <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer m='3px'/>
-            <Tooltip
-              openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end'
-              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING : LIST_DOMAIN_TOOLTIP}
-            >
+            <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)}>
               <Select size='sm' m='-2px 0 2px 0' border='none' color='accentText' autoFocus={false}
                 disabled={locked || cfDistUpdating}
+                bg={adminDisplay.getDomError || adminDisplay.setDomError}
                 onChange={ev => {
                   setDomain(availableDomains[ev.target.value])
                 }}
@@ -619,12 +668,7 @@ function App() {
                 })}
               </Select>
             </Tooltip>
-            <Tooltip
-              openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end'
-              label={cfDistUpdating ? LIST_DOMAIN_TOOLTIP_UPDATING :
-                  (window.location.host !== adminDomains.current.current ?
-                    REFRESH_DOMAIN_TOOLTIP + ' ' + adminDomains.current.current : '')}
-            >
+            <Tooltip openDelay={650} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(true)}>
               <RepeatIcon m='3px'
                 color={(cfDistUpdating || window.location.host === adminDomains.current.current) ? 'gray' : 'accentText'}
                 focusable={true} autoFocus={false} onClick={refreshLocationClick}
@@ -692,6 +736,7 @@ function App() {
             <ActionButton text='Capture Logs' onClick={onCaptureLogs} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
                 isLoading={capturingLogs && !advancedMode} loadingText='Capturing...'
+                errorFlag={adminDisplay.getLogsError} errorText={adminDisplay.getLogsErrMsg}
                 isDisabled={!authenticated || locked}/>
             {capturedLogs.length > 0 ?
               <Popover placement='top-end' gutter={20}>
@@ -751,7 +796,7 @@ function App() {
               {({ onClose }) => {
                 return <><PopoverTrigger>
                   <Button size='xs' h='1.5em' m='0 0.5em'
-                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.saveTemplateError ? 'danger' : 'accentText'}
+                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.saveTplError ? 'danger' : 'accentText'}
                     disabled={!authenticated || locked}
                     isLoading={adminDisplay.savingTemplate && !advancedMode} loadingText='Saving...'
                   >Save Template...</Button>

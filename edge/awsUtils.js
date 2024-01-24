@@ -35,7 +35,8 @@ function AwsUtils(options) {
   this.logs = options.logs
   this.maxAgeBrowser = options.maxAgeBrowser || 60 * 60 * 24  // 24 hours
   this.maxAgeCloudFront = options.maxAgeCloudFront || 60  // 60 seconds
-  this.logSnapshotTtlMs = 1 * 60 * 60 * 1000  // 1 hour
+  this.logSnapshotClearTtlMs = 1 * 60 * 60 * 1000  // 1 hour
+  this.logSnapshotDeleteTtlMs = 24 * 60 * 60 * 1000  // 24 hours
 }
 
 AwsUtils.prototype.getS3 = function() {
@@ -466,12 +467,21 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(adminBucket, admin
             }
             const logTs = new Date(logTsStr)
             const diffMs = (Date.now()) - logTs.getTime()
-            if (diffMs > this.logSnapshotTtlMs) {
+            if (diffMs > this.logSnapshotDeleteTtlMs) {
+              // Finally delete any old placeholder files
               console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
               await this.delete(adminUiBucket, logFile.Key)
+            } else if (diffMs > this.logSnapshotClearTtlMs) {
+              // Replace the file content with a 'removed' text (So any lingering links in the UI have some explanation for the user.)
+              console.log(`Cleared ${diffMs}ms old log snapshot: ${logFile.Key}`)
+              await this.put(adminUiBucket, logFile.Key, null, `This log snapshot expired on ${Date.toISOString()}`)
             } else {
+
+              // Need to query file size from S3 and only include logs larger than the 'snapshot exired' message above.
+
+
               return {
-                name: logTsStr,
+                name: logTsStr.substring(0, logTsStr.length - 5),
                 url: '/' +logFile.Key,
                 ts: logTs
               }
