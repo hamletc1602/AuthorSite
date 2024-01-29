@@ -471,15 +471,11 @@ AwsUtils.prototype.updateAdminStateFromQueue = async function(adminBucket, admin
               // Finally delete any old placeholder files
               console.log(`Deleted ${diffMs}ms old log snapshot: ${logFile.Key}`)
               await this.delete(adminUiBucket, logFile.Key)
-            } else if (diffMs > this.logSnapshotClearTtlMs) {
+            } else if (diffMs > this.logSnapshotClearTtlMs && logFile.Size > 50) {
               // Replace the file content with a 'removed' text (So any lingering links in the UI have some explanation for the user.)
               console.log(`Cleared ${diffMs}ms old log snapshot: ${logFile.Key}`)
-              await this.put(adminUiBucket, logFile.Key, null, `This log snapshot expired on ${Date.toISOString()}`)
+              await this.put(adminUiBucket, logFile.Key, null, `Expired ${(new Date()).toISOString()}`)
             } else {
-
-              // Need to query file size from S3 and only include logs larger than the 'snapshot exired' message above.
-
-
               return {
                 name: logTsStr.substring(0, logTsStr.length - 5),
                 url: '/' +logFile.Key,
