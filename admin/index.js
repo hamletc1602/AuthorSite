@@ -247,7 +247,7 @@ async function upateTemplate(publicBucket, adminBucket, params) {
       }, 'update', `Starting update with ${templateName} template.`)
     // Copy template archive to local FS.
     const sourceLoc = await getLocationForTemplate(templateName)
-    const keyRoot = sourceLoc === 'public' ? 'AutoSite' : 'AutoSite' + version
+    const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
     const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
     const archiveFile = `/tmp/${templateName}.zip`

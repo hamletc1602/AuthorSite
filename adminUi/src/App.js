@@ -325,7 +325,7 @@ function App() {
   const onUpdateTemplate = () => {
     setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
-    controller.sendCommand('updateTemplate', { id: adminConfig.templateId })
+    controller.sendCommand('updateTemplate', { id: adminConfig.current.templateId })
     startFastPolling()
   }
 
@@ -611,7 +611,7 @@ function App() {
             <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)} autoFocus={false}>
               <Select size='sm' m='-2px 0 2px 0' border='none' color='accentText' autoFocus={false}
                 disabled={locked || adminDisplay.current.cfDistUpdating}
-                bg={adminDisplay.current.getDomError || adminDisplay.current.setDomError}
+                bg={(adminDisplay.current.getDomError || adminDisplay.current.setDomError) ? 'danger' : 'accent'}
                 onChange={ev => {
                   setDomain(availableDomains[ev.target.value])
                 }}
