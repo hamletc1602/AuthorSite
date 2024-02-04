@@ -121,11 +121,11 @@ function App() {
   const [locked, setLocked] = useState(false)
   const [editorsEnabled, setEditorsEnabled] = useState(false)
   const [path, setPath] = useState([])
-  const [contentToGet, setContentToGet] = useState(null)
   const [uploadError, setUploadError] = useState(null)
   const [capturedLogs, setCapturedLogs] = useState([])
   const [availableDomains, setAvailableDomains] = useState([])
   const [capturingLogs, setCapturingLogs] = useState(false)
+  const [putContentComplete, setPutContentComplete] = useState({})
 
   // Calculated State
   const authenticated = useMemo(() => authState === 'success', [authState])
@@ -141,7 +141,7 @@ function App() {
   const capturedLogsCache = useRef([])
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
-  const putContentComplete = useRef({})
+  //const putContentComplete = useRef({})
   const fileContent = useRef({})
   const currTemplate = useRef({})
   const saveTemplateName = useRef({})
@@ -242,17 +242,6 @@ function App() {
       : ''
     }
     return LIST_DOMAIN_TOOLTIP
-  }, [])
-
-  // Indicate there's new content to put on this path
-  const scheduleContentPush = useCallback((path, source, id, editorId) => {
-    putContentComplete.current[path] = null
-    contentToPut.current[path] = {
-      source: source,
-      id: id,
-      editorId: editorId,
-      state: 'new'
-    }
   }, [])
 
   const setDisplay = useCallback((prop, value) => {
@@ -444,14 +433,10 @@ function App() {
         path={path}
         setPath={setPath}
         fileContent={fileContent}
-        getContent={path => {
-          fileContent.current[path] = { state: 'pending' }
-          // TODO: This setPath call is triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)." warning
-          setContentToGet({ path: path })
-        }}
-        pushContent={scheduleContentPush}
+        contentToPut={contentToPut}
         putContentComplete={putContentComplete}
-        deleteContent={(path) => { controller.deleteContent(adminConfig.current.templateId, path) }}
+        getContent={(path) => controller.getSiteContent(adminConfig.current.templateId, path)}
+        deleteContent={(path) => controller.deleteContent(adminConfig.current.templateId, path)}
         advancedMode={advancedMode}
         locked={locked}
       />
@@ -510,35 +495,6 @@ function App() {
     }
   }, [adminConfig, authenticated])
 
-  // Get content data from the server on start editing
-  useEffect(() => {
-    if (contentToGet && contentToGet.path) {
-      let toGet = fileContent.current[contentToGet.path]
-      if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
-        if ( ! toGet) {
-          toGet = {}
-          fileContent.current[contentToGet.path] = toGet
-        }
-        toGet.state = 'pending'
-        controller.getSiteContent(adminConfig.current.templateId, contentToGet.path)
-        .then(contentRec => {
-          setContentToGet(null)
-          if (contentRec) {
-            toGet.content = contentRec.content
-            toGet.contentType = contentRec.contentType
-            toGet.state = 'complete'
-          } else {
-            toGet.state = 'fail'
-          }
-        })
-        .catch(error => {
-          setContentToGet(null)
-          toGet.state = 'fail'
-        })
-      }
-    }
-  },[contentToGet])
-
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
     if (authState === 'success') {
@@ -588,7 +544,7 @@ function App() {
       />
       <PollPutContent
         controller={controller} adminConfig={adminConfig} contentToPut={contentToPut}
-        putContentComplete={putContentComplete} setUploadError={setUploadError}
+        setPutContentComplete={setPutContentComplete} setUploadError={setUploadError}
       />
       <Grid
         h='calc(100vh - 12px)'

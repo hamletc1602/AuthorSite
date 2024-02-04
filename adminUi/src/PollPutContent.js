@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 // Component to manage pushing content to the server
-export default function PollPutContent({controller, adminConfig, contentToPut, putContentComplete, setUploadError}) {
+export default function PollPutContent({controller, adminConfig, contentToPut, setPutContentComplete, setUploadError}) {
 
   useEffect(() => {
     console.log(`Create put content poller`)
@@ -15,32 +15,28 @@ export default function PollPutContent({controller, adminConfig, contentToPut, p
             console.log(`Push content to server for ${toPutId}`, sourceRec)
             try {
               if (sourceRec.isConfig) {
-              await controller.putSiteConfig(
-                  adminConfig.templateId,
-                  toPutId,
-                  toPut.contentType || sourceRec.contentType,
-                  sourceRec.content
-              )
+                await controller.putSiteConfig(
+                    adminConfig.current.templateId,
+                    toPutId,
+                    toPut.contentType || sourceRec.contentType,
+                    sourceRec.content
+                )
               } else {
-              await controller.putSiteContent(
-                  adminConfig.templateId,
-                  toPutId,
-                  toPut.contentType || sourceRec.contentType,
-                  sourceRec.content
-              )
+                await controller.putSiteContent(
+                    adminConfig.current.templateId,
+                    toPutId,
+                    toPut.contentType || sourceRec.contentType,
+                    sourceRec.content
+                )
               }
               toPut.state = 'done'
               setUploadError(null)
-              const update = Object.assign({}, putContentComplete.current)
-              update[toPutId] = { succeeded: true }
-              putContentComplete.current = update
+              setPutContentComplete(Date.now())
             } catch (e) {
               console.error(`Upload failed for ${toPutId}`, toPut)
               toPut.state = 'failed'
               setUploadError(toPut.editorId)
-              const update = Object.assign({}, putContentComplete.current)
-              update[toPutId] = { succeeded: false }
-              putContentComplete.current = update
+              setPutContentComplete(Date.now())
             }
           }
         }
@@ -50,6 +46,6 @@ export default function PollPutContent({controller, adminConfig, contentToPut, p
       console.log(`Remove put content poller`)
       clearInterval(putContentWorker)
     }
-  }, [adminConfig, contentToPut, controller, putContentComplete, setUploadError])
+  }, [controller, adminConfig, contentToPut, setPutContentComplete, setUploadError])
 
 }

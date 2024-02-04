@@ -11,7 +11,7 @@ import EditorImage from './EditorImage'
 
 /**  */
 export default function Editor({
-  editor, configs, path, setPath, fileContent, getContent, pushContent, putContentComplete, deleteContent, advancedMode,
+  editor, configs, path, setPath, fileContent, contentToPut, putContentComplete, getContent, deleteContent, advancedMode,
   locked
 }) {
 
@@ -20,6 +20,7 @@ export default function Editor({
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
   let content = Util.getContentForPath(configs, path)
   const [inDelete, setInDelete] = useState(false)
+  const [contentToGet, setContentToGet] = useState(null)
   const listContainer = useRef(null)
   const selectedItem = useRef(null)
 
@@ -57,6 +58,45 @@ export default function Editor({
     }
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
 
+  // Get content data from the server on start editing
+  useEffect(() => {
+    if (contentToGet && contentToGet.path) {
+      let toGet = fileContent.current[contentToGet.path]
+      if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
+        if ( ! toGet) {
+          toGet = {}
+          fileContent.current[contentToGet.path] = toGet
+        }
+        toGet.state = 'pending'
+        // getContent(contentToGet.path)
+        // .then(contentRec => {
+        //   setContentToGet(null)
+        //   if (contentRec) {
+        //     toGet.content = contentRec.content
+        //     toGet.contentType = contentRec.contentType
+        //     toGet.state = 'complete'
+        //   } else {
+        //     toGet.state = 'fail'
+        //   }
+        // })
+        // .catch(error => {
+        //   setContentToGet(null)
+        //   toGet.state = 'fail'
+        // })
+      }
+    }
+  },[contentToGet, fileContent])
+
+  // Indicate there's new content to put on this path
+  const pushContent = (path, source, id, editorId) => {
+    contentToPut.current[path] = {
+      source: source,
+      id: id,
+      editorId: editorId,
+      state: 'new'
+    }
+  }
+
   // Ignore changes if we're not the current editor in the path
   if (path[0].name !== editor.id) {
     return
@@ -77,7 +117,8 @@ export default function Editor({
       parentContent[name] = Util.createFilePath(path, (schema.type === 'text' ? '.md' : '.image'))
     }
     if ( ! fileContent.current[content]) {
-      getContent(content)
+      setContentToGet({ path: content })
+      //fileContent.current[content] = { state: 'pending' }
     }
   }
 
@@ -380,6 +421,7 @@ export default function Editor({
           content={content}
           schema={schema}
           fileContent={fileContent}
+          contentToPut={contentToPut}
           setData={setData}
           editItem={editItem}
           putContentComplete={putContentComplete}
@@ -392,21 +434,21 @@ export default function Editor({
         {hasList ?
           <VStack>
             {inDelete ?
-              [<Tooltip openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
+              [<Tooltip key='cancel' openDelay={650} closeDelay={250} placement='left-start' label='Cancel Delete' hasArrow={true} aria-label='Cancel'>
                 <IconButton size='sm' icon={<CloseIcon/>} onClick={cancelDeleteItem}/>
               </Tooltip>,
-              <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
+              <Tooltip key='delete' openDelay={650} closeDelay={250}  placement='left-start'label='Confirm Delete' hasArrow={true} aria-label='Confirm Delete'>
                 <IconButton size='sm' icon={<DeleteIcon color='danger'/>} onClick={deleteItem}/>
               </Tooltip>]
             :
-              [<Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
+              [<Tooltip key='delete' openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
                 <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
               </Tooltip>,
-              <Box height='1em'/>,
-              <Tooltip openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Up' hasArrow={true} aria-label='Move List Item Up'>
+              <Box key='spacer' height='1em'/>,
+              <Tooltip key='up' openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Up' hasArrow={true} aria-label='Move List Item Up'>
                 <IconButton size='sm' icon={<ArrowUpIcon />} onClick={moveItemUp} disabled={locked}/>
               </Tooltip>,
-              <Tooltip openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Down' hasArrow={true} aria-label='Move List Item Down'>
+              <Tooltip key='down' openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Down' hasArrow={true} aria-label='Move List Item Down'>
                 <IconButton size='sm' icon={<ArrowDownIcon />} onClick={moveItemDown} disabled={locked}/>
               </Tooltip>]}
           </VStack>

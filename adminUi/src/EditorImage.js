@@ -7,7 +7,7 @@ import Util from './Util'
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({id, path, content, fileContent, setData, putContentComplete, locked}) {
+export default function EditorImage({id, path, content, fileContent, setData, contentToPut, putContentComplete, locked}) {
 
   const [cooldown, setCooldown] = useState(false)
   const [inDelete, setInDelete] = useState(false)
@@ -118,19 +118,19 @@ export default function EditorImage({id, path, content, fileContent, setData, pu
 
   useEffect(() => {
     if (cooldown) {
-      const completionRec = putContentComplete.current[content]
-      console.log(`Check cooldown for ${content}. Complete: ${JSON.stringify(putContentComplete.current)}`)
-      if (completionRec) {
-        if (completionRec.success) {
+      const toPutRec = contentToPut[content]
+      console.log(`Check cooldown for ${content}. Complete: ${JSON.stringify(toPutRec)}`)
+      if (toPutRec) {
+        if (toPutRec.state === 'done') {
           console.log(`File upload complete for ${content}`)
           setCooldown(false)
-        } else {
+        } else if (toPutRec.state === 'failed') {
           console.error(`File upload failed for ${content}`)
           setCooldown(false)
         }
       }
     }
-  }, [putContentComplete, content, cooldown, setCooldown])
+  }, [putContentComplete, contentToPut, content, cooldown, setCooldown])
 
   // Text outline props
   const ow = 1
