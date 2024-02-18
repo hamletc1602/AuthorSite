@@ -4,7 +4,7 @@ import {
 } from '@chakra-ui/react'
 
 /**  */
-export default function EditorText({id, content, fileContent, setData}) {
+export default function EditorText({id, content, fileContent, contentUpdate, setData}) {
   const contentRec = fileContent.current[content]
   return <Skeleton w='100%' isLoaded={contentRec && contentRec.state !== 'pending'}>
     <Textarea

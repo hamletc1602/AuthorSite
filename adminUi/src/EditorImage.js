@@ -7,7 +7,7 @@ import Util from './Util'
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({id, path, content, fileContent, setData, contentToPut, putContentComplete, locked}) {
+export default function EditorImage({id, path, content, fileContent, contentUpdate, setData, contentToPut, putContentComplete, locked}) {
 
   const [cooldown, setCooldown] = useState(false)
   const [inDelete, setInDelete] = useState(false)
@@ -117,20 +117,18 @@ export default function EditorImage({id, path, content, fileContent, setData, co
   const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop})
 
   useEffect(() => {
-    if (cooldown) {
-      const toPutRec = contentToPut[content]
-      console.log(`Check cooldown for ${content}. Complete: ${JSON.stringify(toPutRec)}`)
-      if (toPutRec) {
-        if (toPutRec.state === 'done') {
-          console.log(`File upload complete for ${content}`)
-          setCooldown(false)
-        } else if (toPutRec.state === 'failed') {
-          console.error(`File upload failed for ${content}`)
-          setCooldown(false)
-        }
+    const toPutRec = contentToPut[content]
+    console.log(`Check cooldown for ${content}. Complete: ${JSON.stringify(toPutRec)}`)
+    if (toPutRec) {
+      if (toPutRec.state === 'done') {
+        console.log(`File upload complete for ${content}`)
+        setCooldown(false)
+      } else if (toPutRec.state === 'failed') {
+        console.error(`File upload failed for ${content}`)
+        setCooldown(false)
       }
     }
-  }, [putContentComplete, contentToPut, content, cooldown, setCooldown])
+  }, [putContentComplete, contentToPut, content, setCooldown])
 
   // Text outline props
   const ow = 1

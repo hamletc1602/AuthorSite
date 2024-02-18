@@ -11,7 +11,7 @@ import EditorImage from './EditorImage'
 
 /**  */
 export default function Editor({
-  editor, configs, path, setPath, fileContent, contentToPut, putContentComplete, getContent, deleteContent, advancedMode,
+  editor, configs, path, setPath, fileContent, contentUpdate, setContentUpdate, contentToPut, putContentComplete, getContent, deleteContent, advancedMode,
   locked
 }) {
 
@@ -20,7 +20,6 @@ export default function Editor({
   const rootPath = useMemo(() => hasList ? Util.getRootPath(path) : [...path], [hasList, path])
   let content = Util.getContentForPath(configs, path)
   const [inDelete, setInDelete] = useState(false)
-  const [contentToGet, setContentToGet] = useState(null)
   const listContainer = useRef(null)
   const selectedItem = useRef(null)
 
@@ -58,35 +57,6 @@ export default function Editor({
     }
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
 
-  // Get content data from the server on start editing
-  useEffect(() => {
-    if (contentToGet && contentToGet.path) {
-      let toGet = fileContent.current[contentToGet.path]
-      if ( ! toGet || toGet.state !== 'complete' || toGet.state !== 'pending') {
-        if ( ! toGet) {
-          toGet = {}
-          fileContent.current[contentToGet.path] = toGet
-        }
-        toGet.state = 'pending'
-        // getContent(contentToGet.path)
-        // .then(contentRec => {
-        //   setContentToGet(null)
-        //   if (contentRec) {
-        //     toGet.content = contentRec.content
-        //     toGet.contentType = contentRec.contentType
-        //     toGet.state = 'complete'
-        //   } else {
-        //     toGet.state = 'fail'
-        //   }
-        // })
-        // .catch(error => {
-        //   setContentToGet(null)
-        //   toGet.state = 'fail'
-        // })
-      }
-    }
-  },[contentToGet, fileContent])
-
   // Indicate there's new content to put on this path
   const pushContent = (path, source, id, editorId) => {
     contentToPut.current[path] = {
@@ -116,9 +86,26 @@ export default function Editor({
       const name = path[path.length - 1].name
       parentContent[name] = Util.createFilePath(path, (schema.type === 'text' ? '.md' : '.image'))
     }
-    if ( ! fileContent.current[content]) {
-      setContentToGet({ path: content })
-      //fileContent.current[content] = { state: 'pending' }
+    const fileContentRec = fileContent.current[content]
+    if ( ! fileContentRec) {
+      const rec = { state: 'pending' }
+      fileContent.current[content] = rec
+      getContent(content)
+        .then(fileContent => {
+          if (fileContent) {
+            console.log(`Got content for ${content}`, fileContent)
+            rec.content = fileContent.content
+            rec.contentType = fileContent.contentType
+            rec.state = 'complete'
+          } else {
+            rec.state = 'fail'
+          }
+          setContentUpdate(content)
+        })
+        .catch(error => {
+          rec.state = 'fail'
+          setContentUpdate(content)
+        })
     }
   }
 
@@ -421,6 +408,7 @@ export default function Editor({
           content={content}
           schema={schema}
           fileContent={fileContent}
+          contentUpdate={contentUpdate}
           contentToPut={contentToPut}
           setData={setData}
           editItem={editItem}

@@ -126,6 +126,7 @@ function App() {
   const [availableDomains, setAvailableDomains] = useState([])
   const [capturingLogs, setCapturingLogs] = useState(false)
   const [putContentComplete, setPutContentComplete] = useState({})
+  const [contentUpdate, setContentUpdate] = useState(null)
 
   // Calculated State
   const authenticated = useMemo(() => authState === 'success', [authState])
@@ -141,7 +142,6 @@ function App() {
   const capturedLogsCache = useRef([])
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
-  //const putContentComplete = useRef({})
   const fileContent = useRef({})
   const currTemplate = useRef({})
   const saveTemplateName = useRef({})
@@ -433,6 +433,8 @@ function App() {
         path={path}
         setPath={setPath}
         fileContent={fileContent}
+        contentUpdate={contentUpdate}
+        setContentUpdate={setContentUpdate}
         contentToPut={contentToPut}
         putContentComplete={putContentComplete}
         getContent={(path) => controller.getSiteContent(adminConfig.current.templateId, path)}
