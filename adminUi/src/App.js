@@ -18,6 +18,7 @@ import Util from './Util'
 import ActionButton from './ActionButton'
 import PollLockState from './PollLockState'
 import PollPutContent from './PollPutContent'
+import PollAvailableDomains from './PollAvailableDomains'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -71,6 +72,7 @@ const serverStates = {
   preparing: true,
   deploying: true,
   building: true,
+  buildingStart: false,
   updatingTemplate: true,
   updatingUi: true,
   getLogs: true,
@@ -101,6 +103,7 @@ const REFRESH_DOMAIN_TOOLTIP = 'Refresh the browser page to match the current ac
 const ADMIN_STATE_POLL_INTERVAL_FAST = 1000;
 const ADMIN_STATE_POLL_INTERVAL_DEFAULT = 15 * 1000;
 const FastPollingTimeoutMs = 5 * 60 * 1000
+const BuildingTimeoutMs = 15 * 60 * 1000
 
 let fastPollingTimeoutId = null
 let passwordChangingDebounce = null
@@ -148,67 +151,96 @@ function App() {
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
 
+  const setDisplay = useCallback((prop, value) => {
+    if (serverStates[prop] === undefined) {
+      console.log(`Using unsupported display state: ${prop}`)
+    }
+    adminDisplay.current[prop] = value
+  }, [])
+
   // Invoke when admin state polling determines something in the state has changed (new state from server)
   const setAdminState = useCallback((adminState) => {
     adminConfig.current = adminState.config
     adminDomains.current = adminState.domains
+    // Display State changed
     if ( ! deepEqual(adminState.display, adminDisplay.current)) {
-      console.log('Update display state', adminState.display)
+      console.log('Update display state: ' + adminState.display.stepMsg, adminState.display)
       if (adminDisplay.current) {
-        // When cfDistUpdating changes from true to false (CF done updating), get domains list again.
+        // When cfDistUpdating changes from true to false (CF done updating), get domains list again to ensure
+        // domain selection list shows the correct values.
         if (adminDisplay.current.cfDistUpdating === false && adminState.display.cfDistUpdating !== adminDisplay.current.cfDistUpdating) {
           controller.sendCommand('getAvailableDomains')
         }
       }
+      if (adminState.display.building && adminState.display.buildingStart) {
+        // Site generators can't be 100% trusted. Cancel 'building' state if it looks like it's gone on too long.
+        try {
+          const sinceBuildStartMs = Date.now() - Number(adminState.display.buildingStart)
+          if (sinceBuildStartMs > BuildingTimeoutMs) {
+            adminDisplay.current.building = false
+            setDisplay('building', false)
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+      // End fast polling if there's no required states set to truthy.
       adminDisplay.current = adminState.display
       const activeStates = Object.keys(serverStates).filter(p => serverStates[p] && adminState.display[p])
       if (activeStates.length === 0) {
         endFastPolling()
       }
-      if (showChangingDomain !== adminState.display.SetDomain) {
-        // Clear available domains so it will get re-set to the current admin state. This will ensure the dropdown list
-        // and it's active selection is kept up to date.
-        setAvailableDomains([])
-      }
+      // Show/Hide 'changing domain' dialog if we're in that state
       setShowChangingDomain(adminState.display.setDomain)
+      // Show/Hide 'Prepareing Template' dialog if we're in that state
+      setShowPreparingTemplate(adminState.display.PreparingTemplate)
     }
+    // Templates list changed
     if ( ! deepEqual(adminState.templates, adminTemplatesCache.current)) {
       adminTemplatesCache.current = adminState.templates
       currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
       setAdminTemplates(adminState.templates)
     }
+    // Captured logs list changed
     if ( ! deepEqual(adminState.capturedLogs, capturedLogsCache.current)) {
-      capturedLogsCache.current = adminState.capturedLogs
-      setCapturedLogs(adminState.capturedLogs)
-      setCapturingLogs(false)
+      if (adminState.capturedLogs) {
+        capturedLogsCache.current = adminState.capturedLogs
+        setCapturedLogs(adminState.capturedLogs)
+        setCapturingLogs(false)
+      }
     }
+    // domains or available domains changed
     if (! (deepEqual(adminDomains.current, adminState.domains)
            && deepEqual(availableDomainsCache.current, adminState.availableDomains)))
     {
       availableDomainsCache.current = adminState.availableDomains
-      // Ensure the current and base domains are in the domains list, even if no others.
       if (adminState.domains && adminState.availableDomains) {
         adminDomains.current = adminState.domains
-        const list = [...adminState.availableDomains]
-        if (adminState.domains.current) {
-          list.unshift({
-            domain: adminState.domains.current,
-            arn: adminState.domains.currentArn,
-            testDomain: adminState.domains.currentTest,
-            testArn: adminState.domains.currentTestArn
-          })
-        }
-        if (adminState.domains.base && adminState.domains.base !== adminState.domains.current) {
-          list.push({
-            domain: adminState.domains.base,
-            testDomain: adminState.domains.baseTest,
-            listName: adminState.domains.base + ((adminState.domains.current !== adminState.domains.base) ? ' (Browser will reload)' : '')
-          })
-        }
-        setAvailableDomains(list)
+        setAvailableDomains(getAvailableDomainsList(adminState.domains, adminState.availableDomains))
       }
     }
-  }, [showChangingDomain])
+  }, [setShowChangingDomain, setDisplay])
+
+  // Ensure the current and base domains are in the domains list, even if no others.
+  function getAvailableDomainsList(domains, availableDomains) {
+    const list = [...availableDomains]
+    if (domains.current) {
+      list.unshift({
+        domain: domains.current,
+        arn: domains.currentArn,
+        testDomain: domains.currentTest,
+        testArn: domains.currentTestArn
+      })
+    }
+    if (domains.base && domains.base !== domains.current) {
+      list.push({
+        domain: domains.base,
+        testDomain: domains.baseTest,
+        listName: domains.base + ((domains.current !== domains.base) ? ' (Browser will reload)' : '')
+      })
+    }
+    return list
+  }
 
   // Start refresh each STATE_POLL_INTERVAL_MS. Only if unlocked.
   function startFastPolling() {
@@ -242,13 +274,6 @@ function App() {
       : ''
     }
     return LIST_DOMAIN_TOOLTIP
-  }, [])
-
-  const setDisplay = useCallback((prop, value) => {
-    if (serverStates[prop] === undefined) {
-      console.log(`Using unsupported display state: ${prop}`)
-    }
-    adminDisplay.current[prop] = value
   }, [])
 
   // Handlers
@@ -353,11 +378,8 @@ function App() {
 
   const onGenerate = () => {
     setDisplay('building', true)
+    setDisplay('buildingStart', Date.now())
     controller.sendCommand('build', { id: adminConfig.current.templateId, debug: advancedMode })
-    setTimeout(() => {
-      console.log(`Cancel generating state after 15 minutes. Server-side generator timed out.`)
-      setDisplay('building', false)
-    }, 15 * 60 * 1000)
     startFastPolling()
   }
 
@@ -446,13 +468,6 @@ function App() {
     return null
   }
 
-  // Poll for available domains on authenticated
-  useEffect(() => {
-    if (authenticated) {
-      controller.sendCommand('getAvailableDomains')
-    }
-  }, [authenticated])
-
   /** React to document visibilty changes (whether page is visible to the user or not) */
   // Get config data from the server
   useEffect(() => {
@@ -539,11 +554,12 @@ function App() {
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   return (
     <ChakraProvider theme={customTheme}>
-      <PollLockState controller={controller} setLocked={setLocked}/>
+      <PollLockState controller={controller} authenticated={authenticated} setLocked={setLocked}/>
       <PollAdminState
         controller={controller} intervalMs={adminStatePollIntervalMs} setAdminState={setAdminState}
         setError={setPollAdminStateError}
       />
+      <PollAvailableDomains controller={controller} authenticated={authenticated}/>
       <PollPutContent
         controller={controller} adminConfig={adminConfig} contentToPut={contentToPut}
         setPutContentComplete={setPutContentComplete} setUploadError={setUploadError}
@@ -567,7 +583,7 @@ function App() {
             <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer m='3px'/>
             <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)} autoFocus={false}>
-              <Select size='sm' m='-2px 0 2px 0' border='none' color='accentText' autoFocus={false}
+              <Select size='sm' m='-2px 0 2px 0' maxW='20em' border='none' color='accentText' autoFocus={false}
                 disabled={locked || adminDisplay.current.cfDistUpdating}
                 bg={(adminDisplay.current.getDomError || adminDisplay.current.setDomError) ? 'danger' : 'accent'}
                 onChange={ev => {
@@ -586,20 +602,13 @@ function App() {
               />
             </Tooltip>
             <Spacer m='8px'/>
-            {advancedMode ?
-              <ActionButton text='Generate Debug' onClick={onGenerate}
-                tooltip={{ text: BUTTON_GENERATE_DEBUG_TOOLTIP, placement: 'left-end' }}
-                errorFlag={adminDisplay.current.buildError} errorText={adminDisplay.current.buildErrMsg}
-                isDisabled={(!authenticated || locked || adminDisplay.current.building) && !advancedMode}
-                isLoading={adminDisplay.current.building && !advancedMode} loadingText='Generating Debug...'/>
-            : null}
-            <ActionButton text='Generate' onClick={onGenerate} w='12em'
-                tooltip={{ text: BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
+            <ActionButton text='Generate' onClick={onGenerate} w='16em' minW='16em' maxW='16em'
+                tooltip={{ text: advancedMode ? BUTTON_GENERATE_DEBUG_TOOLTIP : BUTTON_GENERATE_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.current.buildError} errorText={adminDisplay.current.buildErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.building) && !advancedMode}
                 isLoading={adminDisplay.current.building && !advancedMode} loadingText='Generating...'/>
             <Link href={`https://${adminDomains.current.currentTest}/`} size='sm' whiteSpace='nowrap' color='accentText' isExternal>Test Site <ExternalLinkIcon mx='2px'/></Link>
-            <ActionButton text='Publish' onClick={onPublish} w='10em'
+            <ActionButton text='Publish' onClick={onPublish} w='15em' minW='15em' maxW='15em'
                 tooltip={{ text: BUTTON_PUBLISH_TOOLTIP, placement: 'left-end' }}
                 errorFlag={adminDisplay.current.publishError} errorText={adminDisplay.current.publishErrMsg}
                 isDisabled={(!authenticated || locked || adminDisplay.current.deploying) && !advancedMode}

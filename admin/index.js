@@ -140,14 +140,13 @@ const deploySite = async (testSiteBucket, siteBucket) => {
   }
   try {
     // Sync all test site files to prod site, deleting missing files (Full overwrite)
-    await aws.displayUpdate(Object.assign(counts, { deploying: true, deployError: false, stepMsg: `Starting deploy ${deployId}` }), 'publish', 'Starting deploy...')
+    await aws.displayUpdate({ deploying: true, deployError: false, stepMsg: `Starting deploy ${deployId}` }, 'publish', 'Starting deploy...')
     await aws.mergeBuckets(testSiteBucket, '', siteBucket, '', {
         push: async event => {
           if (event.updated) { counts.updated++ }
           if (event.added) { counts.added++ }
           if (event.deleted) { counts.deleted++ }
           if (event.unchanged) { counts.unchanged++ }
-          //console.log(mergeEventToString(event))
         }
       })
   } catch (e) {

@@ -711,6 +711,13 @@ Resources:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
+  OnAdminAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref OnAdmin
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 0
+
   OnAdminVersion:
     Type: AWS::Lambda::Version
     Properties:
@@ -902,6 +909,13 @@ Resources:
         S3Key: 'AutoSite{{version}}/lambdas/provisioner.zip'
       Layers:
         - !Ref ProvisionerNMLayer
+
+  ProvisionSiteAsyncConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref ProvisionSite
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 0
 
   ProvisionSiteTrigger:
     Type: 'Custom::LambdaTrigger'

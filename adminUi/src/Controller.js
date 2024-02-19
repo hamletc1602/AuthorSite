@@ -102,8 +102,10 @@ export default class Controller {
     if (this.locked || !this.password) {
       // do not send commands when locked (buttons should be disabled) or when there's
       // no password defined.
+      console.log(`Send command ${name} prevented due to locked state or missing credentials.`)
       return
     }
+    console.log(`Send command ${name}`, params)
     await fetch('/admin/command/' + name, {
       method: 'POST',
       cache: 'no-cache',
