@@ -31,12 +31,16 @@ export default function PollPutContent({controller, adminConfig, contentToPut, s
               }
               toPut.state = 'done'
               setUploadError(null)
-              setPutContentComplete(Date.now())
+              if (toPut.editorType === 'image') {
+                setPutContentComplete(Date.now())
+              }
             } catch (e) {
               console.error(`Upload failed for ${toPutId}`, toPut)
               toPut.state = 'failed'
               setUploadError(toPut.editorId)
-              setPutContentComplete(Date.now())
+              if (toPut.editorType === 'image') {
+                setPutContentComplete(Date.now())
+              }
             }
           }
         }

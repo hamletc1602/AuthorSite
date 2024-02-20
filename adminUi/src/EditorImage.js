@@ -7,7 +7,7 @@ import Util from './Util'
 import {useDropzone} from 'react-dropzone'
 
 /**  */
-export default function EditorImage({id, path, content, fileContent, contentUpdate, setData, contentToPut, putContentComplete, locked}) {
+export default function EditorImage({id, path, content, fileContent, setData, contentToPut, putContentComplete, locked}) {
 
   const [cooldown, setCooldown] = useState(false)
   const [inDelete, setInDelete] = useState(false)
@@ -139,7 +139,7 @@ export default function EditorImage({id, path, content, fileContent, contentUpda
       <Box flex='1' w='calc(100%-2em)' h='100%'>
         <div {...getRootProps()} style={{ width: '100%'}}>
           <input {...getInputProps()} disabled={cooldown}/>
-          {
+          {locked ? null :
             <Box
               key={'dropTarget_' + id}
               minH='calc(100vh - 9em)'

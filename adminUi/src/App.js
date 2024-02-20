@@ -100,7 +100,7 @@ const BUTTON_DOWNLOAD_LOGS_1 = 'Captured log files available for download.'
 const BUTTON_DOWNLOAD_LOGS_2 = 'Log files will be removed 1 hour after capture.'
 const REFRESH_DOMAIN_TOOLTIP = 'Refresh the browser page to match the current active domain: '
 
-const ADMIN_STATE_POLL_INTERVAL_FAST = 1000;
+const ADMIN_STATE_POLL_INTERVAL_FAST = 2 * 1000;
 const ADMIN_STATE_POLL_INTERVAL_DEFAULT = 15 * 1000;
 const FastPollingTimeoutMs = 5 * 60 * 1000
 const BuildingTimeoutMs = 15 * 60 * 1000
@@ -111,6 +111,7 @@ let passwordChangingDebounce = null
 //
 function App() {
   // State
+  const [templateId, setTemplateId] = useState(null)
   const [adminStatePollIntervalMs, setAdminStatePollIntervalMs] = useState(ADMIN_STATE_POLL_INTERVAL_DEFAULT)
   const [adminTemplates, setAdminTemplates] = useState([])
   const [windowReload, setWindowReload] = useState(null)
@@ -140,13 +141,12 @@ function App() {
   const configs = useRef({})
   const adminDisplay = useRef({})
   const adminDomains = useRef({})
-  const adminTemplatesCache = useRef([])
   const availableDomainsCache = useRef(null)
   const capturedLogsCache = useRef([])
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
   const fileContent = useRef({})
-  const currTemplate = useRef({})
+  //const currTemplate = useRef({})
   const saveTemplateName = useRef({})
   const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
@@ -160,8 +160,15 @@ function App() {
 
   // Invoke when admin state polling determines something in the state has changed (new state from server)
   const setAdminState = useCallback((adminState) => {
-    adminConfig.current = adminState.config
+    // Replace domains on each poll
     adminDomains.current = adminState.domains
+    // Admin Config changed
+    if ( ! deepEqual(adminConfig.current, adminState.config)) {
+      if (adminConfig.current.templateId !== adminState.config.templateId) {
+        setTemplateId(adminState.config.templateId)
+      }
+      adminConfig.current = adminState.config
+    }
     // Display State changed
     if ( ! deepEqual(adminState.display, adminDisplay.current)) {
       console.log('Update display state: ' + adminState.display.stepMsg, adminState.display)
@@ -196,11 +203,11 @@ function App() {
       setShowPreparingTemplate(adminState.display.PreparingTemplate)
     }
     // Templates list changed
-    if ( ! deepEqual(adminState.templates, adminTemplatesCache.current)) {
-      adminTemplatesCache.current = adminState.templates
-      currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
-      setAdminTemplates(adminState.templates)
-    }
+    // if ( ! deepEqual(adminState.templates, adminTemplatesCache.current)) {
+    //   adminTemplatesCache.current = adminState.templates
+    //   //currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
+    //   setAdminTemplates(adminState.templates)
+    // }
     // Captured logs list changed
     if ( ! deepEqual(adminState.capturedLogs, capturedLogsCache.current)) {
       if (adminState.capturedLogs) {
@@ -318,14 +325,14 @@ function App() {
     }
   }
 
-  const setTemplateId = (templateId) => {
+  const setTemplate = (templateId) => {
     if (templateId) {
       controller.sendCommand('config', { templateId: templateId })
       adminConfig.current.templateId = templateId
       setEditorsEnabled(false)
       editors.current = []
       controller.sendCommand('template', { id: templateId })
-      currTemplate.current = adminTemplates.find(t => t.id === templateId)
+      //currTemplate.current = adminTemplates.find(t => t.id === templateId)
       startFastPolling()
       setShowPreparingTemplate(true)
       setShowSelectTemplate(false)
@@ -333,7 +340,10 @@ function App() {
   }
 
   const onLoadTemplate = () => {
-    setShowSelectTemplate(true)
+    controller.getTemplates().then(templates => {
+      setAdminTemplates(templates)
+      setShowSelectTemplate(true)
+    })
   }
 
   const onUpdateTemplate = () => {
@@ -485,8 +495,8 @@ function App() {
     try {
       if (authenticated && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
-        if (adminConfig.current.templateId) {
-           controller.getEditors(adminConfig.current.templateId)
+        if (templateId) {
+           controller.getEditors(templateId)
             .then(async editorsData => {
               if (editorsData) {
                 const editorId = editorsData[0].id
@@ -495,7 +505,7 @@ function App() {
                   editor.lastEditPath = [{ name: editor.id }]
                   return editor
                 })
-                const raw = await controller.getSiteConfig(adminConfig.current.templateId, editorId)
+                const raw = await controller.getSiteConfig(templateId, editorId)
                 raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
                 raw.content.isConfig = true // Add config flag, for use later in uploading.
                 configs.current[editorId] = raw.content
@@ -510,7 +520,7 @@ function App() {
     } catch (error) {
       console.error('Failed Get editors init.', error)
     }
-  }, [adminConfig, authenticated])
+  }, [adminConfig, authenticated, templateId])
 
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
@@ -521,7 +531,10 @@ function App() {
         if (minWait <= 0 && ! adminConfig.current.new) {
           setShowLogin(false)
           if ( ! adminConfig.current.templateId) {
-            setShowSelectTemplate(true)
+            controller.getTemplates().then(templates => {
+              setAdminTemplates(templates)
+              setShowSelectTemplate(true)
+            })
           }
           clearInterval(cancel)
         }
@@ -780,7 +793,7 @@ function App() {
 
       <Modal isOpen={showSelectTemplate && ! showLogin}>
         <ModalOverlay />
-        <SelectTemplate adminTemplates={adminTemplates} setTemplateId={setTemplateId} />
+        <SelectTemplate adminTemplates={adminTemplates} setTemplate={setTemplate} />
       </Modal>
 
       <Modal isOpen={showLogin}>

@@ -94,6 +94,24 @@ export default class Controller {
     return null
   }
 
+  /** Get templates */
+  async getTemplates() {
+    if (this.password) {
+      return fetch(`/admin/get-templates?ts=${Date.now()}`, {
+        headers: new Headers({
+          'Authorization': this.basicAuth()
+        })
+      })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json()
+      })
+    }
+    return null
+  }
+
   /** Post a command to the admin API
     We generally don't expect any immediate feedback from commands, other than errors. Status is pushed
     into the server admin state JSON file.

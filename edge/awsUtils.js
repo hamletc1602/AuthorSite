@@ -565,18 +565,6 @@ const _mergeState = (state, logs, message) => {
     console.log(`Merge new display ${JSON.stringify(message.display)} into state display ${JSON.stringify(state.display)}`)
     Object.assign(state.display, message.display)
   }
-  // Add templates
-  if (message.addTemplates) {
-    stateUpdated = true
-    console.log(`Merge new templates ${JSON.stringify(message.addTemplates)} into templates ${JSON.stringify(state.templates)}`)
-    state.templates.push(...message.addTemplates)
-  }
-  // delete templates
-  if (message.deleteTemplates) {
-    stateUpdated = true
-    console.log(`Delete templates ${JSON.stringify(message.deleteTemplates)} from templates ${JSON.stringify(state.templates)}`)
-    state.templates = state.templates.filter(t => message.deleteTemplates[t.id] ? false : true)
-  }
   // Update available domains
   if (message.availableDomains) {
     stateUpdated = true
@@ -757,6 +745,45 @@ AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamNa
     // nextToken:  // token to get the next 50 items (See if we need >50 groups under expected volume?)
   }).promise()
   return ret.events
+}
+
+// Return a list of all available templates from public, shared and private sources.
+AwsUtils.prototype.getTemplates = async (publicBucket, sharedBucket, adminBucket) => {
+  let privateTemplates = null
+  try {
+    const templateMetadataObj = await this.get(adminBucket, 'AutoSite/site-config/metadata.json')
+    if (templateMetadataObj) {
+      const templatesStr = templateMetadataObj.Body.toString()
+      if (templatesStr) {
+        privateTemplates = JSON.parse(templatesStr)
+      }
+    }
+  } catch (e) {
+    console.log(`Get templates metadata from private bucket ${adminBucket}. ${e.message}`)
+  }
+  let sharedTemplates = null
+  try {
+    const templateMetadataObj = await this.get(sharedBucket, 'AutoSite/site-config/metadata.json')
+    if (templateMetadataObj) {
+      const templatesStr = templateMetadataObj.Body.toString()
+      if (templatesStr) {
+        sharedTemplates = JSON.parse(templatesStr)
+      }
+    }
+  } catch (e) {
+    console.log(`Get templates metadata from shared bucket ${sharedBucket}. ${e.message}`)
+  }
+  let publicTemplates= null
+  {
+    const templateMetadataObj = await this.get(publicBucket, 'AutoSite/site-config/metadata.json')
+    if (templateMetadataObj) {
+      const templatesStr = templateMetadataObj.Body.toString()
+      if (templatesStr) {
+        publicTemplates = JSON.parse(templatesStr)
+      }
+    }
+  }
+  return Object.assign(publicTemplates, sharedTemplates, privateTemplates)
 }
 
 //

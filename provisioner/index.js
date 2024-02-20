@@ -26,44 +26,6 @@ const cfnCreateHandler = async (params) => {
       Body: Buffer.from(JSON.stringify(adminSecretData))
     }).promise()
 
-    // Get the site templates metadata:
-    let sharedTemplates = null
-    try {
-      const templateMetadataObj = await s3.getObject({ Bucket: params.SharedBucket, Key: 'AutoSite/site-config/metadata.json'}).promise()
-      if (templateMetadataObj) {
-        const templatesStr = templateMetadataObj.Body.toString()
-        if (templatesStr) {
-          sharedTemplates = JSON.parse(templatesStr)
-        }
-      }
-    } catch (e) {
-      console.log(`Get templates metadata from shared bucket. ${e.message}`)
-    }
-    let publicTemplates= null
-    {
-      const templateMetadataObj = await s3.getObject({ Bucket: params.PublicBucket, Key: `AutoSite${params.Version}/site-config/metadata.json`}).promise()
-      if (templateMetadataObj) {
-        const templatesStr = templateMetadataObj.Body.toString()
-        if (templatesStr) {
-          publicTemplates = JSON.parse(templatesStr)
-        }
-      }
-    }
-    const templates = Object.assign(publicTemplates, sharedTemplates)
-    if (params.PrivateTemplates) {
-      const list = params.PrivateTemplates.split(',')
-      list.forEach(name => {
-        name = name.trim()
-        templates.push({
-          id: name,
-          name: name,
-          display: name,
-          description: 'A private, user provided template.',
-          access: 'private'
-        })
-      })
-    }
-
     const domains = {
       dist: params.WebCache,
       distTest: params.TestWebCache,
@@ -85,8 +47,8 @@ const cfnCreateHandler = async (params) => {
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
         generator: params.SiteGenerator,
+        sharedBucket: params.SharedBucket,
         domains: domains,
-        templates: templates,
         config: {},
         display: {}
       }))

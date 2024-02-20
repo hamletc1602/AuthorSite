@@ -58,11 +58,12 @@ export default function Editor({
   }, [hasList, rootPath, path, setPath, content, editor, schema.nameProp])
 
   // Indicate there's new content to put on this path
-  const pushContent = (path, source, id, editorId) => {
+  const pushContent = (path, source, id, editorId, editorType) => {
     contentToPut.current[path] = {
       source: source,
       id: id,
       editorId: editorId,
+      editorType: editorType,
       state: 'new'
     }
   }
@@ -132,7 +133,7 @@ export default function Editor({
       newIndex = 0
       rootContent.unshift(newObj)
     }
-    pushContent(editor.data, configs.current, editor.id, editor.id)
+    pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
     itemSelected(null, newIndex)
   }
 
@@ -145,8 +146,8 @@ export default function Editor({
   const deleteItem = (ev) => {
     if (inDelete) {
       rootContent.splice(pathIndex, 1)
-      pushContent(editor.data, configs.current, editor.id, editor.id)
-      itemSelected(null, pathIndex > 0 ? pathIndex - 1 : 0)
+      pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
+      itemSelected(null, pathIndex)
       setInDelete(false)
     } else {
       setInDelete(true)
@@ -167,7 +168,7 @@ export default function Editor({
     const tmp = rootContent[pathIndex - 1]
     rootContent[pathIndex - 1] = rootContent[pathIndex]
     rootContent[pathIndex] = tmp
-    pushContent(editor.data, configs.current, editor.id, editor.id)
+    pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
     itemSelected(null, pathIndex - 1)
   }
 
@@ -180,7 +181,7 @@ export default function Editor({
     const tmp = rootContent[pathIndex + 1]
     rootContent[pathIndex + 1] = rootContent[pathIndex]
     rootContent[pathIndex] = tmp
-    pushContent(editor.data, configs.current, editor.id, editor.id)
+    pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
     itemSelected(null, pathIndex + 1)
   }
 
@@ -221,7 +222,7 @@ export default function Editor({
       } else {
         // For image files, the value is an object with extra data.
         // The subEditor will have already updated the fileContent cache in this case.
-        pushContent(imageProps.name, fileContent.current, imageProps.name, editor.id)
+        pushContent(imageProps.name, fileContent.current, imageProps.name, editor.id, schema.type)
         // Ensure the content file path is updated in config if the editor changed it
         currContent[name] = imageProps.name
         // Update the image path, and Set other image prop values if the relevant poperty names exist.
@@ -238,7 +239,7 @@ export default function Editor({
           currContent[heightProp] = imageProps.height
         }
       }
-      pushContent(editor.data, configs.current, editor.id, editor.id)
+      pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
     } else if (schema.type === 'text') {
       // Text File Content
       const fileProps = value
@@ -251,17 +252,17 @@ export default function Editor({
         currContent = Util.getContentForPath(configs, path.slice(0, -1))
         name = path[path.length - 1].name
         currContent[name] = undefined
-        pushContent(editor.data, configs.current, editor.id, editor.id)
+        pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
       } else {
         // The subEditor will have already updated the fileContent cache in this case.
-        pushContent(fileProps.name, fileContent.current, fileProps.name, editor.id)
+        pushContent(fileProps.name, fileContent.current, fileProps.name, editor.id, schema.type)
       }
     } else {
       // Upate the server content if this property value has changed
       const oldValue = currContent[name]
       if (value !== oldValue) {
         currContent[name] = value
-        pushContent(editor.data, configs.current, editor.id, editor.id)
+        pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
       }
       if (opts && opts.setListName) {
         itemSelected(null, pathIndex, value)

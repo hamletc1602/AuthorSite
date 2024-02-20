@@ -7,6 +7,7 @@ const targetRegion = 'us-east-1'
 const lambda = new AWS.Lambda({ region: targetRegion });
 const AuthFailWindowMs = 5 * 60 * 1000
 const MaxAuthFailedAttempts = 10
+const publicBucket = 'braevitae-pub'
 
 const CONTENT_ROOT_PATH = '/admin/site-content/'
 
@@ -14,6 +15,7 @@ const CONTENT_ROOT_PATH = '/admin/site-content/'
 // some READ ONLY state. NOTE: Since different physical machines may handle successive lambda executions, this
 // pattern is NOT safe for use with read/write cache.
 let editorsList = null
+let sharedBucket = null
 
 /**
   - Get admin state update messages from the state queue and merge them into the state.json in S3
@@ -143,11 +145,28 @@ exports.handler = async (event, context) => {
       }
       return authResp
     }
+    else if (req.uri.indexOf('/admin/get-templates') === 0) {
+      const authResp = await authenticate(aws, req, adminBucket)
+      if (authResp.authorized) {
+        return await getTemplates(aws, publicBucket, adminBucket)
+      }
+      return authResp
+    }
   }
 
   // Default: resolve request using S3 Origin (adminUi bucket)
   return req
 };
+
+/** Get the name of the shared bucket from the admin state (if it's not cached already) */
+const getSharedBucketName = async (aws, adminBucket) => {
+  if ( ! sharedBucket) {
+    const adminStateStr = (await aws.get(adminBucket, 'admin/admin.json')).Body.toString()
+    const adminState = JSON.parse(adminStateStr)
+    sharedBucket = adminState.sharedBucket || 'braevitae-shared'
+  }
+  return sharedBucket
+}
 
 /** Check the basic auth header in the request vs the site admin password in S3. */
 const authenticate = async (aws, req, adminBucket) => {
@@ -311,6 +330,20 @@ const invokeAdminWorker = async (command, adminWorkerArn, params) => {
       status: '500',
       statusDescription: `Failed to invoke admin worker with command ${command}, Payload: ${payload}: ${JSON.stringify(error)}`
     }
+  }
+}
+
+// Return a list of all available templates from public, shared and private sources.
+const getTemplates = async (aws, publicBucket, adminBucket) => {
+  const sharedBucket = await getSharedBucketName(aws, adminBucket)
+  const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket)
+  return {
+    status: '200',
+    statusDescription: 'OK',
+    headers: {
+      'Content-Type': [{ key: 'Content-Type', value: 'application/json' }]
+    },
+    body: JSON.stringify(templates)
   }
 }
 
