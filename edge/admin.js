@@ -15,7 +15,7 @@ const CONTENT_ROOT_PATH = '/admin/site-content/'
 // some READ ONLY state. NOTE: Since different physical machines may handle successive lambda executions, this
 // pattern is NOT safe for use with read/write cache.
 let editorsList = null
-let sharedBucket = null
+let sharedBucketName = null
 
 /**
   - Get admin state update messages from the state queue and merge them into the state.json in S3
@@ -148,7 +148,7 @@ exports.handler = async (event, context) => {
     else if (req.uri.indexOf('/admin/get-templates') === 0) {
       const authResp = await authenticate(aws, req, adminBucket)
       if (authResp.authorized) {
-        return await getTemplates(aws, publicBucket, adminBucket)
+        return await getTemplates(aws, adminUiBucket, publicBucket, adminBucket)
       }
       return authResp
     }
@@ -159,13 +159,17 @@ exports.handler = async (event, context) => {
 };
 
 /** Get the name of the shared bucket from the admin state (if it's not cached already) */
-const getSharedBucketName = async (aws, adminBucket) => {
-  if ( ! sharedBucket) {
-    const adminStateStr = (await aws.get(adminBucket, 'admin/admin.json')).Body.toString()
-    const adminState = JSON.parse(adminStateStr)
-    sharedBucket = adminState.sharedBucket || 'braevitae-shared'
+const getSharedBucketName = async (aws, adminUiBucket) => {
+  if ( ! sharedBucketName) {
+    try {
+      const adminStateStr = (await aws.get(adminUiBucket, 'admin/admin.json')).Body.toString()
+      const adminState = JSON.parse(adminStateStr)
+      sharedBucketName = adminState.sharedBucket || 'braevitae-shared'
+    } catch (e) {
+      console.log(`Failed to read shared bucket name from admin state. ${e.message}`, e)
+    }
   }
-  return sharedBucket
+  return sharedBucketName
 }
 
 /** Check the basic auth header in the request vs the site admin password in S3. */
@@ -334,16 +338,24 @@ const invokeAdminWorker = async (command, adminWorkerArn, params) => {
 }
 
 // Return a list of all available templates from public, shared and private sources.
-const getTemplates = async (aws, publicBucket, adminBucket) => {
-  const sharedBucket = await getSharedBucketName(aws, adminBucket)
-  const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket)
-  return {
-    status: '200',
-    statusDescription: 'OK',
-    headers: {
-      'Content-Type': [{ key: 'Content-Type', value: 'application/json' }]
-    },
-    body: JSON.stringify(templates)
+const getTemplates = async (aws, adminUiBucket, publicBucket, adminBucket) => {
+  try {
+    const sharedBucket = await getSharedBucketName(aws, adminUiBucket)
+    const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket)
+    return {
+      status: '200',
+      statusDescription: 'OK',
+      headers: {
+        'Content-Type': [{ key: 'Content-Type', value: 'application/json' }]
+      },
+      body: JSON.stringify(templates)
+    }
+  } catch (e) {
+    console.log(`Failed to get saved templates list. ${e.message}`, e)
+    return {
+      status: '500',
+      statusDescription: 'Failed to get saved templates list'
+    }
   }
 }
 

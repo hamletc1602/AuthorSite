@@ -748,7 +748,7 @@ AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamNa
 }
 
 // Return a list of all available templates from public, shared and private sources.
-AwsUtils.prototype.getTemplates = async (publicBucket, sharedBucket, adminBucket) => {
+AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adminBucket) {
   let privateTemplates = null
   try {
     const templateMetadataObj = await this.get(adminBucket, 'AutoSite/site-config/metadata.json')
