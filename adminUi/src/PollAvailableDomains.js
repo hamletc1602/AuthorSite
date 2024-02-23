@@ -13,6 +13,7 @@ useEffect(() => {
       if (document.visibilityState !== "visible") {
           return
       }
+      console.log('Poll for available domians')
       controller.sendCommand('getAvailableDomains')
     }, 4 * 60 * 1000)
     return () => {

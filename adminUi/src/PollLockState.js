@@ -13,6 +13,7 @@ useEffect(() => {
       if (document.visibilityState !== "visible") {
           return
       }
+      console.log('Poll for lock State')
       setLocked(await controller.getLockState())
     }, 4 * 60 * 1000)
     return () => {

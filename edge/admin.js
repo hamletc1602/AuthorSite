@@ -112,14 +112,6 @@ exports.handler = async (event, context) => {
       if (queryObj.get('active') === 'true') {
         // Process queued state messages
         const resp = await aws.updateAdminStateFromQueue(adminBucket, adminUiBucket)
-        // Async invoke a check of CloudFront Distro state so we can give feedback to the user about when it's
-        // possible to request changes.
-        invokeAdminWorker('checkCfDistroState', arnPrefix + '-admin-worker', {
-          domains: {
-            main: resp.state.state.domains.base,
-            test: resp.state.state.domains.baseTest
-          }
-        })
         if (resp.error) {
           return {
             status: '500',
@@ -301,6 +293,9 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
       case 'captureLogs':
+        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
+        break
+      case 'checkCfDistroState':
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break
       default:

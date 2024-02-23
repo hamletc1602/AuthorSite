@@ -19,6 +19,7 @@ import ActionButton from './ActionButton'
 import PollLockState from './PollLockState'
 import PollPutContent from './PollPutContent'
 import PollAvailableDomains from './PollAvailableDomains'
+import PollCfState from './PollCfState'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -114,6 +115,7 @@ function App() {
   const [templateId, setTemplateId] = useState(null)
   const [adminStatePollIntervalMs, setAdminStatePollIntervalMs] = useState(ADMIN_STATE_POLL_INTERVAL_DEFAULT)
   const [adminTemplates, setAdminTemplates] = useState([])
+  const [displayStateChanged, setDisplayStateChanged] = useState(1)
   const [windowReload, setWindowReload] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
   const [showChangingDomain, setShowChangingDomain] = useState(false)
@@ -191,6 +193,13 @@ function App() {
           // Ignore
         }
       }
+      // Ensure current template dependent state is reloaded when domain prepare or update is completed.
+      if (adminDisplay.current &&
+        ( ! adminState.display.preparing && adminState.display.preparing !== adminDisplay.current.preparing)
+      ) {
+        console.log(`Prepare/Update to new template ${adminState.config.templateId} is complete. Refreshing Editors.`)
+        setTemplateId(adminState.config.templateId)
+      }
       // End fast polling if there's no required states set to truthy.
       adminDisplay.current = adminState.display
       const activeStates = Object.keys(serverStates).filter(p => serverStates[p] && adminState.display[p])
@@ -199,15 +208,11 @@ function App() {
       }
       // Show/Hide 'changing domain' dialog if we're in that state
       setShowChangingDomain(adminState.display.setDomain)
-      // Show/Hide 'Prepareing Template' dialog if we're in that state
-      setShowPreparingTemplate(adminState.display.PreparingTemplate)
+      // Show/Hide 'Preparing Template' dialog if we're in that state
+      setShowPreparingTemplate(adminState.display.preparing)
+      // Inform any watchers that the display state changed.
+      setDisplayStateChanged(Date.now())
     }
-    // Templates list changed
-    // if ( ! deepEqual(adminState.templates, adminTemplatesCache.current)) {
-    //   adminTemplatesCache.current = adminState.templates
-    //   //currTemplate.current = adminState.templates.find(t => t.id === adminState.config.templateId)
-    //   setAdminTemplates(adminState.templates)
-    // }
     // Captured logs list changed
     if ( ! deepEqual(adminState.capturedLogs, capturedLogsCache.current)) {
       if (adminState.capturedLogs) {
@@ -327,12 +332,13 @@ function App() {
 
   const setTemplate = (templateId) => {
     if (templateId) {
+      setDisplay('preparing', true)
+      setTemplateId(null)
       controller.sendCommand('config', { templateId: templateId })
       adminConfig.current.templateId = templateId
       setEditorsEnabled(false)
       editors.current = []
       controller.sendCommand('template', { id: templateId })
-      //currTemplate.current = adminTemplates.find(t => t.id === templateId)
       startFastPolling()
       setShowPreparingTemplate(true)
       setShowSelectTemplate(false)
@@ -495,6 +501,7 @@ function App() {
     try {
       if (authenticated && editors.current.length === 0) {
         // If a template ID is saved in the admin state, also pull the list of editors from the server
+        console.log(`Update Editor config data from server. Template: ${templateId}`)
         if (templateId) {
            controller.getEditors(templateId)
             .then(async editorsData => {
@@ -520,7 +527,7 @@ function App() {
     } catch (error) {
       console.error('Failed Get editors init.', error)
     }
-  }, [adminConfig, authenticated, templateId])
+  }, [authenticated, templateId])
 
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
@@ -568,6 +575,7 @@ function App() {
   return (
     <ChakraProvider theme={customTheme}>
       <PollLockState controller={controller} authenticated={authenticated} setLocked={setLocked}/>
+      <PollCfState controller={controller} domains={adminDomains.current} authenticated={authenticated}/>
       <PollAdminState
         controller={controller} intervalMs={adminStatePollIntervalMs} setAdminState={setAdminState}
         setError={setPollAdminStateError}
@@ -589,7 +597,7 @@ function App() {
         templateRows={'2.5em 1fr 1em'}
         templateColumns={'1fr'}
       >
-        <GridItem color='baseText' bg='accent' h='2.75em'>
+        <GridItem color='baseText' bg='accent' h='2.75em' disabled={displayStateChanged === null}>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
             <Text color='accentText' whiteSpace='nowrap' m='2px'>{adminConfig.current.templateId ? `${adminConfig.current.templateId} Site Admin` : 'Site Admin'}</Text>
@@ -597,7 +605,7 @@ function App() {
             <Spacer m='3px'/>
             <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)} autoFocus={false}>
               <Select size='sm' m='-2px 0 2px 0' maxW='20em' border='none' color='accentText' autoFocus={false}
-                disabled={locked || adminDisplay.current.cfDistUpdating}
+                value={availableDomains[0]} disabled={locked || adminDisplay.current.cfDistUpdating}
                 bg={(adminDisplay.current.getDomError || adminDisplay.current.setDomError) ? 'danger' : 'accent'}
                 onChange={ev => {
                   setDomain(availableDomains[ev.target.value])
@@ -655,7 +663,7 @@ function App() {
             </Tabs>
           </Skeleton>
         </GridItem>
-        <GridItem h='1.6em' bg='accent'>
+        <GridItem h='1.6em' bg='accent' disabled={displayStateChanged === null}>
           <Flex p='3px 5px'>
             <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
             <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>

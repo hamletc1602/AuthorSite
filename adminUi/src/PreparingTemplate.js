@@ -6,7 +6,7 @@ import {
 
 /**  */
 export default function PreparingTemplate({id, adminTemplates, adminConfig}) {
-  const template = adminTemplates.find(p => p.id = adminConfig.current.templateId)
+  const template = adminTemplates.find(p => p.id === adminConfig.current.templateId)
   return <ModalContent>
     <ModalHeader>
       <HStack spacing='5px' align='center'>

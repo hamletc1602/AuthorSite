@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "homepage": ".",
-  "proxy": "http://d1oqqvpdtwhd2q.cloudfront.net:80",
+  "proxy": "http://dvdoneq5fri0q.cloudfront.net:80",
   "jest": {
     "transformIgnorePatterns": [
       "node_modules/(?!strip-json-comments)"

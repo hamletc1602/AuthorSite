@@ -123,7 +123,7 @@ export default class Controller {
       console.log(`Send command ${name} prevented due to locked state or missing credentials.`)
       return
     }
-    console.log(`Send command ${name}`, params)
+    //console.log(`Send command ${name}`, params)
     await fetch('/admin/command/' + name, {
       method: 'POST',
       cache: 'no-cache',
@@ -136,7 +136,7 @@ export default class Controller {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      console.log(response.status + ': ' + JSON.stringify(response))
+      //console.log(response.status + ': ' + JSON.stringify(response))
     })
   }
 
