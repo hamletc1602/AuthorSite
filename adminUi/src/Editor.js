@@ -23,6 +23,31 @@ export default function Editor({
   const listContainer = useRef(null)
   const selectedItem = useRef(null)
 
+  // Keyboard event handling
+  useEffect(() => {
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        const keyName = event.key;
+        if (keyName === "Control") {
+          // do not alert when only Control key is pressed.
+          return;
+        }
+        if (event.ctrlKey) {
+        } else {
+        }
+      },
+      false,
+    );
+    document.addEventListener(
+      "keyup",
+      (event) => {
+        //const keyName = event.key;
+      },
+      false,
+    );
+  }, [])
+
   // This setPath call was triggering the " Cannot update a component (`App`) while rendering a different component (`Editor`)."
   // warning. Wrapping it in useEffect appears to resolve that warning, but I'm not sure I fully understand why, so this could
   // be a misleading fix. Possibly it would be better to ponder how the 'path' state is handled - does it need to be state at the

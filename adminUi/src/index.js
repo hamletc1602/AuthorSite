@@ -6,6 +6,18 @@ import Controller from './Controller';
 const container = document.getElementById('root');
 const root = ReactDOM.createRoot(container);
 
+// If there's a 'lock' param, put it's value in session store and reload to URL without the lock ID
+//    (This keeps the URL clean of the lock ID, and ensures it's picked up by the Controller.)
+if (window.location.search.indexOf('lock=') !== -1) {
+  const url = new URL(window.location.href)
+  if (url.searchParams.has('lock')) {
+    const lockId = url.searchParams.get('lock')
+    sessionStorage.setItem('lockId', lockId)
+    url.searchParams.delete('lock')
+    window.location.href = url.toString()
+  }
+}
+
 // Get or create lock ID, then remove it from the local session so it's not copied to duplicated tabs
 let lockId = sessionStorage.getItem('lockId')
 if (lockId) {

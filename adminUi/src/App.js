@@ -298,7 +298,10 @@ function App() {
   useEffect(() => {
     if (windowReload) {
       setTimeout(() => {
-        window.location.host = windowReload
+        const newUrl = new URL(window.location.href)
+        newUrl.host = windowReload
+        newUrl.searchParams.set('lock', Controller.getLockId())
+        window.location.href = newUrl.toString()
       }, 2000)
     }
   }, [windowReload])
@@ -326,7 +329,10 @@ function App() {
     // could be unnexpected for the user? We'll keep this button disabled while CF is updating, and while setDomain
     // is running, so the list and state _should_ agree, but might not?
     if ( ! adminDisplay.current.cfDistUpdating && window.location.host !== adminDomains.current.current) {
-      window.location.host = adminDomains.current.current
+      const newUrl = new URL(window.location.href)
+      newUrl.host = adminDomains.current.current
+      newUrl.searchParams.set('lock', Controller.getLockId())
+      window.location.href = newUrl.toString()
     }
   }
 

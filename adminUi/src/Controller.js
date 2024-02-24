@@ -21,6 +21,10 @@ export default class Controller {
     Controller.lockId = lockId
   }
 
+  static getLockId() {
+    return Controller.lockId
+  }
+
   setPassword(password) {
     this.password = password
   }

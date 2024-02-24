@@ -584,6 +584,12 @@ Resources:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
+  OnCacheLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${OnCache}"
+      RetentionInDays: 30
+
   OnCacheVersion:
     Type: AWS::Lambda::Version
     Properties:
@@ -604,6 +610,12 @@ Resources:
       Code:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
+
+  OnAznLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${OnAzn}"
+      RetentionInDays: 30
 
   OnAznVersion:
     Type: AWS::Lambda::Version
@@ -636,6 +648,12 @@ Resources:
       Code:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
+
+  OnFeedbackLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${OnFeedback}"
+      RetentionInDays: 30
 
   OnFeedbackVersion:
     Type: AWS::Lambda::Version
@@ -676,6 +694,12 @@ Resources:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
 
+  FeedbackPublisherLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${FeedbackPublisher}"
+      RetentionInDays: 30
+
   FeedbackPubisherSchedule:
     Type: AWS::Events::Rule
     Properties:
@@ -710,6 +734,12 @@ Resources:
       Code:
         S3Bucket: '{{sourceBucket}}'
         S3Key: 'AutoSite{{version}}/lambdas/edge.zip'
+
+  OnAdminLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${OnAdmin}"
+      RetentionInDays: 30
 
   OnAdminAsyncConfig:
     Type: AWS::Lambda::EventInvokeConfig
@@ -769,6 +799,12 @@ Resources:
         S3Key: !Select [1, !Split [':', !Ref SiteGenerator]]
       Layers:
         - !Ref BuildSiteNMLayer
+
+  BuildSiteLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${BuildSite}"
+      RetentionInDays: 30
 
   BuildSiteAsyncConfig:
     Type: AWS::Lambda::EventInvokeConfig
@@ -831,6 +867,12 @@ Resources:
       Layers:
         - !Ref AdminWorkerNMLayer
 
+  AdminWorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AdminWorker}"
+      RetentionInDays: 30
+
   AdminWorkerAsyncConfig:
     Type: AWS::Lambda::EventInvokeConfig
     Properties:
@@ -861,6 +903,12 @@ Resources:
         S3Key: 'AutoSite{{version}}/lambdas/admin-worker.zip'
       Layers:
         - !Ref AdminWorkerNMLayer
+
+  StatePumpLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${StatePump}"
+      RetentionInDays: 30
 
   StatePumpSchedule:
     Type: 'AWS::Events::Rule'
@@ -909,6 +957,12 @@ Resources:
         S3Key: 'AutoSite{{version}}/lambdas/provisioner.zip'
       Layers:
         - !Ref ProvisionerNMLayer
+
+  ProvisionSiteLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProvisionSite}"
+      RetentionInDays: 30
 
   ProvisionSiteAsyncConfig:
     Type: AWS::Lambda::EventInvokeConfig
