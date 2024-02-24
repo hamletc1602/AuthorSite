@@ -277,7 +277,7 @@ function App() {
     if (adminDisplay.current.setDomError) {
       return adminDisplay.current.setDomErrMsg || `Failed to set site domain.`
     }
-    if (adminDisplay.fDistUpdating) {
+    if (adminDisplay.current.cfDistUpdating) {
       return LIST_DOMAIN_TOOLTIP_UPDATING
     }
     if (isRefresh) {
