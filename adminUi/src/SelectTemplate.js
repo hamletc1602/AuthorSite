@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import {
-    Stack, Flex,
+    Stack, Flex, Button,
     ModalContent, ModalHeader, ModalBody, Skeleton
 } from '@chakra-ui/react'
 import TemplateCard from './TemplateCard'
 
 /**  */
-export default function SelectTemplate({controller, templates, setTemplate}) {
+export default function SelectTemplate({controller, templates, setTemplate, setShowModal}) {
 
   useEffect(() => {
     controller.getTemplates().then(tplList => {
@@ -33,6 +33,7 @@ export default function SelectTemplate({controller, templates, setTemplate}) {
           })}
         </Stack>
       </Flex>
+      <Button onClick={() => setShowModal(false)}>Close</Button>
     </ModalBody>
   </ModalContent>
 }

@@ -592,9 +592,9 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
   }
   if (nameExists && ( ! params.overwrite)) {
     // Put error into display state
-    update.saveTpl = false
-    update.tplError = true
-    update.tplErrMsg = `Template ${params.name} already exists.`
+    update.state.saveTpl = false
+    update.state.tplError = true
+    update.state.tplErrMsg = `Template ${params.name} already exists.`
     update.msg = `Skip save template. Name ${params.name} already exists`
     await aws.displayUpdate2(update)
   }
@@ -621,15 +621,15 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
         await aws.put(adminBucket,  'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
       }
       console.log(`Signal Add template complete`)
-      update.saveTpl = false
+      update.state.saveTpl = false
       update.msg = `Saved new template: ${params.name}`
-      await aws.displayUpdate(update)
+      await aws.displayUpdate2(update)
     } catch (e) {
-      update.saveTpl = false
-      update.tplError = true
-      update.tplErrMsg = `Failed to update templates list. ${e.message}`
+      update.state.saveTpl = false
+      update.state.tplError = true
+      update.state.tplErrMsg = `Failed to update templates list. ${e.message}`
       update.msg = update.tplErrMsg
-      await aws.displayUpdate(update)
+      await aws.displayUpdate2(update)
     }
   }
 }
@@ -660,13 +660,13 @@ async function deleteTemplate(sharedBucket, adminBucket, params) {
     let metadata = JSON.parse(metadataStr)
     metadata = metadata.filter(p => p.id !== params.name)
     await aws.put(bucket, 'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
-    update.delTpl = false
+    update.state.delTpl = false
     update.msg = `Deleted template ${params.name}`
     await aws.displayUpdate2(update)
   } catch (e) {
-    update.delTpl = false
-    update.tplError = true
-    update.tplErrMsg = `Failed to delete template ${params.name}. ${e.message}`
+    update.state.delTpl = false
+    update.state.tplError = true
+    update.state.tplErrMsg = `Failed to delete template ${params.name}. ${e.message}`
     update.msg = update.tplErrMsg
     await aws.displayUpdate2(update)
   }
@@ -700,13 +700,13 @@ async function renameTemplate(sharedBucket, adminBucket, params) {
     template.id = params.toName
     template.name = params.toName
     await aws.put(bucket,  'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
-    update.renTpl = false
+    update.state.renTpl = false
     update.msg = `Renamed template ${params.name} to ${params.toName}`
     await aws.displayUpdate2(update)
   } catch (e) {
-    update.renTpl = false
-    update.tplError = true
-    update.tplErrMsg = `Failed to rename template from ${params.name} to ${params.toName}. ${e.message}`
+    update.state.renTpl = false
+    update.state.tplError = true
+    update.state.tplErrMsg = `Failed to rename template from ${params.name} to ${params.toName}. ${e.message}`
     update.msg = update.tplErrMsg
     await aws.displayUpdate2(update)
   }

@@ -4,7 +4,7 @@ import {
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
   PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Select, Tooltip
 } from '@chakra-ui/react'
-import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon } from '@chakra-ui/icons'
+import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import PollAdminState from './PollAdminState'
@@ -118,6 +118,7 @@ function App() {
   const [templateId, setTemplateId] = useState(null)
   const [adminStatePollIntervalMs, setAdminStatePollIntervalMs] = useState(ADMIN_STATE_POLL_INTERVAL_DEFAULT)
   const [displayStateChanged, setDisplayStateChanged] = useState(1)
+  const [adminConfigChanged, setAdminConfigChanged] = useState(1)
   const [windowReload, setWindowReload] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
   const [showChangingDomain, setShowChangingDomain] = useState(false)
@@ -135,6 +136,7 @@ function App() {
   const [capturingLogs, setCapturingLogs] = useState(false)
   const [putContentComplete, setPutContentComplete] = useState({})
   const [contentUpdate, setContentUpdate] = useState(null)
+  const [editingSiteName, setEditingSiteName] = useState(false)
 
   // Calculated State
   const authenticated = useMemo(() => authState === 'success', [authState])
@@ -152,12 +154,15 @@ function App() {
   const contentToPut = useRef({})
   const fileContent = useRef({})
   const newPassword = useRef({})
+  const manageTplFocus = useRef({})
+  const siteNameInput = useRef({})
 
   const setDisplay = useCallback((prop, value) => {
     if (serverStates[prop] === undefined) {
       console.log(`Using unsupported display state: ${prop}`)
     }
     adminDisplay.current[prop] = value
+    setDisplayStateChanged(Date.now())
   }, [])
 
   // Invoke when admin state polling determines something in the state has changed (new state from server)
@@ -170,6 +175,7 @@ function App() {
         setTemplateId(adminState.config.templateId)
       }
       adminConfig.current = adminState.config
+      setAdminConfigChanged(Date.now())
     }
     // Display State changed
     if ( ! deepEqual(adminState.display, adminDisplay.current)) {
@@ -231,7 +237,7 @@ function App() {
         setAvailableDomains(getAvailableDomainsList(adminState.domains, adminState.availableDomains))
       }
     }
-  }, [setShowChangingDomain, setDisplay])
+  }, [setShowChangingDomain, setDisplay, setAdminConfigChanged])
 
   // Ensure the current and base domains are in the domains list, even if no others.
   function getAvailableDomainsList(domains, availableDomains) {
@@ -340,6 +346,9 @@ function App() {
     if (templateId) {
       setDisplay('preparing', true)
       setTemplateId(null)
+      // TODO: The 'config' and 'template' commands both update the template ID in the config.
+      //    Thouhg the 'template' command also overwrites the current site settings & schema with
+      //    the selected template. Is this 'config' command call here really needed?
       controller.sendCommand('config', { templateId: templateId })
       adminConfig.current.templateId = templateId
       setEditorsEnabled(false)
@@ -349,6 +358,18 @@ function App() {
       setShowPreparingTemplate(true)
       setShowSelectTemplate(false)
     }
+  }
+
+  const doSaveSiteName = () => {
+    console.log(`In edit site name. New name: ${siteNameInput.current.value}`)
+    adminConfig.current.siteName = siteNameInput.current.value
+    controller.sendCommand('config', { siteName: siteNameInput.current.value })
+    setEditingSiteName(false)
+  }
+
+  const doEditSiteName = () => {
+    setEditingSiteName(true)
+    siteNameInput.current.value = true
   }
 
   const onLoadTemplate = () => {
@@ -580,6 +601,15 @@ function App() {
     }, [adminDisplay])
   }
 
+  const siteName = useMemo(() => {
+    if ( editingSiteName !== undefined && adminConfigChanged) {
+      if (adminConfig.current.siteName) { return adminConfig.current.siteName }
+      if (adminConfig.current.templateId) { return adminConfig.current.templateId + ' Site Admin' }
+    }
+    return 'Site Admin'
+  }, [editingSiteName, adminConfigChanged])
+
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // UI
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -611,7 +641,14 @@ function App() {
         <GridItem color='baseText' bg='accent' h='2.75em' disabled={displayStateChanged === null}>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
-            <Text color='accentText' whiteSpace='nowrap' m='2px'>{adminConfig.current.templateId ? `${adminConfig.current.templateId} Site Admin` : 'Site Admin'}</Text>
+            { !locked && editingSiteName
+              ? <>
+                  <Input ref={siteNameInput} size='xs' value={siteName}/>
+                  <CheckIcon m='3px' h='14px' w='14px' onClick={doSaveSiteName}/>
+                  <CloseIcon m='3px' h='12px' w='12px' onClick={() => setEditingSiteName(false)}/>
+                </>
+              : <Text color='accentText' whiteSpace='nowrap' m='2px' onClick={doEditSiteName}>{`${siteName}`}</Text>
+            }
             <Text color='danger' whiteSpace='nowrap' m='2px' hidden={!locked}>(Read Only)</Text>
             <Spacer m='3px'/>
             <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)} autoFocus={false}>
@@ -744,20 +781,24 @@ function App() {
                 </Portal></>
               }}
             </Popover>
-            <Popover placement='top-end' gutter={20}>
+            <Popover placement='top-end' gutter={20} initialFocusRef={manageTplFocus}>
               {({ onClose }) => {
                 return <><PopoverTrigger>
+                  {/* Unable to apply tooltip here mainly because popover and tooltop can't share the same elemet.
+                    There's suppossed to be some constructs to get around this, but it's likely not work complicating
+                     the UI code at this point just to have the tooltip, since it's just replicating the doc visible
+                     on the popup.
+                  */}
                   <Button size='xs' h='1.5em' m='0 0.5em'
                     color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.current.tplError ? 'danger' : 'accentText'}
-                    disabled={!authenticated || locked}
+                    disabled={!authenticated || locked || displayStateChanged === null}
                     isLoading={manageTemplates.loading && !advancedMode} loadingText={manageTemplates.loadingText}
-                    tooltip={BUTTON_MANAGE_TEMPLATES}
                   >Saved Settings...</Button>
                 </PopoverTrigger>
                 <Portal>
                   <ManageTemplatesPopup
                     id={templateId} controller={controller} onClose={onClose}
-                    templates={templates}
+                    templates={templates} focus={manageTplFocus}
                     headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrorMsg}
                     setDisplay={setDisplay} startFastPolling={startFastPolling} advancedMode={advancedMode}
                   />
@@ -768,13 +809,13 @@ function App() {
               <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateTemplateError} errorText={adminDisplay.current.updateTemplateErrMsg}
-                isDisabled={(!authenticated || locked || adminDisplay.current.updatingTemplate) && !advancedMode}
-                isLoading={adminDisplay.current.updatingTemplate} loadingText='Updating...'/>,
+                disabled={!authenticated || locked}
+                isLoading={adminDisplay.current.updatingTemplate && !advancedMode} loadingText='Updating...'/>,
               <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateUiError} errorText={adminDisplay.current.updateUiErrMsg}
-                isDisabled={(!authenticated || locked || adminDisplay.current.updatingUi) && !advancedMode}
-                isLoading={adminDisplay.current.updatingUi} loadingText='Updating...'/>
+                disabled={!authenticated || locked}
+                isLoading={adminDisplay.current.updatingUi && !advancedMode} loadingText='Updating...'/>
             ] : null}
           </Flex>
         </GridItem>
@@ -792,7 +833,9 @@ function App() {
 
       <Modal isOpen={showSelectTemplate && ! showLogin}>
         <ModalOverlay />
-        <SelectTemplate controller={controller} templates={templates} setTemplate={setTemplate} />
+        <SelectTemplate
+          controller={controller} templates={templates} setTemplate={setTemplate} setShowModal={setShowSelectTemplate}
+        />
       </Modal>
 
       <Modal isOpen={showLogin}>

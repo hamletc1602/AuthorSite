@@ -1,13 +1,13 @@
 import React, { useRef, useEffect } from 'react';
 import {
     HStack, VStack, Text, Select, Button, Input, Textarea, Spacer,
-    PopoverBody, PopoverContent, PopoverArrow
+    PopoverBody, PopoverContent, PopoverArrow, useMergeRefs
 } from '@chakra-ui/react'
 
 /**  */
 export default function ManageTemplatesPopup({
   id, templates, headerText, controller, setDisplay, startFastPolling, onClose,
-  error, errorMsg, advancedMode
+  focus, error, errorMsg, advancedMode
 }) {
   const tplNameSelect = useRef({})
   const tplNameInput = useRef({})
@@ -15,6 +15,8 @@ export default function ManageTemplatesPopup({
   const tplSaveBtn = useRef({})
   const tplDeleteBtn = useRef({})
   const tplRenameBtn = useRef({})
+
+  const tplNameInputWithFocus = useMergeRefs(focus, tplNameInput)
 
   useEffect(() => {
     controller.getTemplates().then(tplList => {
@@ -75,7 +77,7 @@ export default function ManageTemplatesPopup({
         })}
       </Select>
       <HStack margin='0.5em 0'>
-        <Text>Name:</Text><Input ref={tplNameInput} size='xs'></Input>
+        <Text>Name:</Text><Input ref={tplNameInputWithFocus} size='xs'></Input>
       </HStack>
       <VStack margin='0.5em 0' align='start'>
         <Text>Description:</Text>
