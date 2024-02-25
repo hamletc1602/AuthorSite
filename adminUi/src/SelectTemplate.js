@@ -1,4 +1,4 @@
-import React, { } from 'react';
+import React, { useEffect } from 'react';
 import {
     Stack, Flex,
     ModalContent, ModalHeader, ModalBody, Skeleton
@@ -6,14 +6,22 @@ import {
 import TemplateCard from './TemplateCard'
 
 /**  */
-export default function SelectTemplate({id, adminTemplates, setTemplate}) {
+export default function SelectTemplate({controller, templates, setTemplate}) {
+
+  useEffect(() => {
+    controller.getTemplates().then(tplList => {
+      templates.current = tplList
+    })
+  })
+  const getTemplates = () => templates.current ? templates.current : []
+
   return <ModalContent>
     <ModalHeader>Select a template</ModalHeader>
     <ModalBody>
-      <Skeleton isLoaded={adminTemplates} hidden={adminTemplates} height='10em'/>
+      <Skeleton isLoaded={getTemplates()} hidden={getTemplates()} height='10em'/>
       <Flex overflow="auto">
         <Stack>
-          {adminTemplates.map(tpl => {
+          {getTemplates().map(tpl => {
             return <TemplateCard
               key={tpl.id}
               id={tpl.id}

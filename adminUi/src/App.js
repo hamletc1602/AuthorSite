@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   ChakraProvider, extendTheme, Text, Link, Flex, Spacer, Grid,GridItem, Tabs, TabList, TabPanels,
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
-  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Textarea, Select, Tooltip
+  PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Select, Tooltip
 } from '@chakra-ui/react'
 import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
@@ -20,6 +20,7 @@ import PollLockState from './PollLockState'
 import PollPutContent from './PollPutContent'
 import PollAvailableDomains from './PollAvailableDomains'
 import PollCfState from './PollCfState'
+import ManageTemplatesPopup from './ManageTemplatesPopup'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -77,7 +78,9 @@ const serverStates = {
   updatingTemplate: true,
   updatingUi: true,
   getLogs: true,
-  savingTemplate: true,
+  saveTpl: true,
+  renTpl: true,
+  delTpl: true,
   settingPassword: true,
   setDomain: true
 }
@@ -94,7 +97,7 @@ const BUTTON_UPDATE_UI_TOOLTIP = 'Update to the latest Admin UI version. The cur
 const LIST_DOMAIN_TOOLTIP = 'Set this site\'s custom domain to one of the available, unused domains.'
 const LIST_DOMAIN_TOOLTIP_UPDATING = 'AWS is currently updating this site\'s domain routing.'
 const BUTTON_LOAD_TEMPLATE = 'DANGER! Load a new template, completely replacing all existing configuraton settings. This is an advanced feature for template debugging, only use this if you are cetain it is needed'
-const BUTTON_SAVE_TEMPLATE = 'Save all current configuraton settings to a new template bundle.'
+const BUTTON_MANAGE_TEMPLATES = 'Save all current configuraton settings to a new bundle, edit, or delete existing saved settings.'
 const BUTTON_SET_PASSWORD = 'Change the site admin password'
 const BUTTON_CAPTURE_LOGS = 'Capture the last 1 hour of logs to a text file.'
 const BUTTON_DOWNLOAD_LOGS_1 = 'Captured log files available for download.'
@@ -114,7 +117,6 @@ function App() {
   // State
   const [templateId, setTemplateId] = useState(null)
   const [adminStatePollIntervalMs, setAdminStatePollIntervalMs] = useState(ADMIN_STATE_POLL_INTERVAL_DEFAULT)
-  const [adminTemplates, setAdminTemplates] = useState([])
   const [displayStateChanged, setDisplayStateChanged] = useState(1)
   const [windowReload, setWindowReload] = useState(null)
   const [showLogin, setShowLogin] = useState(true)
@@ -139,6 +141,7 @@ function App() {
 
   // Global Refs
   const adminConfig = useRef({ new: true })
+  const templates = useRef([])
   const editors = useRef([])
   const configs = useRef({})
   const adminDisplay = useRef({})
@@ -148,9 +151,6 @@ function App() {
   const prevEditorIndex = useRef(null)
   const contentToPut = useRef({})
   const fileContent = useRef({})
-  //const currTemplate = useRef({})
-  const saveTemplateName = useRef({})
-  const saveTemplateDesc = useRef({})
   const newPassword = useRef({})
 
   const setDisplay = useCallback((prop, value) => {
@@ -352,10 +352,7 @@ function App() {
   }
 
   const onLoadTemplate = () => {
-    controller.getTemplates().then(templates => {
-      setAdminTemplates(templates)
-      setShowSelectTemplate(true)
-    })
+    setShowSelectTemplate(true)
   }
 
   const onUpdateTemplate = () => {
@@ -370,17 +367,6 @@ function App() {
     // Don't update the recovery path if we're currently running an update _from_ the recovery path!
     const recoveryPath = /recovery/.test(window.location.path)
     controller.sendCommand('updateAdminUi', { updateRecoveryPath: !recoveryPath })
-    startFastPolling()
-  }
-
-  const doSaveTemplate = () => {
-    setDisplay('savingTemplate', true)
-    controller.sendCommand('saveTemplate', {
-      id: adminConfig.current.templateId,
-      name: saveTemplateName.current.value,
-      desc: saveTemplateDesc.current.value || `A custom template derived from ${adminConfig.current.templateId}`,
-      overwrite: advancedMode
-    })
     startFastPolling()
   }
 
@@ -544,8 +530,8 @@ function App() {
         if (minWait <= 0 && ! adminConfig.current.new) {
           setShowLogin(false)
           if ( ! adminConfig.current.templateId) {
-            controller.getTemplates().then(templates => {
-              setAdminTemplates(templates)
+            controller.getTemplates().then(tplList => {
+              templates.current = tplList
               setShowSelectTemplate(true)
             })
           }
@@ -574,6 +560,25 @@ function App() {
     console.log('Failed to get state from server.', error)
     setAdminStatePollIntervalMs(ADMIN_STATE_POLL_INTERVAL_DEFAULT)
   }, [setAdminStatePollIntervalMs])
+
+  // Support for manage saved settings button state:
+  const manageTemplates = {
+    loadingText: useMemo(() => {
+      if (adminDisplay.current.saveTpl) { return 'Saving...' }
+      if (adminDisplay.current.renTpl) { return 'Renaming...' }
+      if (adminDisplay.current.delTpl) { return 'Deleting...' }
+      return 'Working...'
+    }, [adminDisplay]),
+    loading: useMemo(() => {
+      return adminDisplay.current.saveTpl || adminDisplay.current.renTpl || adminDisplay.current.delTpl
+    }, [adminDisplay]),
+    error: useMemo(() => {
+      return adminDisplay.current.tplError || adminDisplay.current.renTplError || adminDisplay.current.delTplError
+    }, [adminDisplay]),
+    errorMsg: useMemo(() => {
+      return adminDisplay.current.saveTplError || adminDisplay.current.renTplError || adminDisplay.current.delTplError
+    }, [adminDisplay])
+  }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // UI
@@ -739,43 +744,23 @@ function App() {
                 </Portal></>
               }}
             </Popover>
-            <Popover placement='top-end' initialFocusRef={saveTemplateName} gutter={20}>
+            <Popover placement='top-end' gutter={20}>
               {({ onClose }) => {
                 return <><PopoverTrigger>
                   <Button size='xs' h='1.5em' m='0 0.5em'
-                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.current.saveTplError ? 'danger' : 'accentText'}
+                    color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.current.tplError ? 'danger' : 'accentText'}
                     disabled={!authenticated || locked}
-                    isLoading={adminDisplay.current.savingTemplate && !advancedMode} loadingText='Saving...'
-                  >Save Template...</Button>
-                  {/* TODO: I would like to use my custom ActionButton here, but that needs 'forwardRef', and I can't get
-                    it working (React complains that PopoverTrigger requires exactly one component)
-                    I also can't get Chakra ToolTip working within Popover trigger, as a workaround. Error suggests
-                    'forwardRef' is also needed :(
-                    {forwardRef<ButtonProps, 'button'>((props, ref) => {
-                    return <ActionButton as='button' text='Save Template' buttonStyle={{ size: 'xs' }}
-                      tooltip={{ text: BUTTON_SAVE_TEMPLATE, placement: 'right-end' }}
-                      isDisabled={!authenticated || locked} ref={ref} {...props}/>
-                  })} */}
+                    isLoading={manageTemplates.loading && !advancedMode} loadingText={manageTemplates.loadingText}
+                    tooltip={BUTTON_MANAGE_TEMPLATES}
+                  >Saved Settings...</Button>
                 </PopoverTrigger>
                 <Portal>
-                  <PopoverContent>
-                    <PopoverArrow />
-                    <PopoverBody>
-                      <Text>{adminDisplay.current.saveTplError ? BUTTON_SAVE_TEMPLATE + '<br><br>' + adminDisplay.current.saveTplErrMsg : BUTTON_SAVE_TEMPLATE}</Text>
-                      <HStack margin='0.5em 0'>
-                        <Text>Name:</Text><Input ref={saveTemplateName} size='xs'></Input>
-                      </HStack>
-                      <VStack margin='0.5em 0' align='start'>
-                        <Text>Description:</Text>
-                        <Textarea ref={saveTemplateDesc} size='xs'/>
-                      </VStack>
-                      <HStack>
-                        <Spacer/>
-                        <Button size='xs' onClick={onClose}>Cancel</Button>
-                        <Button size='xs' onClick={() => {doSaveTemplate(); onClose()}}>Save</Button>
-                      </HStack>
-                    </PopoverBody>
-                  </PopoverContent>
+                  <ManageTemplatesPopup
+                    id={templateId} controller={controller} onClose={onClose}
+                    templates={templates}
+                    headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrorMsg}
+                    setDisplay={setDisplay} startFastPolling={startFastPolling} advancedMode={advancedMode}
+                  />
                 </Portal></>
               }}
             </Popover>
@@ -802,12 +787,12 @@ function App() {
 
       <Modal isOpen={showPreparingTemplate && ! showSelectTemplate && ! showLogin}>
         <ModalOverlay />
-        <PreparingTemplate adminTemplates={adminTemplates} adminConfig={adminConfig} />
+        <PreparingTemplate templates={templates} adminConfig={adminConfig} />
       </Modal>
 
       <Modal isOpen={showSelectTemplate && ! showLogin}>
         <ModalOverlay />
-        <SelectTemplate adminTemplates={adminTemplates} setTemplate={setTemplate} />
+        <SelectTemplate controller={controller} templates={templates} setTemplate={setTemplate} />
       </Modal>
 
       <Modal isOpen={showLogin}>

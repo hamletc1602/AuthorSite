@@ -272,29 +272,15 @@ const postCommand = async (aws, req, adminBucket, adminUiBucket, arnPrefix) => {
         ret = buildSite(parts.join('/'), adminBucket, arnPrefix + '-builder', params)
         break
       case 'publish':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'updateTemplate':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'updateAdminUi':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'saveTemplate':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
+      case 'deleteTemplate':
+      case 'renameTemplate':
       case 'setPassword':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'getAvailableDomains':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'setSiteDomain':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'captureLogs':
-        ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
-        break
       case 'checkCfDistroState':
         ret = invokeAdminWorker(command, arnPrefix + '-admin-worker', params)
         break

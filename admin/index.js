@@ -106,6 +106,15 @@ exports.handler = async (event, _context) => {
       // description: A text descripton of the new template.
       // overwrite: A flag that allows template overwrite
       return saveTemplate(sharedBucket, adminBucket, event.body)
+    case 'deleteTemplate':
+      // Args:
+      // name: Name, and ID, for the saved template
+      return deleteTemplate(sharedBucket, adminBucket, event.body)
+    case 'renameTemplate':
+      // Args:
+      // name: Name, and ID, for the saved template
+      // toName: New name, and ID, for the saved template
+      return renameTemplate(sharedBucket, adminBucket, event.body)
     case 'setPassword':
       return setPassword(adminBucket, event.body)
     case 'getAvailableDomains':
@@ -517,7 +526,16 @@ async function completeFileUpload(adminBucket, adminUiBucket, params) {
  */
 async function saveTemplate(sharedBucket, adminBucket, params) {
   //
-  await aws.displayUpdate({ savingTpl: true, saveTplError: false, saveTplErrMsg: '' }, 'saveTemplate', `Start save template: ${params.name}`)
+  const update = {
+    cmd: 'saveTemplate',
+    state: {
+      saveTpl: true,
+      tplError: false,
+      tplErrMsg: ''
+    },
+    msg: `Start save template: ${params.name}`
+  }
+  await aws.displayUpdate2(update)
 
   // Local dirs
   const confDir = '/tmp/' + params.name + '/config'
@@ -573,10 +591,12 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
     }
   }
   if (nameExists && ( ! params.overwrite)) {
-    const msg = `Skip save template. Name ${params.name} already exists`
-    console.error(msg)
     // Put error into display state
-    await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: `Template ${params.name} already exists.` }, 'saveTemplate', msg)
+    update.saveTpl = false
+    update.tplError = true
+    update.tplErrMsg = `Template ${params.name} already exists.`
+    update.msg = `Skip save template. Name ${params.name} already exists`
+    await aws.displayUpdate2(update)
   }
   if (success) {
     try {
@@ -601,12 +621,94 @@ async function saveTemplate(sharedBucket, adminBucket, params) {
         await aws.put(adminBucket,  'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
       }
       console.log(`Signal Add template complete`)
-      await aws.displayUpdate({ savingTpl: false, saveTplError: false, saveTplErrMsg: '' }, 'saveTemplate', `Saved new template: ${params.name}`)
+      update.saveTpl = false
+      update.msg = `Saved new template: ${params.name}`
+      await aws.displayUpdate(update)
     } catch (e) {
-      const msg = `Failed to update templates list ${e.message}`
-      console.log(msg, e)
-      await aws.displayUpdate({ savingTpl: false, saveTplError: true, saveTplErrMsg: msg }, 'saveTemplate', `Failed to update templates list ${e.message}`)
+      update.saveTpl = false
+      update.tplError = true
+      update.tplErrMsg = `Failed to update templates list. ${e.message}`
+      update.msg = update.tplErrMsg
+      await aws.displayUpdate(update)
     }
+  }
+}
+
+/** Remove the template with the given name from the site's data. */
+async function deleteTemplate(sharedBucket, adminBucket, params) {
+  const update = {
+    cmd: 'deleteTemplate',
+    state: {
+      delTpl: true,
+      tplError: false,
+      tplErrMsg: ''
+    },
+    msg: `Start delete template: ${params.name}`
+  }
+  await aws.displayUpdate2(update)
+  const confDir = '/tmp/' + params.name + '/config'
+  Files.ensurePath(confDir)
+  try {
+    let bucket = adminBucket
+    if (await aws.bucketExists(sharedBucket)) {
+      bucket = sharedBucket
+    }
+    console.log(`Remove template data from ${bucket} bucket`)
+    await aws.delete(bucket, 'AutoSite/site-config/' + params.name + '.zip')
+    console.log(`Remove template from ${bucket} bucket metadata`)
+    const metadataStr = (await aws.get(bucket, 'AutoSite/site-config/metadata.json')).Body.toString()
+    let metadata = JSON.parse(metadataStr)
+    metadata = metadata.filter(p => p.id !== params.name)
+    await aws.put(bucket, 'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
+    update.delTpl = false
+    update.msg = `Deleted template ${params.name}`
+    await aws.displayUpdate2(update)
+  } catch (e) {
+    update.delTpl = false
+    update.tplError = true
+    update.tplErrMsg = `Failed to delete template ${params.name}. ${e.message}`
+    update.msg = update.tplErrMsg
+    await aws.displayUpdate2(update)
+  }
+}
+
+/** Rename the template with the given bame from the site's data. */
+async function renameTemplate(sharedBucket, adminBucket, params) {
+  const update = {
+    cmd: 'renameTemplate',
+    state: {
+      renTpl: true,
+      tplError: false,
+      tplErrMsg: ''
+    },
+    msg: `Start rename template: ${params.name}`
+  }
+  await aws.displayUpdate2(update)
+  const confDir = '/tmp/' + params.name + '/config'
+  Files.ensurePath(confDir)
+  try {
+    let bucket = adminBucket
+    if (await aws.bucketExists(sharedBucket)) {
+      bucket = sharedBucket
+    }
+    console.log(`Rename template data in ${bucket} bucket from ${params.name} to ${params.toName}`)
+    await aws.rename(bucket, 'AutoSite/site-config/' + params.name + '.zip', 'AutoSite/site-config/' + params.toName + '.zip')
+    console.log(`Rename template in ${bucket} bucket from ${params.name} to ${params.toName} in metadata`)
+    const metadataStr = (await aws.get(bucket, 'AutoSite/site-config/metadata.json')).Body.toString()
+    const metadata = JSON.parse(metadataStr)
+    const template = metadata.find(p => p.id === params.name)
+    template.id = params.toName
+    template.name = params.toName
+    await aws.put(bucket,  'AutoSite/site-config/metadata.json', 'applicaton/json', JSON.stringify(metadata), 0, 0)
+    update.renTpl = false
+    update.msg = `Renamed template ${params.name} to ${params.toName}`
+    await aws.displayUpdate2(update)
+  } catch (e) {
+    update.renTpl = false
+    update.tplError = true
+    update.tplErrMsg = `Failed to rename template from ${params.name} to ${params.toName}. ${e.message}`
+    update.msg = update.tplErrMsg
+    await aws.displayUpdate2(update)
   }
 }
 

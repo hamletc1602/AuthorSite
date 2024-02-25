@@ -5,8 +5,9 @@ import {
 } from '@chakra-ui/react'
 
 /**  */
-export default function PreparingTemplate({id, adminTemplates, adminConfig}) {
-  const template = adminTemplates.find(p => p.id === adminConfig.current.templateId)
+export default function PreparingTemplate({templates, adminConfig}) {
+  const getTemplates = () => templates.current ? templates.current : []
+  const template = getTemplates().find(p => p.id === adminConfig.current.templateId)
   return <ModalContent>
     <ModalHeader>
       <HStack spacing='5px' align='center'>

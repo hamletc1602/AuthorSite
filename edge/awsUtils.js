@@ -153,6 +153,15 @@ AwsUtils.prototype.get = async function(bucket, key) {
   return this.s3.getObject({ Bucket: bucket, Key: key }).promise()
 }
 
+AwsUtils.prototype.copy = async function(bucket, oldKey, newKey) {
+  return this.s3.copyObject({ CopySource: bucket + '/' + oldKey, Bucket: bucket, Key: newKey }).promise()
+}
+
+AwsUtils.prototype.rename = async function(bucket, oldKey, newKey) {
+  await this.copy(bucket, oldKey, newKey)
+  await this.delete(bucket, oldKey)
+}
+
 AwsUtils.prototype.put = async function(bucket, key, type, content, maxAgeBrowser, maxAgeCloudFront) {
   if ( ! content) {
     console.log(`Put to S3 ${bucket}:${key} with empty content. Problem?`)
@@ -337,6 +346,13 @@ AwsUtils.prototype.adminStateUpdate = async function(update) {
   } catch (error) {
     console.error(`Failed to send admin state update: ${JSON.stringify(error)}`)
   }
+}
+
+/** Send an update to the site SQS queue. */
+AwsUtils.prototype.displayUpdate2 = async function(update) {
+  const ret = await this.displayUpdate(update.state, update.type, update.msg)
+  console.log(update.msg)
+  return ret
 }
 
 /** Send an update to the site SQS queue. */
