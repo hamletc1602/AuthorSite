@@ -1,4 +1,4 @@
-# Static Website Template 0.9.0
+# Author Site 0.9.0
 
 If you're looking to build a static website with worldwide reach for very low hosting cost, 100% under your control, and with no significant limits on data size or bandwidth, you are welcome use this template with your own AWS account. This template is free for use disributed under the Open Source Apache License 2.0.
 
