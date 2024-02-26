@@ -368,8 +368,8 @@ function App() {
   }
 
   const doEditSiteName = () => {
+    if (locked) { return }
     setEditingSiteName(true)
-    siteNameInput.current.value = true
   }
 
   const onLoadTemplate = () => {
@@ -400,7 +400,7 @@ function App() {
 
   const onCaptureLogs = () => {
     setDisplay('getLogs', true)
-    controller.sendCommand('captureLogs', { durationH: 1 })
+    controller.sendCommand('captureLogs', { durationH: 1 }, { byPassLocked: true })
     setCapturingLogs(true)
     startFastPolling()
   }
@@ -638,14 +638,14 @@ function App() {
         templateRows={'2.5em 1fr 1em'}
         templateColumns={'1fr'}
       >
-        <GridItem color='baseText' bg='accent' h='2.75em' disabled={displayStateChanged === null}>
+        <GridItem color='baseText' bg='accent' h='2.75em' isDisabled={displayStateChanged === null}>
           <Flex h='2.75em' p='5px 1em 5px 5px'>
             <Image src="./favicon.ico" h='32px' w='32px' m='0 0.5em 0 0' style={{border:'none'}}/>
-            { !locked && editingSiteName
+            {editingSiteName
               ? <>
-                  <Input ref={siteNameInput} size='xs' value={siteName}/>
-                  <CheckIcon m='3px' h='14px' w='14px' onClick={doSaveSiteName}/>
-                  <CloseIcon m='3px' h='12px' w='12px' onClick={() => setEditingSiteName(false)}/>
+                  <Input color='accentText' ref={siteNameInput} size='xs' w='20em' defaultValue={siteName}/>
+                  <CheckIcon color='accentText' m='3px' h='14px' w='14px' onClick={doSaveSiteName}/>
+                  <CloseIcon color='accentText' m='3px' h='12px' w='12px' onClick={() => setEditingSiteName(false)}/>
                 </>
               : <Text color='accentText' whiteSpace='nowrap' m='2px' onClick={doEditSiteName}>{`${siteName}`}</Text>
             }
@@ -653,7 +653,7 @@ function App() {
             <Spacer m='3px'/>
             <Tooltip openDelay={1050} closeDelay={250} hasArrow={true} placement='bottom-end' label={domainControlTooltip(false)} autoFocus={false}>
               <Select size='sm' m='-2px 0 2px 0' maxW='20em' border='none' color='accentText' autoFocus={false}
-                value={availableDomains[0]} disabled={locked || adminDisplay.current.cfDistUpdating}
+                value={availableDomains[0]} isDisabled={locked || adminDisplay.current.cfDistUpdating}
                 bg={(adminDisplay.current.getDomError || adminDisplay.current.setDomError) ? 'danger' : 'accent'}
                 onChange={ev => {
                   setDomain(availableDomains[ev.target.value])
@@ -696,7 +696,7 @@ function App() {
                 {editors.current.map((editor) => {
                   const inError = uploadError === editor.id
                   return <Tab key={editor.id}
-                      disabled={!authenticated} bg={inError ? 'danger' : null}
+                      isDisabled={!authenticated} bg={inError ? 'danger' : null}
                     >{editor.title}</Tab>
                 })}
               </TabList>
@@ -711,7 +711,7 @@ function App() {
             </Tabs>
           </Skeleton>
         </GridItem>
-        <GridItem h='1.6em' bg='accent' disabled={displayStateChanged === null}>
+        <GridItem h='1.6em' bg='accent' isDisabled={displayStateChanged === null}>
           <Flex p='3px 5px'>
             <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
             <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
@@ -726,14 +726,14 @@ function App() {
                 tooltip={{ text: BUTTON_CAPTURE_LOGS, placement: 'right-end' }}
                 isLoading={capturingLogs && !advancedMode} loadingText='Capturing...'
                 errorFlag={adminDisplay.current.getLogsError} errorText={adminDisplay.current.getLogsErrMsg}
-                isDisabled={!authenticated || locked}/>
+                isDisabled={!authenticated}/>
             {capturedLogs.length > 0 ?
-              <Popover placement='top-end' gutter={20}>
+              <Popover placement='top-end' gutter={20} isDisabled={!authenticated}>
                 {({ onClose }) => {
                   return <><PopoverTrigger>
                     <Button size='xs' h='1.5em' m='0 0.5em'
                       color='accent' _hover={{ bg: 'gray.400' }} bg='accentText'
-                      disabled={!authenticated || locked}
+                      isDisabled={!authenticated}
                     >Download Logs...</Button>
                   </PopoverTrigger>
                   <Portal>
@@ -754,12 +754,12 @@ function App() {
               </Popover>
               : null
             }
-            <Popover placement='top-end' initialFocusRef={newPassword} gutter={20}>
+            <Popover placement='top-end' initialFocusRef={newPassword} gutter={20} isDisabled={!authenticated || locked}>
               {({ onClose }) => {
                 return <><PopoverTrigger>
                   <Button size='xs' h='1.5em' m='0 0.5em'
                     color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.current.setPwdError ? 'danger' : 'accentText'}
-                    disabled={!authenticated || locked}
+                    isDisabled={!authenticated || locked}
                     isLoading={adminDisplay.current.settingPwd && !advancedMode} loadingText='Changing...'
                   >Change Password...</Button>
                 </PopoverTrigger>
@@ -781,7 +781,7 @@ function App() {
                 </Portal></>
               }}
             </Popover>
-            <Popover placement='top-end' gutter={20} initialFocusRef={manageTplFocus}>
+            <Popover placement='top-end' gutter={20} initialFocusRef={manageTplFocus} isDisabled={!authenticated || locked}>
               {({ onClose }) => {
                 return <><PopoverTrigger>
                   {/* Unable to apply tooltip here mainly because popover and tooltop can't share the same elemet.
@@ -791,7 +791,7 @@ function App() {
                   */}
                   <Button size='xs' h='1.5em' m='0 0.5em'
                     color='accent' _hover={{ bg: 'gray.400' }} bg={adminDisplay.current.tplError ? 'danger' : 'accentText'}
-                    disabled={!authenticated || locked || displayStateChanged === null}
+                    isDisabled={!authenticated || locked || displayStateChanged === null}
                     isLoading={manageTemplates.loading && !advancedMode} loadingText={manageTemplates.loadingText}
                   >Saved Settings...</Button>
                 </PopoverTrigger>
@@ -809,12 +809,12 @@ function App() {
               <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateTemplateError} errorText={adminDisplay.current.updateTemplateErrMsg}
-                disabled={!authenticated || locked}
+                isDisabled={!authenticated || locked}
                 isLoading={adminDisplay.current.updatingTemplate && !advancedMode} loadingText='Updating...'/>,
               <ActionButton text='Update Site Admin' onClick={onUpdateAdminUi} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_UI_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateUiError} errorText={adminDisplay.current.updateUiErrMsg}
-                disabled={!authenticated || locked}
+                isDisabled={!authenticated || locked}
                 isLoading={adminDisplay.current.updatingUi && !advancedMode} loadingText='Updating...'/>
             ] : null}
           </Flex>

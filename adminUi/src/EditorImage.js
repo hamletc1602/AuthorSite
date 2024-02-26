@@ -138,7 +138,7 @@ export default function EditorImage({id, path, content, fileContent, setData, co
     <Flex w='100%'>
       <Box flex='1' w='calc(100%-2em)' h='100%'>
         <div {...getRootProps()} style={{ width: '100%'}}>
-          <input {...getInputProps()} disabled={cooldown}/>
+          <input {...getInputProps()} isDisabled={cooldown}/>
           {locked ? null :
             <Box
               key={'dropTarget_' + id}
@@ -175,7 +175,7 @@ export default function EditorImage({id, path, content, fileContent, setData, co
             </Tooltip>]
           :
             <Tooltip openDelay={650} closeDelay={250}  placement='left-start'label='Delete Image' hasArrow={true} aria-label='Delete List Item'>
-              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
+              <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} isDisabled={locked}/>
             </Tooltip>}
         </VStack>
       </Flex>

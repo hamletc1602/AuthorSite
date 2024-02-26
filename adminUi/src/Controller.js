@@ -120,8 +120,9 @@ export default class Controller {
     We generally don't expect any immediate feedback from commands, other than errors. Status is pushed
     into the server admin state JSON file.
   */
-  async sendCommand(name, params) {
-    if (this.locked || !this.password) {
+  async sendCommand(name, params, options) {
+    options = options || {}
+    if ((this.locked && !options.byPassLocked) || !this.password) {
       // do not send commands when locked (buttons should be disabled) or when there's
       // no password defined.
       console.log(`Send command ${name} prevented due to locked state or missing credentials.`)

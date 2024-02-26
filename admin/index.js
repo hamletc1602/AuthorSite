@@ -125,6 +125,8 @@ exports.handler = async (event, _context) => {
       return captureLogs(adminBucket, event.body)
     case 'checkCfDistroState':
       return checkCfDistroState(event.body)
+    case 'deleteAllLogGroups':
+      return deleteAllLogGroups(event.body)
     default:
       return {
         status: '404',
@@ -1047,5 +1049,37 @@ async function checkCfDistroState(params) {
     await aws.displayUpdate({ cfDistUpdating: updating }, 'checkCfDistroState', 'Got distros status.')
   } catch (e) {
     console.log('Failed to get CF update state.', e)
+  }
+}
+
+/** Get all log events, from all AutoSite related streams (for this site), for the requested time range. */
+async function deleteAllLogGroups(options) {
+  try {
+    const logGroups = LogGroupsTemplate.map(tpl => {
+      return {
+        name: tpl.groupName.replace('@SITE_NAME@', options.siteName),
+      }
+    })
+    //console.log('Log Groups to delete: ' + JSON.stringify(logGroups))
+    // Get all possible AWS regions
+    const account = new sdk.Account();
+    const regionsRet = await account.listRegions({ RegionOptStatusContains: ["ENABLED", "ENABLED_BY_DEFAULT"] }).promise()
+    //console.log(`got all regions: `, regionsRet)
+    await Promise.all(regionsRet.Regions.map(async region => {
+      // Delete all matching log groups
+      console.log(`Delete logs for region: ${region.RegionName}`)
+      const cloudWatch = new sdk.CloudWatchLogs({ region: region.RegionName })
+      await Promise.all(logGroups.map(async group => {
+        try {
+          await cloudWatch.deleteLogGroup({ logGroupName: group.name }).promise()
+          console.log(`Deleted ${group.name} from ${region.RegionName}`)
+        } catch (e) {
+          // Ignore
+          //console.log(`Failed delete of ${group.name} from ${region.RegionName}`, e)
+        }
+      }))
+    }))
+  } catch (e) {
+    console.log(`Error in delete log groups:`, e)
   }
 }

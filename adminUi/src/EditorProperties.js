@@ -15,7 +15,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
       case 'string':
       case 'index':
         return <Input key={itemKey} size='sm'
-          defaultValue={value} disabled={locked}
+          defaultValue={value} isDisabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
           onBlur={ev => {
             if (name === nameProp) {
@@ -24,11 +24,11 @@ export default function EditorProperties({id, content, schema, setData, editItem
           }}
         />
       case 'url': return <Input key={itemKey} size='sm'
-          defaultValue={value} disabled={locked}
+          defaultValue={value} isDisabled={locked}
           onChange={ev => { setData(name, ev.target.value) }}
         />
       case 'number': return <NumberInput key={itemKey} size='sm'
-          defaultValue={value} disabled={locked}
+          defaultValue={value} isDisabled={locked}
           onChange={value => { setData(name, value) }}
         >
           <NumberInputField />
@@ -38,13 +38,13 @@ export default function EditorProperties({id, content, schema, setData, editItem
           </NumberInputStepper>
         </NumberInput>
       case 'boolean': return <Checkbox key={itemKey} size='sm' verticalAlign='middle'
-        defaultChecked={value} disabled={locked}
+        defaultChecked={value} isDisabled={locked}
         onChange={ev => {
           setData(name, ev.target.checked)
         }}
         />
       case 'color': return <Input key={itemKey} size='sm'
-        defaultValue={value} disabled={locked}
+        defaultValue={value} isDisabled={locked}
         onChange={ev => { setData(name, ev.target.value) }}
       />
       case 'list':
@@ -74,7 +74,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
             selIndex = values.findIndex(p => p === value)
           }
           return <Select key={itemKey} size='sm'
-            defaultValue={selIndex} disabled={locked}
+            defaultValue={selIndex} isDisabled={locked}
             onChange={ev => { setData(name, values[ev.target.value]) }}
           >
             {values.map((listValue, index) => {
@@ -93,7 +93,7 @@ export default function EditorProperties({id, content, schema, setData, editItem
           // return <EditableTags key={itemKey} tags={value} setTags={tags => {
           //   setConfig(item.path, name, tags)
           // }}/>
-          return <Input key={itemKey} size='sm' disabled={locked}
+          return <Input key={itemKey} size='sm' isDisabled={locked}
             defaultValue={(value && value.join) ? value.join(", ") : value}
             onChange={ev => {
               let v = ev.target.value
@@ -110,11 +110,11 @@ export default function EditorProperties({id, content, schema, setData, editItem
           onClick={() => editItem(name)}
         >Edit</Button>
       case 'text': return <Button key={itemKey + '-edit'} size='xs' bg='accentLighter' color='accentText'
-          _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
+          _hover={{ bg: 'accent', color: 'gray.400'}} isDisabled={locked}
           onClick={() => editItem(name)}
         >Edit</Button>
       case 'image': return <Button key={itemKey + '-edit'} size='xs' bg='accentLighter' color='accentText'
-          _hover={{ bg: 'accent', color: 'gray.400'}} disabled={locked}
+          _hover={{ bg: 'accent', color: 'gray.400'}} isDisabled={locked}
           onClick={() => editItem(name)}
         >Edit</Button>
       default:

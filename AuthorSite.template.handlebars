@@ -16,7 +16,7 @@
 #
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  BraeVitae Simple Static Website generator (https://github.com/hamletc1602/AuthorSite)
+  BraeVitae Simple Static Website generator{{#subDomain}} for subdomain sites{{else}}{{#domain}} for top-level domain sites{{/domain}}{{/subDomain}} (https://github.com/hamletc1602/AuthorSite)
 
   Copyright 2022 BraeVitae Inc. Apache License 2.0
 
@@ -24,7 +24,7 @@ Parameters:
   {{#if domain}}
   DomainName:
     Type: String
-    Description: Enter the domain name to use for this site. Leave this empty if you would like to register and/or attach a domain name later.
+    Description: Enter the {{#if subDomain}}sub{{/if}}domain name to use for this site.
   {{/if}}
   {{#if subDomain}}
   DomainZoneId:
@@ -1540,6 +1540,15 @@ Resources:
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
                 Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: DeleteLogGroups
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'account:ListRegions'
+                  - 'logs:DeleteLogGroup'
+                Resource: '*'
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'

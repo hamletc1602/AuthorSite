@@ -5,7 +5,7 @@ import {
 
 /**  */
 export default function ActionButton({
-    id, text, onClick, w, tooltip, errorFlag, errorText, buttonStyle, disabled, isLoading, loadingText
+    id, text, onClick, w, tooltip, errorFlag, errorText, buttonStyle, isDisabled, isLoading, loadingText
   }) {
   id = id || text
   buttonStyle = buttonStyle || {}
@@ -19,7 +19,7 @@ export default function ActionButton({
       <Button key={id + '-btn'} onClick={onClick} w={w}
           size={buttonStyle.size || 'sm'} h={buttonStyle.height} m={buttonStyle.margin || '0 0.5em'}
           color='accent' _hover={{ bg: 'gray.400' }} bg={errorFlag ? 'danger' : 'accentText'}
-          disabled={disabled} isLoading={isLoading} loadingText={loadingText}
+          isDisabled={isDisabled} isLoading={isLoading} loadingText={loadingText}
       >{text}</Button>
     </Tooltip>
 }

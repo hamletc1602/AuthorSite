@@ -130,14 +130,26 @@ const cfnDeleteHandler = async (requestId, params) => {
     // RequestId: Eg:  arn:aws:cloudformation:us-east-1:376845798252:stack/AuthorSite-Demo2/b51b8540-4cd8-11ed-b81c-0afb2f50002b/ProvisionSiteTrigger/0febc9d5-53d0-41ea-8241-dff81629ee4d
     console.log(`Delete invoked with: ${JSON.stringify(params)}`)
 
+    // Delete all CloudWatch Log Groups:
+    const siteName = params.AdminBucket.split('-')[0]
+    try {
+      deleteAllLogGroups({ siteName: siteName })
+    } catch(e) {
+      console.log(`Error deleting log groups for ${siteName}`, e)
+    }
+
     // Empty all site S3 buckets
-    await deleteAllObjectsFromBucket(s3, params.WebDataBucket)
-    await deleteAllObjectsFromBucket(s3, params.TestWebDataBucket)
-    await deleteAllObjectsFromBucket(s3, params.FeedbackBucket)
-    await deleteAllObjectsFromBucket(s3, params.AdminUiBucket)
-    await deleteAllObjectsFromBucket(s3, params.AdminBucket)
-    await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
-    await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
+    try {
+      await deleteAllObjectsFromBucket(s3, params.WebDataBucket)
+      await deleteAllObjectsFromBucket(s3, params.TestWebDataBucket)
+      await deleteAllObjectsFromBucket(s3, params.FeedbackBucket)
+      await deleteAllObjectsFromBucket(s3, params.AdminUiBucket)
+      await deleteAllObjectsFromBucket(s3, params.AdminBucket)
+      await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
+      await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
+    } catch(e) {
+      console.log(`Error deleting bucket objects for ${siteName}`, e)
+    }
 
     return {}
   } catch (error) {
@@ -163,6 +175,68 @@ const deleteAllObjectsFromBucket = async (s3, bucketName) => {
     }))
   } catch(error) {
     console.log(`Failed to delete contents of ${bucketName}: ${JSON.stringify(error)}`)
+  }
+}
+
+/** Get all log events, from all AutoSite related streams (for this site), for the requested time range. */
+async function deleteAllLogGroups(options) {
+  // Define all site log groups
+  const LogGroupsTemplate = [{
+    groupName: '/aws/lambda/@SITE_NAME@-admin-worker',
+    name: 'Admin Worker'
+  },{
+    groupName: '/aws/lambda/@SITE_NAME@-builder',
+    name: 'Builder'
+  },{
+    groupName: '/aws/lambda/@SITE_NAME@-provisioner',
+    name: 'Provisioner'
+  },{
+    groupName: '/aws/lambda/@SITE_NAME@-publisher',
+    name: 'Publisher'
+  },{
+    groupName: '/aws/lambda/@SITE_NAME@-state-pump',
+    name: 'State Pump'
+  },{
+    groupName: '/aws/lambda/us-east-1.@SITE_NAME@-admin',
+    name: 'Admin Edge',
+    edge: true
+  },{
+    groupName: '/aws/lambda/us-east-1.@SITE_NAME@-edge',
+    name: 'Site Edge',
+    edge: true
+  },{
+    groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
+    name: 'Amazon URL Forwarder',
+    edge: true
+  }]
+  //
+  try {
+    const logGroups = LogGroupsTemplate.map(tpl => {
+      return {
+        name: tpl.groupName.replace('@SITE_NAME@', options.siteName),
+      }
+    })
+    //console.log('Log Groups to delete: ' + JSON.stringify(logGroups))
+    // Get all possible AWS regions
+    const account = new AWS.Account();
+    const regionsRet = await account.listRegions({ RegionOptStatusContains: ["ENABLED", "ENABLED_BY_DEFAULT"] }).promise()
+    //console.log(`got all regions: `, regionsRet)
+    await Promise.all(regionsRet.Regions.map(async region => {
+      // Delete all matching log groups
+      console.log(`Delete logs for region: ${region.RegionName}`)
+      const cloudWatch = new AWS.CloudWatchLogs({ region: region.RegionName })
+      await Promise.all(logGroups.map(async group => {
+        try {
+          await cloudWatch.deleteLogGroup({ logGroupName: group.name }).promise()
+          console.log(`Deleted ${group.name} from ${region.RegionName}`)
+        } catch (e) {
+          // Ignore
+          //console.log(`Failed delete of ${group.name} from ${region.RegionName}`, e)
+        }
+      }))
+    }))
+  } catch (e) {
+    console.log(`Error in delete log groups:`, e)
   }
 }
 

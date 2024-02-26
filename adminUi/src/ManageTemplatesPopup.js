@@ -86,8 +86,8 @@ export default function ManageTemplatesPopup({
       <HStack>
         <Spacer/>
         <Button size='xs' onClick={onClose}>Cancel</Button>
-        <Button ref={tplDeleteBtn} size='xs' disabled={true} onClick={() => {doDeleteTemplate(); onClose()}}>Delete</Button>
-        <Button ref={tplRenameBtn} size='xs' disabled={true} onClick={() => {doRenameTemplate(); onClose()}}>Rename</Button>
+        <Button ref={tplDeleteBtn} size='xs' isDisabled={true} onClick={() => {doDeleteTemplate(); onClose()}}>Delete</Button>
+        <Button ref={tplRenameBtn} size='xs' isDisabled={true} onClick={() => {doRenameTemplate(); onClose()}}>Rename</Button>
         <Button ref={tplSaveBtn} size='xs' onClick={() => {doSaveTemplate(); onClose()}}>Save</Button>
       </HStack>
     </PopoverBody>

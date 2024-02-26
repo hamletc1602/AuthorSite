@@ -14,7 +14,7 @@ export default function EditorText({id, content, fileContent, setData, locked}) 
       bg='white'
       color='editorText'
       defaultValue={contentRec ? contentRec.content : null}
-      disabled={locked || ! contentRec}
+      isDisabled={locked || ! contentRec}
       placeholder={contentRec ? null : 'Loading...'}
       resize='none'
       onChangeCapture={ev => {

@@ -172,7 +172,8 @@ export default function Editor({
     if (inDelete) {
       rootContent.splice(pathIndex, 1)
       pushContent(editor.data, configs.current, editor.id, editor.id, schema.type)
-      itemSelected(null, pathIndex)
+      // If this is the last item in the list, and there's more than one list item, set the previous item selected
+      itemSelected(null, (pathIndex > 0 && rootContent.length === pathIndex) ? pathIndex - 1 : pathIndex)
       setInDelete(false)
     } else {
       setInDelete(true)
@@ -456,14 +457,14 @@ export default function Editor({
               </Tooltip>]
             :
               [<Tooltip key='delete' openDelay={650} closeDelay={250}  placement='left-start'label='Delete List Item' hasArrow={true} aria-label='Delete List Item'>
-                <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} disabled={locked}/>
+                <IconButton size='sm' icon={<DeleteIcon />} onClick={deleteItem} isDisabled={locked}/>
               </Tooltip>,
               <Box key='spacer' height='1em'/>,
               <Tooltip key='up' openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Up' hasArrow={true} aria-label='Move List Item Up'>
-                <IconButton size='sm' icon={<ArrowUpIcon />} onClick={moveItemUp} disabled={locked}/>
+                <IconButton size='sm' icon={<ArrowUpIcon />} onClick={moveItemUp} isDisabled={locked}/>
               </Tooltip>,
               <Tooltip key='down' openDelay={850} closeDelay={250} placement='left-start' label='Move List Item Down' hasArrow={true} aria-label='Move List Item Down'>
-                <IconButton size='sm' icon={<ArrowDownIcon />} onClick={moveItemDown} disabled={locked}/>
+                <IconButton size='sm' icon={<ArrowDownIcon />} onClick={moveItemDown} isDisabled={locked}/>
               </Tooltip>]}
           </VStack>
         : null}
