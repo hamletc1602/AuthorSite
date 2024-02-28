@@ -20,6 +20,8 @@ Description: >
 
   Copyright 2022 BraeVitae Inc. Apache License 2.0
 
+  NOTE: Stack name may NOT contain any upper-case letters or dash character!
+
 Parameters:
   {{#if domain}}
   DomainName:
@@ -29,7 +31,7 @@ Parameters:
   {{#if subDomain}}
   DomainZoneId:
     Type: AWS::Route53::HostedZone::Id
-    Description: If the domain name entered above is a subdomain of an existing registered domain in your AWS account, enter it's zone ID here. Leave this empty to create a new top level domain. AWS charges USD 0.50$ for each top level domain.
+    Description: If the domain name entered above is a subdomain of an existing registered domain in your AWS account, enter it's zone ID here. AWS charges USD 0.50$ for each top level domain.
   {{/if}}
   UploaderPassword:
     Type: String

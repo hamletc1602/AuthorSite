@@ -77,9 +77,10 @@ export default function EditorProperties({id, content, schema, setData, editItem
             defaultValue={selIndex} isDisabled={locked}
             onChange={ev => { setData(name, values[ev.target.value]) }}
           >
-            {values.map((listValue, index) => {
+            {[<option key={itemKey + '_opt_none'} value={-1}>Select...</option>,
+              ...(values.map((listValue, index) => {
               return <option key={itemKey + '_opt' + index} value={index}>{listValue}</option>
-            })}
+            }))]}
           </Select>
         } else if (schema.elemType !== 'string') {
           // Lists of any type but 'string' need an edit button

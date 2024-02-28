@@ -765,9 +765,10 @@ AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamNa
 
 // Return a list of all available templates from public, shared and private sources.
 AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adminBucket) {
-  let privateTemplates = null
+  let privateTemplates = []
   try {
     const templateMetadataObj = await this.get(adminBucket, 'AutoSite/site-config/metadata.json')
+    //console.log(adminBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
       if (templatesStr) {
@@ -777,9 +778,10 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
   } catch (e) {
     console.log(`Get templates metadata from private bucket ${adminBucket}. ${e.message}`)
   }
-  let sharedTemplates = null
+  let sharedTemplates = []
   try {
     const templateMetadataObj = await this.get(sharedBucket, 'AutoSite/site-config/metadata.json')
+    //console.log(sharedBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
       if (templatesStr) {
@@ -789,9 +791,10 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
   } catch (e) {
     console.log(`Get templates metadata from shared bucket ${sharedBucket}. ${e.message}`)
   }
-  let publicTemplates= null
+  let publicTemplates = []
   {
     const templateMetadataObj = await this.get(publicBucket, 'AutoSite/site-config/metadata.json')
+    //console.log(publicBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
       if (templatesStr) {
@@ -799,7 +802,7 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
       }
     }
   }
-  return Object.assign(publicTemplates, sharedTemplates, privateTemplates)
+  return [...publicTemplates, ...sharedTemplates, ...privateTemplates]
 }
 
 //

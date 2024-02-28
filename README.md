@@ -70,7 +70,7 @@ This will open a page in the AWS Cloud Formation service showing the BraeVitae S
 
 ### Parameters
 
-**Stack Name**: The primary identifier for this site's infrastructure in AWS. You must use a unique name. The name must NOT contain any uppercase characters (AWS will allow uppercase, but this stack build will fail because it uses this name as part of S3 bucket names, which do not allow uppercase characters).
+**Stack Name**: The primary identifier for this site's infrastructure in AWS. You must use a unique name. The name must NOT contain any uppercase characters (AWS will allow uppercase, but this stack build will fail because it uses this name as part of S3 bucket names, which do not allow uppercase characters) or the dash (-) character (Some internal processing still assumes a single dash in the name, for now).
 
 **DomainName**: The URL for this site. It must be one of the existing hosted domains in your acount, or a subdomain of one of them. Only available for Domain and Sub-Domain sites (options #2 and #3, above).
 
