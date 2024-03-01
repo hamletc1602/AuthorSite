@@ -42,6 +42,7 @@ If you also host your domain with AWS each domain will cost $0.50 USD/month, but
 If you see a huge amount of traffic, or are storing a large amoount of data in the site's S3 bucket, you may see some extra charges. It's always a good idea to keep an eye on your [current and projected billing](https://console.aws.amazon.com/billing/home).
 
 ## Demo Sites
+All images and colours can be changed in the Site Admim UI.
 
 #### Live Sites (We use this same software for all of our author sites)
 - Publisher: https://www.braevitae.com/
