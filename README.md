@@ -60,13 +60,13 @@ There are three different options for building your site, depending on what you 
 
 Log in to your AWS Console account, then click on the link that best suits your needs from the same browser:
 
-1) I want to create a site with no personalized domain, for a trial run, or because I want to link it with a domain hosted in another service: [**Build site with no domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite.template)
+1) I want to create a site with no personalized domain, for a trial run, or because I want to link it with a domain hosted in another service: [**Build site with no domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite.template). The site domain will be auto-generated, and can be found on the *Outputs* tab of the completed stack.
 
 2) I want to create a site with a new domain that I will host in AWS: [**Build site with domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite-domain.template). AWS will charge $0.50 USD per month for each distinct domain hosted.
 
 3) I want to create a site as a subdomain of a domain I already host in AWS: [**Build site with sub-domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite-subdomain.template)
 
-This will open a page in the AWS Cloud Formation service showing the BraeVitae Static Website Template configuration.
+This will open a page in the AWS Cloud Formation service showing the BraeVitae Static Website Template configuration. Fill in all required parameters and click *Create Stack*. The auto-generated base site URL can be found on the *Outputs* tab of the completed stack.
 
 ### Parameters
 
@@ -82,7 +82,7 @@ This will open a page in the AWS Cloud Formation service showing the BraeVitae S
 
 **SharedStorageName**: If SharedStorage is 'No' above, here's where you can enter the name of a previously created stack's shared storage (See the 'Outputs' associted with that stack for the name).
 
-**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite-0.9.0/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. (Use //Stackname-admin:// or //Stack name-shared) as the bucket name, if you want to upload a generator to one of the site private buckets after creation).
+**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite-0.9.0/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. (Use //Stackname-admin: or //Stack name-shared) as the bucket name, if you want to upload a generator to one of the site private buckets after creation).
 
 If you want to upload your own raw content to the site (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)), just enter the default value above and directly upload your own content to the test bucket.
 
@@ -129,7 +129,7 @@ To take advantage of this feature, create a link on a page on your site to /azn/
 
 The site creates HTTP header definitions that social media sites like Facebook and twitter can read to pre-configue the book cover and blurb to show up in a post.
 
-### HTTPS support, and cloaking of .html extensions
+### HTTPS support, and masking of .html extensions
 
 AWS provides some built-in features to serve files from S3 buckets to browsers, but this lacks the professional touch. Would you rather send your readers to http://my.domain.com/promotion.html or https://my.domain.com/promotion. A subtle difference, perhaps, but one that stands out. Especially on a poster or business card.
 
