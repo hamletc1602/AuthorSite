@@ -245,20 +245,21 @@ async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
 /** Copy only the non-config & content parts of the template from the template source.
     (schema and template files, etc.)
 */
-async function upateTemplate(publicBucket, adminBucket, params) {
+async function upateTemplate(adminBucket, params) {
   let success = true
+  const fromTemplate = params.fromId
   const templateName = params.id
   try {
     await aws.displayUpdate({
         updatingTemplate: true, updateTemplateError: false, stepMsg: 'Update Template'
-      }, 'update', `Starting update with ${templateName} template.`)
+      }, 'update', `Starting update with ${fromTemplate} template.`)
     // Copy template archive to local FS.
-    const sourceLoc = await getLocationForTemplate(templateName)
+    const sourceLoc = await getLocationForTemplate(fromTemplate)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
     const sourceBucket = getSourceBucket(sourceLoc)
-    console.log(`Copy site template '${templateName}' schema and style from ${sourceBucket} to ${adminBucket}`)
-    const archiveFile = `/tmp/${templateName}.zip`
-    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${templateName}.zip`)
+    console.log(`Copy site template '${fromTemplate}' schema and style from ${sourceBucket} to ${adminBucket}`)
+    const archiveFile = `/tmp/${fromTemplate}.zip`
+    const archive = await aws.get(sourceBucket, `${keyRoot}/site-config/${fromTemplate}.zip`)
     Fs.writeFileSync(archiveFile, archive.Body)
     const zip = Fs.createReadStream(archiveFile).pipe(Unzipper.Parse({forceStream: true}));
     for await (const entry of zip) {
@@ -312,17 +313,17 @@ async function upateTemplate(publicBucket, adminBucket, params) {
       await aws.displayUpdate({}, 'update', 'Broken template. Missing editors.yaml')
     }
   } catch (error) {
-    console.log(`Failed update with ${templateName} template.`, error)
-    const errMsg = `Failed update of ${templateName} template. Error: ${error.message}.`
+    console.log(`Failed update with ${fromTemplate} template.`, error)
+    const errMsg = `Failed update of ${fromTemplate} template. Error: ${error.message}.`
     await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true, updateTemplateErrMsg: errMsg }, 'update', errMsg)
     success = false
   } finally {
     if (success) {
-      console.log(`Successfull update of ${templateName} template.`)
+      console.log(`Successfull update of ${fromTemplate} template.`)
       await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: false }, 'update', `Updated ${templateName} template.`)
     } else {
-      console.log(`Failed update of ${templateName} template.`)
-      const errMsg = `Failed update ${templateName} template.`
+      console.log(`Failed update of ${fromTemplate} template.`)
+      const errMsg = `Failed update ${fromTemplate} template.`
       await aws.displayUpdate({ updatingTemplate: false, updateTemplateError: true, updateTemplateErrMsg: errMsg }, 'update', errMsg)
     }
   }

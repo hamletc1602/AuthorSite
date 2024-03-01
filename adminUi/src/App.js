@@ -376,10 +376,13 @@ function App() {
     setShowSelectTemplate(true)
   }
 
-  const onUpdateTemplate = () => {
+  const onUpdateTemplate = (fromId) => {
     setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
-    controller.sendCommand('updateTemplate', { id: adminConfig.current.templateId })
+    controller.sendCommand('updateTemplate', {
+      id: adminConfig.current.templateId,
+      fromId: fromId
+    })
     startFastPolling()
   }
 
@@ -806,6 +809,8 @@ function App() {
               }}
             </Popover>
             {advancedMode ? [
+              // TODO: Need to add a new popup here that takes the ID of the template to use as a source template
+              // for the schema/static-conf update process.
               <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateTemplateError} errorText={adminDisplay.current.updateTemplateErrMsg}

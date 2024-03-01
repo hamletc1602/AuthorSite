@@ -305,6 +305,7 @@ const handler = async (event, context) => {
       await renderReactComponents(mergedConfig, outputDir, tempDir, options);
 
       // Copy favicon to root of site
+      //     TODO: Ignoring 'pubDir' in favour of custom handling for favIcon.
       if (dataCopy.style.favicon) {
         await Files.copy(Path.join(contentDir, dataCopy.style.favicon), Path.join(outputDir, 'favicon.ico'))
       }
@@ -513,6 +514,8 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
             externalIdEnc = encodeURIComponent(externalId)
           }
           d.url = d.url.replace(/@BOOKID@/g, externalIdEnc)
+          const iconFileName = Path.parse(d.icon).base
+          d.iconUrl = `/${d.pubDir}/${iconFileName}`
           list.push(d);
           if ( pub.primaryDistributor == d.id) {
             pub.primaryDistributor = d
