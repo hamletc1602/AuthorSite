@@ -9,10 +9,6 @@ useEffect(() => {
     controller.sendCommand('getAvailableDomains')
   }
   const poller = setInterval(async () => {
-      // Stop polling state when the page is not visible
-      if (document.visibilityState !== "visible") {
-          return
-      }
       console.log('Poll for available domians')
       controller.sendCommand('getAvailableDomains')
     }, 4 * 60 * 1000)

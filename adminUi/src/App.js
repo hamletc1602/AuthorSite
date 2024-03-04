@@ -801,8 +801,8 @@ function App() {
                 <Portal>
                   <ManageTemplatesPopup
                     id={templateId} controller={controller} onClose={onClose}
-                    templates={templates} focus={manageTplFocus}
-                    headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrorMsg}
+                    templates={templates} focus={manageTplFocus} error={adminDisplay.current.tplError}
+                    headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrMsg}
                     setDisplay={setDisplay} startFastPolling={startFastPolling} advancedMode={advancedMode}
                   />
                 </Portal></>
