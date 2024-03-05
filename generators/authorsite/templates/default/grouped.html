@@ -11,7 +11,7 @@
     <h2><a href="{%@config.authorPath%}/{%id%}">{%name%}</a></h2>
     {%#if useCarousel%}
       <div class="booklist booklistCarousel booklistCarousel{%list.length%} hidden">
-        <div id="{%id%}_pubs" data-overlayText="{%@config.publishedStickerText%}/{%@config.unpublishedStickerText%}"></div>
+        <div id="{%id%}_pubs"></div>
       </div>
     {%/if%}
     <div class="booklist booklistStatic booklistStatic{%list.length%}">

@@ -8,9 +8,9 @@
       <div class="bookCoverImage {%id%}CoverIcon">
         <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
         {%#if published%}
-        <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="{%primaryDistributor.popupText%}">{%@config.publishedStickerText%}</a>
+        <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="{%primaryDistributor.popupText%}">{%publishedStickerText%}</a>
         {%else%}
-        <div class="comingSoon">{%@config.unpublishedStickerText%}</div>
+        <div class="comingSoon">{%unpublishedStickerText%}</div>
         {%/if%}
       </div>
       {%#if false%}

@@ -222,7 +222,9 @@ const handler = async (event, context) => {
 
     // Remove properties that are empty strings
     const clearMissingValuesWorker  = async (value, _schema, _config, parent, key) => {
-      if (value === '') {
+      console.log(`Checking: ${key}: ${value}`)
+      if (value && value.length && value.length === 0) {
+        console.log(`Prop for ${key} is an empty string. Clearing property value for this run.`)
         parent[key] = null
       }
     }
@@ -1103,6 +1105,12 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
   })
 
   published.map(pub => {
+    // Currently, book type is a single-select, but it may change to multi-select in future
+    let pubType = pub.type
+    if ( ! Array.isArray(pubType)) {
+      pubType = [pubType]
+    }
+    //
     const authorObjList = []
     pub.author.map(authorName => {
       authorName = authorName.trim()
@@ -1115,11 +1123,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
         // Add books to author
         author.list.push(pub)
-        // Currently, book type is a single-select, but it may change to multi-select in future
-        let pubType = pub.type
-        if ( ! Array.isArray(pubType)) {
-          pubType = [pubType]
-        }
+
         pubType.forEach(type => {
           if ( ! pubs[type]) {
             pubs[type] = {
@@ -1133,8 +1137,6 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
             author.pubs = pubs
           }
         })
-
-
       } else {
         console.error(`Can't find author ${authorName} in the list of authors.`, authorMap)
       }
@@ -1142,6 +1144,14 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
     // Replace list of author names with objects.
     pub.author = authorObjList
+
+    // Add category properties to book
+    const category = config.itemCategories.find(p => p.name === pubType[0])
+    pub.categoryId = category.name
+    pub.categoryName = category.single
+    pub.categoryNamePlural = category.plural
+    pub.publishedStickerText = category.publishedStickerText
+    pub.unpublishedStickerText = category.unpublishedStickerText
   })
 
   // Convert author pubs to a list, and Sort book categories to the same order as they are defined in the config

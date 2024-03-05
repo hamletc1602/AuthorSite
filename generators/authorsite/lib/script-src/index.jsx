@@ -51,12 +51,6 @@ function bookLists() {
     // Update static slider settings based on current page context, including the data attributes
     // on the component shadow element.
     function updateSettings(settings, elem) {
-      const overlayText = elem.getAttribute('data-overlayText');
-      if (overlayText) {
-        let overlayParts = overlayText.split('/');
-        settings.overlayPublished = overlayParts[0];
-        settings.overlayUnpublished = overlayParts[1];
-      }
       const onClickFuncName = elem.getAttribute('data-onclick');
       if (onClickFuncName) {
         if (window[onClickFuncName]) {
