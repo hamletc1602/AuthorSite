@@ -16,7 +16,7 @@ cp -R site-config/publisher/ $root
 cp site-config/schema/editors.yaml $root/config
 cp -R site-config/schema/schema $root/config/schema
 cd $root
-zip -qr $wdir/target/AutoSite/site-config/publisher.zip *
+zip -qr $wdir/target/AutoSite/site-config/Publisher.zip *
 cd $wdir
 
 echo Author
@@ -25,7 +25,7 @@ mkdir -p $root
 cp -R site-config/author/ $root
 cp -R site-config/schema/schema $root/config/schema
 cd $root
-zip -qr $wdir/target/AutoSite/site-config/author.zip *
+zip -qr $wdir/target/AutoSite/site-config/Author.zip *
 cd $wdir
 
 echo Artist
@@ -33,5 +33,5 @@ root=/tmp/authorsite/template/artist
 mkdir -p $root
 cp -R site-config/artist/ $root
 cd $root
-zip -qr $wdir/target/AutoSite/site-config/artist.zip *
+zip -qr $wdir/target/AutoSite/site-config/Artist.zip *
 cd $wdir

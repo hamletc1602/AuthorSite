@@ -170,7 +170,7 @@ const handler = async (event, context) => {
     config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
     config.hostName = options.domainName
     config._tempDir = tempDir
-    const data = { 
+    const data = {
       config: config,
       structure: await Files.loadConfig(Path.join(confDir, confIndex.structure.data), config),
       style: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
@@ -300,7 +300,7 @@ const handler = async (event, context) => {
       //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
-      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, dataCopy, dataCopy.style, tempDir, outputDir, options);
+      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, schema, dataCopy, dataCopy.style, tempDir, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating server content`)
       await renderPages(confDir, mergedConfig, contentDir, pageData, type, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating client side code`)
@@ -419,7 +419,7 @@ const fillInMissingLogoEntries = (logo) => {
 }
 
 /** Prepare data used when rendering page templates */
-const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir, outputDir, _options) => {
+const preparePageData = async (contentDir, cacheDir, config, schema, data, skin, tempDir, outputDir, _options) => {
     //
     console.info("Prepare headers and footers from page backgound images")
 
@@ -517,7 +517,9 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
           }
           d.url = d.url.replace(/@BOOKID@/g, externalIdEnc)
           const iconFileName = Path.parse(d.icon).base
-          d.iconUrl = `/${d.pubDir}/${iconFileName}`
+          d.iconUrl = `/${schema.distributors.properties.icon.pubDir}/${iconFileName}`
+          const featIconFileName = Path.parse(d.featureIcon).base
+          d.featureIconUrl = `/${schema.distributors.properties.featureIcon.pubDir}/${featIconFileName}`
           list.push(d);
           if ( pub.primaryDistributor == d.id) {
             pub.primaryDistributor = d
@@ -1150,8 +1152,8 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
     pub.categoryId = category.name
     pub.categoryName = category.single
     pub.categoryNamePlural = category.plural
-    pub.publishedStickerText = category.publishedStickerText
-    pub.unpublishedStickerText = category.unpublishedStickerText
+    pub.publishedStickerText = category.publishedStickerText || config.publishedStickerText
+    pub.unpublishedStickerText = category.unpublishedStickerText || config.unpublishedStickerText
   })
 
   // Convert author pubs to a list, and Sort book categories to the same order as they are defined in the config
@@ -1175,7 +1177,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 }
 
 // Trim down the data we save to the page as data input to the client side code generation
-// Look here if a poperty you need is not available in client side code!
+// Look here if a property you need is not available in client side code!
 const filterAuthorMap = (config, authorMap) => {
   return Object.keys(authorMap).map(authorName => {
     let author = authorMap[authorName];
@@ -1196,7 +1198,9 @@ const filterAuthorMap = (config, authorMap) => {
               logline: pub.logline,
               detailsUrl: Path.join(config.booksPath, pub.id),
               primaryDistributor: pub.primaryDistributor,
-              published: pub.published
+              published: pub.published,
+              publishedStickerText: pub.publishedStickerText,
+              unpublishedStickerText: pub.unpublishedStickerText
             }
           })
         }
@@ -1210,8 +1214,10 @@ const filterAuthorMap = (config, authorMap) => {
           logline: pub.logline,
           detailsUrl: Path.join(config.booksPath, pub.id),
           primaryDistributor: pub.primaryDistributor,
-          published: pub.published
-        }
+          published: pub.published,
+          publishedStickerText: pub.publishedStickerText,
+          unpublishedStickerText: pub.unpublishedStickerText
+    }
       })
     }
     return ret
