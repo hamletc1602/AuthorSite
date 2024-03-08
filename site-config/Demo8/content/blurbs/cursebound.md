@@ -1,0 +1,3 @@
+Mutant science projects, a troubled werewolf, and other magic-related dangers are Jessica’s new normal, but someone has started targeting the students of Coldwater High with powerful curses, and she’s a suspect. A serious mistake forces her to question whether she deserves Drew and Michiru’s loyalty, and with the gatekeeper’s alien influence in her head, she’s not even sure she can trust herself.
+
+Just as Jessica realizes she has also been hit with a lethal curse, a disastrously magical Valentine’s Day leaves her cut off from friends and forces her to put her life in the hands of her worst enemy.

@@ -140,21 +140,6 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
-  # Bucket name matches the related feedback lambda function
-  FeedbackData:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Join ['-',[!Ref AWS::StackName,'feedback']]
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: 'Service'
-          Value: !Ref 'AWS::StackName'
-
   WebDataAccess:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
@@ -233,28 +218,6 @@ Resources:
           - Id: CleanupRule
             Status: Enabled
             ExpirationInDays: 90
-      Tags:
-        - Key: 'Service'
-          Value: !Ref 'AWS::StackName'
-
-  TestWebCacheLogs:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Join ['.', ['test', !Join ['', [!Ref AWS::StackName, '-logs']]]]
-      AccessControl: Private
-      OwnershipControls:
-        Rules:
-          - ObjectOwnership: BucketOwnerPreferred
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: CleanupRule
-            Status: Enabled
-            ExpirationInDays: 30
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -436,7 +399,7 @@ Resources:
             ResponsePagePath: '/index.html'
         Logging:
           Bucket: !GetAtt WebCacheLogs.DomainName
-          Prefix: ''
+          Prefix: 'main'
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -564,8 +527,8 @@ Resources:
             ResponseCode: 404
             ResponsePagePath: '/index.html'
         Logging:
-          Bucket: !GetAtt TestWebCacheLogs.DomainName
-          Prefix: ''
+          Bucket: !GetAtt WebCacheLogs.DomainName
+          Prefix: 'test'
       Tags:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
@@ -689,7 +652,7 @@ Resources:
       Handler: feedback.publisher
       Environment:
         Variables:
-          BUCKET: !Ref FeedbackData
+          BUCKET: !Ref AdminData
           TOPIC: !Ref FeedbackTopic
           stateQueueUrl: !Ref StateQueue
       Code:
@@ -988,8 +951,6 @@ Resources:
       TestWebDataBucket: !Ref TestWebData
       TestWebCache: !Ref TestWebCache
       WebLogsBucket: !Ref WebCacheLogs
-      TestWebLogsBucket: !Ref TestWebCacheLogs
-      FeedbackBucket: !Ref FeedbackData
       UploaderPassword: !Ref UploaderPassword
       BaseDomain: !GetAtt WebCache.DomainName
       BaseDomainTest: !GetAtt TestWebCache.DomainName
@@ -1006,9 +967,7 @@ Resources:
       - TestWebData
       - AdminData
       - AdminUiData
-      - FeedbackData
       - WebCacheLogs
-      - TestWebCacheLogs
 
   LambdaRole:
     Type: 'AWS::IAM::Role'
@@ -1063,7 +1022,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - 's3:PutObject'
-                Resource: !Join ['', [!GetAtt FeedbackData.Arn, '*']]
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '/feedback/*']]
         - PolicyName: logging
           PolicyDocument:
             Version: 2012-10-17
@@ -1095,6 +1054,14 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
+        - PolicyName: S3List
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - 's3:ListBucket'
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '*']]
         - PolicyName: S3ReadWrite
           PolicyDocument:
             Version: 2012-10-17
@@ -1103,11 +1070,10 @@ Resources:
                 Action:
                  - 's3:PutObject'
                  - 's3:GetObject'
-                 - 's3:ListBucket'
                  - 's3:DeleteObject'
                  - 's3:GetObjectTagging'
                  - 's3:PutObjectTagging'
-                Resource: !Join ['', [!GetAtt FeedbackData.Arn, '*']]
+                Resource: !Join ['', [!GetAtt AdminData.Arn, '/feedback/*']]
         - PolicyName: SnsPublish
           PolicyDocument:
             Version: 2012-10-17

@@ -1,0 +1,1 @@
+Sitting by the shore in Beer, UK, a woman is reminded of a childhood trip to another beach. The sea weaves its magic and memories long buried reach out to pull her back, into a time of perfect freedom, love, and joy.

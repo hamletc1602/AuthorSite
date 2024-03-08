@@ -21,6 +21,7 @@ import PollPutContent from './PollPutContent'
 import PollAvailableDomains from './PollAvailableDomains'
 import PollCfState from './PollCfState'
 import ManageTemplatesPopup from './ManageTemplatesPopup'
+import PollEditorsState from './PollEditorsState'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -512,39 +513,6 @@ function App() {
     });
   }, [setAdminState])
 
-  // Get config data from the server
-  useEffect(() => {
-    try {
-      if (authenticated && editors.current.length === 0) {
-        // If a template ID is saved in the admin state, also pull the list of editors from the server
-        console.log(`Update Editor config data from server. Template: ${templateId}`)
-        if (templateId) {
-           controller.getEditors(templateId)
-            .then(async editorsData => {
-              if (editorsData) {
-                const editorId = editorsData[0].id
-                // Init local editor data values
-                editorsData = editorsData.map(editor => {
-                  editor.lastEditPath = [{ name: editor.id }]
-                  return editor
-                })
-                const raw = await controller.getSiteConfig(templateId, editorId)
-                raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
-                raw.content.isConfig = true // Add config flag, for use later in uploading.
-                configs.current[editorId] = raw.content
-                editors.current = editorsData
-                setPath([{ name: editorId }])
-                setEditorsEnabled(true)
-                setShowPreparingTemplate(false)
-              }
-            })
-        }
-      }
-    } catch (error) {
-      console.error('Failed Get editors init.', error)
-    }
-  }, [authenticated, templateId])
-
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
     if (authState === 'success') {
@@ -624,6 +592,9 @@ function App() {
         controller={controller} intervalMs={adminStatePollIntervalMs} setAdminState={setAdminState}
         setError={setPollAdminStateError}
       />
+      <PollEditorsState controller={controller} authenticated={authenticated} templateId={templateId}
+        configs={configs} editors={editors} setPath={setPath} setEditorsEnabled={setEditorsEnabled}
+        setShowPreparingTemplate={setShowPreparingTemplate}/>
       <PollAvailableDomains controller={controller} authenticated={authenticated}/>
       <PollPutContent
         controller={controller} adminConfig={adminConfig} contentToPut={contentToPut}

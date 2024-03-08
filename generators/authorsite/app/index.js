@@ -222,8 +222,8 @@ const handler = async (event, context) => {
 
     // Remove properties that are empty strings
     const clearMissingValuesWorker  = async (value, _schema, _config, parent, key) => {
-      console.log(`Checking: ${key}: ${value}`)
-      if (value && value.length && value.length === 0) {
+      //console.log(`Checking: ${key}: ${value}`)
+      if (value === '') {
         console.log(`Prop for ${key} is an empty string. Clearing property value for this run.`)
         parent[key] = null
       }
@@ -650,6 +650,7 @@ const preparePageData = async (contentDir, cacheDir, config, schema, data, skin,
 
     // Save the author map and other config for later use as data by the client code generation.
     let clientAuthorMap = filterAuthorMap(config, authorMap);
+    console.log('Client author map: ' + JSON.stringify(clientAuthorMap))
     Files.ensurePath(Path.join(tempDir, 'script-src'))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'authorMap.json'), JSON.stringify(clientAuthorMap, null, 4))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'skin.json'), JSON.stringify(data.style, null, 4))
@@ -968,7 +969,7 @@ const visitProperties = async (value, schema, config, actionFunc, parent, key) =
       let defn = schema.properties[itemKey];
       if (defn) {
         let item = value[itemKey];
-        if (item) {
+        if (item !== undefined && item !== null) {
           await visitProperties(item, defn, config, actionFunc, value, itemKey)
         }
       } else {
@@ -1149,11 +1150,14 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
     // Add category properties to book
     const category = config.itemCategories.find(p => p.name === pubType[0])
-    pub.categoryId = category.name
-    pub.categoryName = category.single
-    pub.categoryNamePlural = category.plural
-    pub.publishedStickerText = category.publishedStickerText || config.publishedStickerText
-    pub.unpublishedStickerText = category.unpublishedStickerText || config.unpublishedStickerText
+    console.log('Copy category elements to book: ' + pub.title, category)
+    if (category) {
+      pub.categoryId = category.name
+      pub.categoryName = category.single
+      pub.categoryNamePlural = category.plural
+      pub.publishedStickerText = category.publishedStickerText || config.publishedStickerText
+      pub.unpublishedStickerText = category.unpublishedStickerText || config.unpublishedStickerText
+    }
   })
 
   // Convert author pubs to a list, and Sort book categories to the same order as they are defined in the config
@@ -1199,8 +1203,8 @@ const filterAuthorMap = (config, authorMap) => {
               detailsUrl: Path.join(config.booksPath, pub.id),
               primaryDistributor: pub.primaryDistributor,
               published: pub.published,
-              publishedStickerText: pub.publishedStickerText,
-              unpublishedStickerText: pub.unpublishedStickerText
+              publishedStickerText: pub.publishedStickerText || config.publishedStickerText,
+              unpublishedStickerText: pub.unpublishedStickerText || config.unpublishedStickerText
             }
           })
         }
@@ -1215,9 +1219,9 @@ const filterAuthorMap = (config, authorMap) => {
           detailsUrl: Path.join(config.booksPath, pub.id),
           primaryDistributor: pub.primaryDistributor,
           published: pub.published,
-          publishedStickerText: pub.publishedStickerText,
-          unpublishedStickerText: pub.unpublishedStickerText
-    }
+          publishedStickerText: pub.publishedStickerText || config.publishedStickerText,
+          unpublishedStickerText: pub.unpublishedStickerText || config.unpublishedStickerText
+        }
       })
     }
     return ret

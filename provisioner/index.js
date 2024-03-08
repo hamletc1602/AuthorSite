@@ -142,10 +142,8 @@ const cfnDeleteHandler = async (requestId, params) => {
     try {
       await deleteAllObjectsFromBucket(s3, params.WebDataBucket)
       await deleteAllObjectsFromBucket(s3, params.TestWebDataBucket)
-      await deleteAllObjectsFromBucket(s3, params.FeedbackBucket)
       await deleteAllObjectsFromBucket(s3, params.AdminUiBucket)
       await deleteAllObjectsFromBucket(s3, params.AdminBucket)
-      await deleteAllObjectsFromBucket(s3, params.TestWebLogsBucket)
       await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
     } catch(e) {
       console.log(`Error deleting bucket objects for ${siteName}`, e)

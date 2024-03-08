@@ -1,4 +1,4 @@
-# Author Site 0.9.0
+# Author Site 0.9.1
 
 If you're looking to build a static website with worldwide reach for very low hosting cost, 100% under your control, and with no significant limits on data size or bandwidth, you are welcome use this template with your own AWS account. This template is free for use disributed under the Open Source Apache License 2.0.
 
@@ -60,11 +60,11 @@ There are three different options for building your site, depending on what you 
 
 Log in to your AWS Console account, then click on the link that best suits your needs from the same browser:
 
-1) I want to create a site with no personalized domain, for a trial run, or because I want to link it with a domain hosted in another service: [**Build site with no domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite.template). The site domain will be auto-generated, and can be found on the *Outputs* tab of the completed stack.
+1) I want to create a site with no personalized domain, for a trial run, or because I want to link it with a domain hosted in another service: [**Build site with no domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.1/AuthorSite.template). The site domain will be auto-generated, and can be found on the *Outputs* tab of the completed stack.
 
-2) I want to create a site with a new domain that I will host in AWS: [**Build site with domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite-domain.template). AWS will charge $0.50 USD per month for each distinct domain hosted.
+2) I want to create a site with a new domain that I will host in AWS: [**Build site with domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.1/AuthorSite-domain.template). AWS will charge $0.50 USD per month for each distinct domain hosted.
 
-3) I want to create a site as a subdomain of a domain I already host in AWS: [**Build site with sub-domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.0/AuthorSite-subdomain.template)
+3) I want to create a site as a subdomain of a domain I already host in AWS: [**Build site with sub-domain**](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://braevitae-pub.s3.amazonaws.com/AutoSite-0.9.1/AuthorSite-subdomain.template)
 
 This will open a page in the AWS Cloud Formation service showing the BraeVitae Static Website Template configuration. Fill in all required parameters and click *Create Stack*. The auto-generated base site URL can be found on the *Outputs* tab of the completed stack.
 
@@ -82,7 +82,7 @@ This will open a page in the AWS Cloud Formation service showing the BraeVitae S
 
 **SharedStorageName**: If SharedStorage is 'No' above, here's where you can enter the name of a previously created stack's shared storage (See the 'Outputs' associted with that stack for the name).
 
-**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite-0.9.0/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. (Use //Stackname-admin: or //Stack name-shared) as the bucket name, if you want to upload a generator to one of the site private buckets after creation).
+**SiteGenerator**: This field determines the generator that will be used to create your website code. Only one generator is currenlly provided: 'braevitae-pub:AutoSite-0.9.1/lambdas/authorsite.zip', but you can also supply the bucket and path to your own generator function. (Use //Stackname-admin: or //Stack name-shared) as the bucket name, if you want to upload a generator to one of the site private buckets after creation).
 
 If you want to upload your own raw content to the site (perhaps created with tools lke [HUGO](https://gohugo.io/) or [Jekyll](https://jekyllrb.com/)), just enter the default value above and directly upload your own content to the test bucket.
 
