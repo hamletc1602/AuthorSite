@@ -33,12 +33,15 @@ exports.onFeedback = async function (event, context) {
     } else {
       functionName = context.functionName
     }
+    // Use all but the element after the last dash as the stack name (matches how lambda names are created)
+    const stackName = functionName.split('-').slice(0, -1).join('-')
+    const adminBucket = stackName + '-admin'
 
     if (request.method === 'POST') {
       const body = Buffer.from(request.body.data, 'base64').toString();
       const params = {
-        Bucket: functionName,
-        Key:  'received/' + now.toISOString(),
+        Bucket: adminBucket,
+        Key:  'feedback/received/' + now.toISOString(),
         Body: body
       }
       return s3.putObject(params).promise()
@@ -63,18 +66,18 @@ exports.publisher = async function (_event, _context) {
     try {
         // Read from S3 bucket received folder
         const b = process.env.BUCKET
-        const listData = await s3.listObjectsV2({ Bucket: b, Prefix: 'received' }).promise()
+        const listData = await s3.listObjectsV2({ Bucket: b, Prefix: 'feedback/received' }).promise()
         console.log(`Found ${listData.KeyCount} received messages` + (listData.isTruncated ? ' (truncated)' : ''))
         await Promise.all(listData.Contents.map(async item => {
             try {
                 // Get item content
-                const subject = b + ': ' + item.Key.replace(/^received\//, '')
+                const subject = b + ': ' + item.Key.replace(/^feedback\/received\//, '')
                 const range = `bytes=0-${Math.min(item.Size, MAX_DATA_LEN)}`
                 const content = await s3.getObject({ Bucket: b, Key: item.Key, Range: range }).promise()
                 // Send to topic
                 await sns.publish({ TopicArn: process.env.TOPIC, Message: content.Body.toString(), Subject: subject }).promise()
-                // Move from recieved to sent folder
-                const newKey = item.Key.replace(/^received/, 'sent')
+                // Move from received to sent folder
+                const newKey = item.Key.replace(/^feedback\/received/, 'feedback/sent')
                 await s3.copyObject({ Bucket: b, CopySource: `/${b}/${item.Key}`, Key: newKey }).promise()
                 await s3.deleteObject({ Bucket: b, Key: item.Key }).promise()
                 console.log(`Sent message ${subject}, size: ${item.Size}`)

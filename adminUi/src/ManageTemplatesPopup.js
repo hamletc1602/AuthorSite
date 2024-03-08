@@ -19,6 +19,7 @@ export default function ManageTemplatesPopup({
   const tplNameInputWithFocus = useMergeRefs(focus, tplNameInput)
 
   useEffect(() => {
+    reactToSelectedTemplate(tplNameSelect.current.value)
     controller.getTemplates().then(tplList => {
       templates.current = tplList
     })
@@ -54,21 +55,24 @@ export default function ManageTemplatesPopup({
     startFastPolling()
   }
 
+  const reactToSelectedTemplate = (tplName) => {
+    if (tplName === '') {
+      tplDeleteBtn.current.disabled = true
+      tplRenameBtn.current.disabled = true
+    } else {
+      tplDeleteBtn.current.disabled = false
+      tplRenameBtn.current.disabled = false
+      const tpl = getTemplates().find(p => p.id === tplName)
+      tplDescInput.current.value = tpl.description
+    }
+  }
+
   return <PopoverContent>
     <PopoverArrow />
     <PopoverBody>
-      <Text>{error ? headerText + '<br><br>' + errorMsg : headerText}</Text>
+      <Text>{error ? <><div>{headerText}</div><div style={{color: 'danger'}}>{errorMsg}</div></> : headerText}</Text>
       <Select ref={tplNameSelect} size='sm' autoFocus={false} defaultValue={templates[0]} onChange={ev => {
-          const tplName = ev.target.value
-          const tpl = getTemplates().find(p => p.id === tplName)
-          if (tplName === '') {
-            tplDeleteBtn.current.disabled = true
-            tplRenameBtn.current.disabled = true
-          } else {
-            tplDeleteBtn.current.disabled = false
-            tplRenameBtn.current.disabled = false
-            tplDescInput.current.value = tpl.description
-          }
+          reactToSelectedTemplate(ev.target.value)
         }}
       >
         <option key={-1} value={''} align='right'>New template...</option>,
@@ -86,8 +90,8 @@ export default function ManageTemplatesPopup({
       <HStack>
         <Spacer/>
         <Button size='xs' onClick={onClose}>Cancel</Button>
-        <Button ref={tplDeleteBtn} size='xs' isDisabled={true} onClick={() => {doDeleteTemplate(); onClose()}}>Delete</Button>
-        <Button ref={tplRenameBtn} size='xs' isDisabled={true} onClick={() => {doRenameTemplate(); onClose()}}>Rename</Button>
+        <Button ref={tplDeleteBtn} size='xs' onClick={() => {doDeleteTemplate(); onClose()}}>Delete</Button>
+        <Button ref={tplRenameBtn} size='xs' onClick={() => {doRenameTemplate(); onClose()}}>Rename</Button>
         <Button ref={tplSaveBtn} size='xs' onClick={() => {doSaveTemplate(); onClose()}}>Save</Button>
       </HStack>
     </PopoverBody>

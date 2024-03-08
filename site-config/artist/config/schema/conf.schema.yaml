@@ -4,14 +4,6 @@ properties:
     disp: Site Title
     type: string
     desc: A short title for your site. Appears in many places. The browser window/tab title, Copyright message, and when sharing site URLs on social media.
-  publishedStickerText:
-    disp: Buy Now Text
-    type: string
-    desc: Text to use on the sticker for items on the site available for sale.
-  unpublishedStickerText:
-    disp: Pre-order Text
-    type: string
-    desc: Text to use on the sicket for items on the site not currently available for sale.
   socialMediaPageText:
     disp: Social Page Text
     type: text

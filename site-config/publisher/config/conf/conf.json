@@ -1,7 +1,5 @@
 {
     "siteName": "My Author Site",
-    "publishedStickerText": "Buy Now",
-    "unpublishedStickerText": "Coming Soon!",
     "socialMediaPageText": "promotion/socialMediaHeader.md",
     "feedbackPageText": "If you have a question or concern that is not covered by the <a href=\"/p/faq\">FAQ</a>, here's a handy form you can use to send us an anonymous message.",
 
@@ -11,24 +9,34 @@
     "itemCategories": [{
       "name": "book",
       "single": "Novel",
-      "plural": "Novels"
+      "plural": "Novels",
+      "publishedStickerText": "Buy Now",
+      "unpublishedStickerText": "Coming Soon!"
     },{
       "name": "novella",
       "single": "Novella",
-      "plural": "Novellas"
+      "plural": "Novellas",
+      "publishedStickerText": "Buy Now",
+      "unpublishedStickerText": "Coming Soon!"
     },{
       "name": "short",
       "single": "Short Story",
-      "plural": "Short Stories"
+      "plural": "Short Stories",
+      "publishedStickerText": "Buy Now",
+      "unpublishedStickerText": "Coming Soon!"
     },{
       "name": "anthology",
       "single": "Anthology",
-      "plural": "Anthologies"
+      "plural": "Anthologies",
+      "publishedStickerText": "Buy Now",
+      "unpublishedStickerText": "Coming Soon!"
     },{
       "name": "nonfiction",
       "single": "Nonfiction",
-      "plural": "Nonfiction"
-  }],
+      "plural": "Nonfiction",
+      "publishedStickerText": "Buy Now",
+      "unpublishedStickerText": "Coming Soon!"
+    }],
 
     "minBooksForList": 3,
     "minBooksForCategories": 10,

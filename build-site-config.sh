@@ -1,6 +1,26 @@
 #!/bin/bash
 wdir=$(pwd)
 
+## Merge site-config files and package into a zip in the target dir.
+# Args:
+# $1 : site-config name
+# $2 : parent config name
+mergeTemplate () {
+    local root=/tmp/authorsite/template/$1
+    echo $1
+    mkdir -p $root
+    cp -R site-config/$1/ $root
+    cp -R site-config/schema/$2/* $root/config
+    mkdir -p $root/config/templates/default
+    cp -R site-config/templates/$2/ $root/config/templates/default
+    cd $root
+    zip -qr $wdir/target/AutoSite/site-config/$1.zip *
+    cd $wdir
+}
+
+# Clean
+rm -rf /tmp/authorsite/template/*
+rm -rf $wdir/target/AutoSite/site-config/*
 # Clean DS_Store site-config dirs
 find . -name '.DS_Store' -type f -delete
 
@@ -9,29 +29,11 @@ cp site-config/metadata.json $wdir/target/AutoSite/site-config/
 
 echo Package Default site-config
 
-echo Publisher
-root=/tmp/authorsite/template/publisher
-mkdir -p $root
-cp -R site-config/publisher/ $root
-cp site-config/schema/editors.yaml $root/config
-cp -R site-config/schema/schema $root/config/schema
-cd $root
-zip -qr $wdir/target/AutoSite/site-config/publisher.zip *
-cd $wdir
+mergeTemplate Publisher Publisher
+mergeTemplate Demo1 Author
+mergeTemplate Demo2 Author
+mergeTemplate Demo5 Author
+mergeTemplate Demo8 Author
 
-echo Author
-root=/tmp/authorsite/template/author
-mkdir -p $root
-cp -R site-config/author/ $root
-cp -R site-config/schema/schema $root/config/schema
-cd $root
-zip -qr $wdir/target/AutoSite/site-config/author.zip *
-cd $wdir
-
-echo Artist
-root=/tmp/authorsite/template/artist
-mkdir -p $root
-cp -R site-config/artist/ $root
-cd $root
-zip -qr $wdir/target/AutoSite/site-config/artist.zip *
-cd $wdir
+## mergeTemplate Artist Artist  ## Artist template not ready yet
+##mergeTemplate Author Author  ## Default author template deprecated. Needs some work, and the 'Demo' series are better.

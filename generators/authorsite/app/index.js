@@ -170,7 +170,7 @@ const handler = async (event, context) => {
     config = await Files.loadConfig(Path.join(confDir, confIndex.general.data), initConfig)
     config.hostName = options.domainName
     config._tempDir = tempDir
-    const data = { 
+    const data = {
       config: config,
       structure: await Files.loadConfig(Path.join(confDir, confIndex.structure.data), config),
       style: await Files.loadConfig(confDir + '/' + confIndex.style.data, config),
@@ -222,7 +222,9 @@ const handler = async (event, context) => {
 
     // Remove properties that are empty strings
     const clearMissingValuesWorker  = async (value, _schema, _config, parent, key) => {
+      //console.log(`Checking: ${key}: ${value}`)
       if (value === '') {
+        console.log(`Prop for ${key} is an empty string. Clearing property value for this run.`)
         parent[key] = null
       }
     }
@@ -298,13 +300,14 @@ const handler = async (event, context) => {
       //
       console.log(`======== Render site for ${type} ========`)
       await displayUpdate(Aws, { building: true, stepMsg: `Generating ${type}` }, `Render website for ${type}`)
-      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, dataCopy, dataCopy.style, tempDir, outputDir, options);
+      const pageData = await preparePageData(contentDir, cacheDir, mergedConfig, schema, dataCopy, dataCopy.style, tempDir, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating server content`)
       await renderPages(confDir, mergedConfig, contentDir, pageData, type, outputDir, options);
       await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, `Generating client side code`)
       await renderReactComponents(mergedConfig, outputDir, tempDir, options);
 
       // Copy favicon to root of site
+      //     TODO: Ignoring 'pubDir' in favour of custom handling for favIcon.
       if (dataCopy.style.favicon) {
         await Files.copy(Path.join(contentDir, dataCopy.style.favicon), Path.join(outputDir, 'favicon.ico'))
       }
@@ -416,7 +419,7 @@ const fillInMissingLogoEntries = (logo) => {
 }
 
 /** Prepare data used when rendering page templates */
-const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir, outputDir, _options) => {
+const preparePageData = async (contentDir, cacheDir, config, schema, data, skin, tempDir, outputDir, _options) => {
     //
     console.info("Prepare headers and footers from page backgound images")
 
@@ -513,6 +516,10 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
             externalIdEnc = encodeURIComponent(externalId)
           }
           d.url = d.url.replace(/@BOOKID@/g, externalIdEnc)
+          const iconFileName = Path.parse(d.icon).base
+          d.iconUrl = `/${schema.distributors.properties.icon.pubDir}/${iconFileName}`
+          const featIconFileName = Path.parse(d.featureIcon).base
+          d.featureIconUrl = `/${schema.distributors.properties.featureIcon.pubDir}/${featIconFileName}`
           list.push(d);
           if ( pub.primaryDistributor == d.id) {
             pub.primaryDistributor = d
@@ -643,6 +650,7 @@ const preparePageData = async (contentDir, cacheDir, config, data, skin, tempDir
 
     // Save the author map and other config for later use as data by the client code generation.
     let clientAuthorMap = filterAuthorMap(config, authorMap);
+    console.log('Client author map: ' + JSON.stringify(clientAuthorMap))
     Files.ensurePath(Path.join(tempDir, 'script-src'))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'authorMap.json'), JSON.stringify(clientAuthorMap, null, 4))
     await Files.saveFile(Path.join(tempDir, 'script-src', 'skin.json'), JSON.stringify(data.style, null, 4))
@@ -961,7 +969,7 @@ const visitProperties = async (value, schema, config, actionFunc, parent, key) =
       let defn = schema.properties[itemKey];
       if (defn) {
         let item = value[itemKey];
-        if (item) {
+        if (item !== undefined && item !== null) {
           await visitProperties(item, defn, config, actionFunc, value, itemKey)
         }
       } else {
@@ -1100,6 +1108,12 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
   })
 
   published.map(pub => {
+    // Currently, book type is a single-select, but it may change to multi-select in future
+    let pubType = pub.type
+    if ( ! Array.isArray(pubType)) {
+      pubType = [pubType]
+    }
+    //
     const authorObjList = []
     pub.author.map(authorName => {
       authorName = authorName.trim()
@@ -1112,11 +1126,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
         // Add books to author
         author.list.push(pub)
-        // Currently, book type is a single-select, but it may change to multi-select in future
-        let pubType = pub.type
-        if ( ! Array.isArray(pubType)) {
-          pubType = [pubType]
-        }
+
         pubType.forEach(type => {
           if ( ! pubs[type]) {
             pubs[type] = {
@@ -1130,8 +1140,6 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
             author.pubs = pubs
           }
         })
-
-
       } else {
         console.error(`Can't find author ${authorName} in the list of authors.`, authorMap)
       }
@@ -1139,6 +1147,17 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 
     // Replace list of author names with objects.
     pub.author = authorObjList
+
+    // Add category properties to book
+    const category = config.itemCategories.find(p => p.name === pubType[0])
+    console.log('Copy category elements to book: ' + pub.title, category)
+    if (category) {
+      pub.categoryId = category.name
+      pub.categoryName = category.single
+      pub.categoryNamePlural = category.plural
+      pub.publishedStickerText = category.publishedStickerText || config.publishedStickerText
+      pub.unpublishedStickerText = category.unpublishedStickerText || config.unpublishedStickerText
+    }
   })
 
   // Convert author pubs to a list, and Sort book categories to the same order as they are defined in the config
@@ -1162,7 +1181,7 @@ const addBooksToAuthors = (config, authorMap, seriesMap, published) => {
 }
 
 // Trim down the data we save to the page as data input to the client side code generation
-// Look here if a poperty you need is not available in client side code!
+// Look here if a property you need is not available in client side code!
 const filterAuthorMap = (config, authorMap) => {
   return Object.keys(authorMap).map(authorName => {
     let author = authorMap[authorName];
@@ -1183,7 +1202,9 @@ const filterAuthorMap = (config, authorMap) => {
               logline: pub.logline,
               detailsUrl: Path.join(config.booksPath, pub.id),
               primaryDistributor: pub.primaryDistributor,
-              published: pub.published
+              published: pub.published,
+              publishedStickerText: pub.publishedStickerText || config.publishedStickerText,
+              unpublishedStickerText: pub.unpublishedStickerText || config.unpublishedStickerText
             }
           })
         }
@@ -1197,7 +1218,9 @@ const filterAuthorMap = (config, authorMap) => {
           logline: pub.logline,
           detailsUrl: Path.join(config.booksPath, pub.id),
           primaryDistributor: pub.primaryDistributor,
-          published: pub.published
+          published: pub.published,
+          publishedStickerText: pub.publishedStickerText || config.publishedStickerText,
+          unpublishedStickerText: pub.unpublishedStickerText || config.unpublishedStickerText
         }
       })
     }

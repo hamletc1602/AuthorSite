@@ -21,6 +21,7 @@ import PollPutContent from './PollPutContent'
 import PollAvailableDomains from './PollAvailableDomains'
 import PollCfState from './PollCfState'
 import ManageTemplatesPopup from './ManageTemplatesPopup'
+import PollEditorsState from './PollEditorsState'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -376,10 +377,13 @@ function App() {
     setShowSelectTemplate(true)
   }
 
-  const onUpdateTemplate = () => {
+  const onUpdateTemplate = (fromId) => {
     setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
-    controller.sendCommand('updateTemplate', { id: adminConfig.current.templateId })
+    controller.sendCommand('updateTemplate', {
+      id: adminConfig.current.templateId,
+      fromId: fromId
+    })
     startFastPolling()
   }
 
@@ -509,39 +513,6 @@ function App() {
     });
   }, [setAdminState])
 
-  // Get config data from the server
-  useEffect(() => {
-    try {
-      if (authenticated && editors.current.length === 0) {
-        // If a template ID is saved in the admin state, also pull the list of editors from the server
-        console.log(`Update Editor config data from server. Template: ${templateId}`)
-        if (templateId) {
-           controller.getEditors(templateId)
-            .then(async editorsData => {
-              if (editorsData) {
-                const editorId = editorsData[0].id
-                // Init local editor data values
-                editorsData = editorsData.map(editor => {
-                  editor.lastEditPath = [{ name: editor.id }]
-                  return editor
-                })
-                const raw = await controller.getSiteConfig(templateId, editorId)
-                raw.content.contentType = raw.contentType // Copy response content-type to content for later use.
-                raw.content.isConfig = true // Add config flag, for use later in uploading.
-                configs.current[editorId] = raw.content
-                editors.current = editorsData
-                setPath([{ name: editorId }])
-                setEditorsEnabled(true)
-                setShowPreparingTemplate(false)
-              }
-            })
-        }
-      }
-    } catch (error) {
-      console.error('Failed Get editors init.', error)
-    }
-  }, [authenticated, templateId])
-
   // Hide login dialog on auth success, but delay for a couple of seconds so it's not so jarring to the user.
   useEffect(() => {
     if (authState === 'success') {
@@ -621,6 +592,9 @@ function App() {
         controller={controller} intervalMs={adminStatePollIntervalMs} setAdminState={setAdminState}
         setError={setPollAdminStateError}
       />
+      <PollEditorsState controller={controller} authenticated={authenticated} templateId={templateId}
+        configs={configs} editors={editors} setPath={setPath} setEditorsEnabled={setEditorsEnabled}
+        setShowPreparingTemplate={setShowPreparingTemplate}/>
       <PollAvailableDomains controller={controller} authenticated={authenticated}/>
       <PollPutContent
         controller={controller} adminConfig={adminConfig} contentToPut={contentToPut}
@@ -798,14 +772,16 @@ function App() {
                 <Portal>
                   <ManageTemplatesPopup
                     id={templateId} controller={controller} onClose={onClose}
-                    templates={templates} focus={manageTplFocus}
-                    headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrorMsg}
+                    templates={templates} focus={manageTplFocus} error={adminDisplay.current.tplError}
+                    headerText={BUTTON_MANAGE_TEMPLATES} errorMsg={adminDisplay.current.tplErrMsg}
                     setDisplay={setDisplay} startFastPolling={startFastPolling} advancedMode={advancedMode}
                   />
                 </Portal></>
               }}
             </Popover>
             {advancedMode ? [
+              // TODO: Need to add a new popup here that takes the ID of the template to use as a source template
+              // for the schema/static-conf update process.
               <ActionButton text='Update Template' onClick={onUpdateTemplate} buttonStyle={{ size: 'xs' }}
                 tooltip={{ text: BUTTON_UPDATE_TEMPLATE_TOOLTIP, placement: 'left-start' }}
                 errorFlag={adminDisplay.current.updateTemplateError} errorText={adminDisplay.current.updateTemplateErrMsg}

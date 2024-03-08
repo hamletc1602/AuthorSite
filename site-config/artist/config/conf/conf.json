@@ -9,8 +9,6 @@
         "description": "art"
     },
 
-    "publishedStickerText": "Request Info",
-    "unpublishedStickerText": "SOLD",
     "showTitlesOnGroupedPage": true,
 
     "feedback": {
@@ -21,6 +19,14 @@
             "I'm interested in '@title@'. Could you please email me with more information?"
         ]
     },
+
+    "itemCategories": [{
+        "name": "Art",
+        "single": "Art",
+        "plural": "Arts",
+        "publishedStickerText": "Request Info",
+        "unpublishedStickerText": "SOLD"
+      }],
 
     "fbAdminCode": "",
     "pintrestCode": ""

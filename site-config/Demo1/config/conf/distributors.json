@@ -1,0 +1,72 @@
+[{
+    "id": "tyche",
+    "name": "Tyche Books",
+    "url": "tychebooks.com/@BOOKID@",
+    "icon": "dist-icons/tyche32.png",
+    "featureIcon": "/dist-icons/tyche32.png",
+    "bookIdProp": "tycheId"
+},{
+    "id": "amazonPrint",
+    "name": "Amazon Print",
+    "url": "/azn/p/@BOOKID@",
+    "popupText": "Buy print book now from Amazon",
+    "icon": "dist-icons/amazonPrint32white.png",
+    "featureIcon": "/dist-icons/amazonPrint32white.png",
+    "bookIdProp": "amazonPrintId"
+},{
+    "id": "amazon",
+    "name": "Amazon",
+    "url": "/azn/e/@BOOKID@",
+    "popupText": "Buy Ebook now from Amazon",
+    "icon": "dist-icons/amazon32.png",
+    "featureIcon": "/dist-icons/amazon32.png",
+    "bookIdProp": "amazonId"
+},{
+    "id": "barnesNoble",
+    "name": "Barnes & Noble",
+    "url": "www.barnesandnoble.com/w/@BOOKID@",
+    "popupText": "Buy now from Barnes & Noble",
+    "icon": "dist-icons/bn32.png",
+    "featureIcon": "/dist-icons/bn32.png",
+    "bookIdProp": "barnesNobleId"
+},{
+    "id": "appleStore",
+    "name": "Apple Store",
+    "url": "itunes.apple.com/us/book/@BOOKID@",
+    "popupText": "Buy now from Apple Store",
+    "icon": "dist-icons/itunes32.png",
+    "featureIcon": "/dist-icons/itunes32.png",
+    "bookIdProp": "appleStoreId"
+},{
+    "id": "kobo",
+    "name": "Kobo",
+    "url": "store.kobobooks.com/ebook/@BOOKID@",
+    "popupText": "Buy now from Kobo",
+    "icon": "dist-icons/kobo32.png",
+    "featureIcon": "/dist-icons/kobo32.png",
+    "bookIdProp": "koboId"
+},{
+    "id": "smashwords",
+    "name": "Smashwords",
+    "url": "www.smashwords.com/books/view/@BOOKID@",
+    "popupText": "Buy now from Smashwords",
+    "icon": "dist-icons/smashwords32.png",
+    "featureIcon": "/dist-icons/smashwords32.png",
+    "bookIdProp": "smashwordsId"
+},{
+    "id": "goodreads",
+    "name": "Goodreads",
+    "url": "www.goodreads.com/book/show/@BOOKID@",
+    "popupText": "Buy now at Smashwords",
+    "icon": "dist-icons/goodreads32.png",
+    "featureIcon": "/dist-icons/goodreads32.png",
+    "bookIdProp": "goodreadsId"
+},{
+    "id": "lulu",
+    "name": "Lulu.com",
+    "url": "www.lulu.com/ca/en/shop/@BOOKID@.html",
+    "popupText": "Buy now from Lulu.com",
+    "icon": "dist-icons/lulu32.png",
+    "featureIcon": "/dist-icons/lulu32.png",
+    "bookIdProp": "luluId"
+}]

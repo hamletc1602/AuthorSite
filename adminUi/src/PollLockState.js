@@ -9,10 +9,6 @@ useEffect(() => {
     controller.getLockState().then(locked => setLocked(locked))
   }
   const lockStatePoller = setInterval(async () => {
-      // Stop polling state when the page is not visible
-      if (document.visibilityState !== "visible") {
-          return
-      }
       console.log('Poll for lock State')
       setLocked(await controller.getLockState())
     }, 4 * 60 * 1000)

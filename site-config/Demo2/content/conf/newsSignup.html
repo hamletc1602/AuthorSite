@@ -1,0 +1,18 @@
+<link href="//cdn-images.mailchimp.com/embedcode/slim-10_7.css" rel="stylesheet" type="text/css">
+<style type="text/css">
+	#mc_embed_signup_scroll {
+		display: flex;
+		flex-direction: row;
+		color: black;
+	}
+</style>
+<div id="mc_embed_signup">
+<form action="https://braevitae.us12.list-manage.com/subscribe/post?u=b4563c7514d63a0b7bf1e3c4f&amp;id=fa59ad41b8" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
+    <div id="mc_embed_signup_scroll">
+	<input type="email" value="" name="EMAIL" class="email" id="mce-EMAIL" placeholder="email address" required>
+    <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
+    <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_b4563c7514d63a0b7bf1e3c4f_fa59ad41b8" tabindex="-1" value=""></div>
+    <div><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button"></div>
+    </div>
+</form>
+</div>

@@ -1,0 +1,83 @@
+
+{
+    "menu": [{
+        "name": "index",
+        "pageId": "books",
+        "title": "BOOKS",
+        "desc": "All my books",
+        "template": "grouped.html"
+      },{
+        "name": "author",
+        "pageId": "author",
+        "title": "ABOUT",
+        "desc": "About the author",
+        "template": "group.html"
+      },{
+        "name": "social",
+        "pageId": "social",
+        "title": "SOCIAL",
+        "desc": "Social media hub",
+        "template": "social.html"
+      },{
+        "name": "news",
+        "pageId": "news",
+        "title": "NEWS",
+        "desc": "The latest updates",
+        "template": "news.html"
+      },{
+        "name": "contact",
+        "pageId": "contact",
+        "title": "CONTACT",
+        "template": "contact_us.html"
+      }
+    ],
+
+    "customPages": {
+    },
+
+    "fonts": [],
+
+    "bkgndConfig": {
+        "heightSm": 200,
+        "height": 400,
+        "widthXSm": 420,
+        "widthSm": 650,
+        "widthMd": 1024,
+        "widthLg": 1536,
+        "widthXl": 2048,
+        "widthXXl": 2655,
+        "footerHeight": 200
+    },
+
+    "headerHeight": {
+        "sm": "30px",
+        "md": "90px",
+        "lg": "100px",
+        "noPanel": {
+            "sm": "30px",
+            "md": "90px",
+            "lg": "100px"
+        }
+    },
+
+    "coverIconHeight": 206,
+    "coverIconWidth": 140,
+    "featureImageHeight": 400,
+    "featureImageWidth": 270,
+    "promoThumbImageHeight": 100,
+    "publishedMarkerWidth": 65,
+    "unpublishedMarkerWidth": 100,
+
+    "paths": {
+        "rootPath": "",
+        "imagePath": "/image",
+        "fontPath": "/image",
+        "booksPath": "/w",
+        "authorPath": "/author",
+        "promoLinkPath": "/p",
+        "scriptPath": "/script",
+        "stylePath": "/style",
+        "newsPath": "/n"
+    }
+
+}

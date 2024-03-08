@@ -23,14 +23,14 @@ export default class BooksSlider extends React.Component {
 
             let overlay = null
             if (slide.published) {
-              if (settings.overlayPublished) {
+              if (slide.publishedStickerText) {
                 if (slide.primaryDistributor) {
-                  overlay = <a className="buybook" href={slide.primaryDistributor.url} target="_blank" title={`${slide.primaryDistributor.popupText}`}>{settings.overlayPublished}</a>
+                  overlay = <a className="buybook" href={slide.primaryDistributor.url} target="_blank" title={`${slide.primaryDistributor.popupText}`}>{slide.publishedStickerText}</a>
                 }
               }
             } else {
-              if (settings.overlayUnpublished) {
-                overlay = <div className="comingSoon">{settings.overlayUnpublished}</div>
+              if (slide.unpublishedStickerText) {
+                overlay = <div className="comingSoon">{slide.unpublishedStickerText}</div>
               }
             }
 

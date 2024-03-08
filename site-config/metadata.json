@@ -1,11 +1,29 @@
 [{
-    "id": "Author",
-    "name": "Author",
-    "description": "Site for authors to showcase their books.",
-    "access": "public"
-},{
+    "id": "Demo1",
+    "name": "Demo1",
+    "access": "public",
+    "description": "Demo settings for a one book site. Author template."
+  },
+  {
+    "id": "Demo2",
+    "name": "Demo2",
+    "access": "public",
+    "description": "Demo settings for a two book site. Author template."
+  },
+  {
+    "id": "Demo5",
+    "name": "Demo5",
+    "access": "public",
+    "description": "Demo settings for a five book site. Author template."
+  },
+  {
+    "id": "Demo8",
+    "name": "Demo8",
+    "access": "public",
+    "description": "Demo settings for an eight book site. Author template."
+  },{
     "id": "Publisher",
     "name": "Publisher",
-    "description": "Site for publishers to showcase books from multiple authors.",
+    "description": "For publishers to display books from multiple authors.",
     "access": "public"
 }]
