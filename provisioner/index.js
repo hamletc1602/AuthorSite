@@ -131,7 +131,7 @@ const cfnDeleteHandler = async (requestId, params) => {
     console.log(`Delete invoked with: ${JSON.stringify(params)}`)
 
     // Delete all CloudWatch Log Groups:
-    const siteName = params.AdminBucket.split('-')[0]
+    const siteName = truncateAtLastSeparator(params.AdminBucket, '-')
     try {
       deleteAllLogGroups({ siteName: siteName })
     } catch(e) {
@@ -236,6 +236,13 @@ async function deleteAllLogGroups(options) {
   } catch (e) {
     console.log(`Error in delete log groups:`, e)
   }
+}
+
+// Slice off the last 'part' of the given string as split by the provided separator string. Ignores any other
+// instances of the separator string.
+function truncateAtLastSeparator(source, sep) {
+  const lastIndex = source.lastIndexOf(sep);
+  return source.slice(0, lastIndex);
 }
 
 exports.handler = CfnLambda({

@@ -344,6 +344,7 @@ const buildSite = async (path, adminBucket, builderArn, params) => {
   let siteBucket = null
   let testSiteBucket = null
   try {
+    // TODO: dashes in site names? How will this be impacted.
     const parts = adminBucket.split('-')
     parts.pop()
     siteBucket = parts.join('.')

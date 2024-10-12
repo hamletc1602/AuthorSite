@@ -945,7 +945,7 @@ async function getHostedZoneId(domainName) {
 async function captureLogs(adminBucket, options) {
   try {
     await aws.displayUpdate({ getLogs: true, getLogsError: false, getLogsErrMsg: '' }, 'getLogs', `Start getLogs for the last ${options.durationH} hours.`)
-    const siteName = adminBucket.split('-')[0]
+    const siteName = truncateAtLastSeparator(adminBucket, '-')
     const logGroups = LogGroupsTemplate.map(tpl => {
       return {
         groupName: tpl.groupName.replace('@SITE_NAME@', siteName),
@@ -1083,4 +1083,11 @@ async function deleteAllLogGroups(options) {
   } catch (e) {
     console.log(`Error in delete log groups:`, e)
   }
+}
+
+// Slice off the last 'part' of the given string as split by the provided separator string. Ignores any other
+// instances of the separator string.
+function truncateAtLastSeparator(source, sep) {
+  const lastIndex = source.lastIndexOf(sep);
+  return source.slice(0, lastIndex);
 }
