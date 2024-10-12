@@ -571,30 +571,42 @@ const _mergeState = (state, logs, message) => {
   }
   // Config properties
   if (message.config) {
-    stateUpdated = true
-    console.log(`Merge new config ${JSON.stringify(message.config)} into state config ${JSON.stringify(state.config)}`)
-    Object.assign(state.config, message.config)
+    if ( ! deepEqual(state.config, message.config)) {
+      stateUpdated = true
+      console.log(`Merge new config ${JSON.stringify(message.config)} into state config ${JSON.stringify(state.config)}`)
+      Object.assign(state.config, message.config)
+    }
   }
   // Display properties
   if (message.display) {
-    stateUpdated = true
-    console.log(`Merge new display ${JSON.stringify(message.display)} into state display ${JSON.stringify(state.display)}`)
-    Object.assign(state.display, message.display)
+    if ( ! deepEqual(state.display, message.display)) {
+      stateUpdated = true
+      console.log(`Merge new display ${JSON.stringify(message.display)} into state display ${JSON.stringify(state.display)}`)
+      Object.assign(state.display, message.display)
+    }
   }
   // Update available domains
   if (message.availableDomains) {
-    stateUpdated = true
-    console.log(`Update available domains ${JSON.stringify(message.availableDomains)}}`)
-    state.availableDomains = message.availableDomains
+    if ( ! deepEqual(state.availableDomains, message.availableDomains)) {
+      stateUpdated = true
+      console.log(`Update available domains ${JSON.stringify(message.availableDomains)}}`)
+      state.availableDomains = message.availableDomains
+    }
   }
   // Update site domain
   if (message.siteDomain) {
-    stateUpdated = true
-    console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
-    state.domains.current = message.siteDomain.domain
-    state.domains.currentArn = message.siteDomain.arn
-    state.domains.currentTest = message.siteDomain.testDomain
-    state.domains.currentTestArn = message.siteDomain.testArn
+    if (state.domains.current != message.siteDomain.domain
+      || state.domains.currentArn != message.siteDomain.arn
+      || state.domains.currentTest != message.siteDomain.testDomain
+      || state.domains.currentTestArn != message.siteDomain.testArn)
+    {
+      stateUpdated = true
+      console.log(`Update site domain ${JSON.stringify(message.siteDomain)}}`)
+      state.domains.current = message.siteDomain.domain
+      state.domains.currentArn = message.siteDomain.arn
+      state.domains.currentTest = message.siteDomain.testDomain
+      state.domains.currentTestArn = message.siteDomain.testArn
+    }
   }
   //
   return { logsUpdated: logsUpdated, stateUpdated: stateUpdated }

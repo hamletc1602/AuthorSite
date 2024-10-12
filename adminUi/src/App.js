@@ -168,8 +168,11 @@ function App() {
 
   // Invoke when admin state polling determines something in the state has changed (new state from server)
   const setAdminState = useCallback((adminState) => {
+
     // Replace domains on each poll
-    adminDomains.current = adminState.domains
+    //   This seems odd, since we have a check for it below, that would always fail, with this here?
+    //adminDomains.current = adminState.domains
+
     // Admin Config changed
     if ( ! deepEqual(adminConfig.current, adminState.config)) {
       if (adminConfig.current.templateId !== adminState.config.templateId) {
