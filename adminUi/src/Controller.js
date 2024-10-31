@@ -98,7 +98,7 @@ export default class Controller {
     return null
   }
 
-  /** Get templates */
+  /** Get list of templates from the BraeVitae metadata, and any local, shared instance metadata. */
   async getTemplates() {
     if (this.password) {
       return fetch(`/admin/get-templates?ts=${Date.now()}`, {

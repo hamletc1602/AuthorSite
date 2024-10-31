@@ -415,7 +415,7 @@ function App() {
   const onGenerate = () => {
     setDisplay('building', true)
     setDisplay('buildingStart', Date.now())
-    controller.sendCommand('build', { id: adminConfig.current.templateId, debug: advancedMode })
+    controller.sendCommand('build', { id: 'working', tpl: adminConfig.current.templateId, debug: advancedMode })
     startFastPolling()
   }
 

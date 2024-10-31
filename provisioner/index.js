@@ -46,6 +46,7 @@ const cfnCreateHandler = async (params) => {
       CacheControl: 'no-cache,s-maxage=0',
       ContentType: 'application/json',
       Body: Buffer.from(JSON.stringify({
+        version: params.Version,
         generator: params.SiteGenerator,
         sharedBucket: params.SharedBucket,
         domains: domains,

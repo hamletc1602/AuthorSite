@@ -6,7 +6,7 @@
     {%#items%}
     <div class="bookTable-item bookTable-item{%@index%} {%id%}CoverIconWidth">
       <div class="bookCoverImage {%id%}CoverIcon">
-        <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+        <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="Book cover for {%title%}. {%altText%}"></a>
         {%#if published%}
         <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="{%primaryDistributor.popupText%}">{%publishedStickerText%}</a>
         {%else%}
@@ -20,7 +20,7 @@
         {%/author%}
       </div>
       {%/if%}
-      <a href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}">
+      <a href="{%@config.booksPath%}/{%id%}" aria-label="Book cover for {%title%}. {%altText%}">
         <span class="logline">{%loglineTrunc%}</span>
       </a>
     </div>

@@ -17,6 +17,10 @@ properties:
     type: image
     desc: The book's cover image. A PNG or JPG file only.
     filter: image/png,image/jpeg
+  altText:
+    disp: Cover Alt Text
+    type: text
+    desc: The book's cover image alt text.
   tags:
     disp: Tags
     type: list

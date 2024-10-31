@@ -776,7 +776,7 @@ AwsUtils.prototype.getLogEvents = async function(logGroupName, edge, logStreamNa
 }
 
 // Return a list of all available templates from public, shared and private sources.
-AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adminBucket) {
+AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adminBucket, siteVersion) {
   let privateTemplates = []
   try {
     const templateMetadataObj = await this.get(adminBucket, 'AutoSite/site-config/metadata.json')
@@ -805,7 +805,8 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
   }
   let publicTemplates = []
   {
-    const templateMetadataObj = await this.get(publicBucket, 'AutoSite/site-config/metadata.json')
+    // TODO: Get public template metadata from the correct versioned template, not the unversioned data.
+    const templateMetadataObj = await this.get(publicBucket, `AutoSite + ${siteVersion}/site-config/metadata.json`)
     //console.log(publicBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()

@@ -319,18 +319,19 @@ const handler = async (event, context) => {
       }
       // Copy selected cached content to output dir (TODO: make this a structure config option? )
       await mergeToOutput(Path.join(cacheDir, 'headers'), Path.join(outputDir, 'image', 'headers'))
-      //
+      // AWS Only
       if (context) {
-        // Push completed build back to S3 (Test site)
-        await displayUpdate(Aws, {}, `Push site content to ${options.testSiteBucket}`)
+        // Push completed build back to S3
+        let s3Dest = configName === 'published' ? options.siteBucket : options.testSiteBucket
         try {
-          await Aws.mergeToS3(outputDir, options.testSiteBucket, type, 0, 0, {
+          await displayUpdate(Aws, {}, `Push site content to ${s3Dest}`)
+          await Aws.mergeToS3(outputDir, s3Dest, type, 0, 0, {
             push: event => {
               console.log(mergeEventToString(event))
             }
           })
         } catch (e) {
-          const msg = `Sync to test site for ${type} failed`
+          const msg = `Sync to (${s3Dest}) for ${type} failed`
           console.error(msg + ` ${JSON.stringify(e)}`)
           await displayUpdate(Aws, { stepMsg: `Generating ${type}` }, msg)
         }

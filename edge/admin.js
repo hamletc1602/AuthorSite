@@ -16,6 +16,7 @@ const CONTENT_ROOT_PATH = '/admin/site-content/'
 // pattern is NOT safe for use with read/write cache.
 let editorsList = null
 let sharedBucketName = null
+let version = null
 
 /**
   - Get admin state update messages from the state queue and merge them into the state.json in S3
@@ -151,17 +152,22 @@ exports.handler = async (event, context) => {
 };
 
 /** Get the name of the shared bucket from the admin state (if it's not cached already) */
-const getSharedBucketName = async (aws, adminUiBucket) => {
-  if ( ! sharedBucketName) {
+const getAdminState = async (aws, adminUiBucket) => {
+  if ( ! sharedBucketName || ! version) {
     try {
       const adminStateStr = (await aws.get(adminUiBucket, 'admin/admin.json')).Body.toString()
       const adminState = JSON.parse(adminStateStr)
+      // Hack for test sites in BraeVitae
       sharedBucketName = adminState.sharedBucket || 'braevitae-shared'
+      version = adminState.version
     } catch (e) {
       console.log(`Failed to read shared bucket name from admin state. ${e.message}`, e)
     }
   }
-  return sharedBucketName
+  return {
+    version: version,
+    sharedBucket: sharedBucketName
+  }
 }
 
 /** Check the basic auth header in the request vs the site admin password in S3. */
@@ -321,8 +327,8 @@ const invokeAdminWorker = async (command, adminWorkerArn, params) => {
 // Return a list of all available templates from public, shared and private sources.
 const getTemplates = async (aws, adminUiBucket, publicBucket, adminBucket) => {
   try {
-    const sharedBucket = await getSharedBucketName(aws, adminUiBucket)
-    const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket)
+    const adminState = await getAdminState(aws, adminUiBucket)
+    const templates = await aws.getTemplates(publicBucket, adminState.sharedBucket, adminBucket, adminState.version)
     return {
       status: '200',
       statusDescription: 'OK',

@@ -18,7 +18,7 @@
     {%#list%}
       <div class="booklist-item booklist-item{%@index%}">
         <div class="bookCoverImage {%id%}CoverIcon">
-          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="{%title%}"></a>
+          <a class="bookCoverLink" href="{%@config.booksPath%}/{%id%}" aria-label="Book cover for {%title%}. {%altText%}"></a>
           {%#if published%}
             <a class="buybook" href="{%primaryDistributor.url%}" target="_blank" title="Buy now from {%primaryDistributor.name%}">Buy Now</a>
           {%else%}
