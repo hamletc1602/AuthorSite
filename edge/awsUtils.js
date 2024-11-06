@@ -806,7 +806,7 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
   let publicTemplates = []
   {
     // TODO: Get public template metadata from the correct versioned template, not the unversioned data.
-    const templateMetadataObj = await this.get(publicBucket, `AutoSite + ${siteVersion}/site-config/metadata.json`)
+    const templateMetadataObj = await this.get(publicBucket, `AutoSite${siteVersion}/site-config/metadata.json`)
     //console.log(publicBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
