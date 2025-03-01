@@ -131,14 +131,6 @@ const cfnDeleteHandler = async (requestId, params) => {
     // RequestId: Eg:  arn:aws:cloudformation:us-east-1:376845798252:stack/AuthorSite-Demo2/b51b8540-4cd8-11ed-b81c-0afb2f50002b/ProvisionSiteTrigger/0febc9d5-53d0-41ea-8241-dff81629ee4d
     console.log(`Delete invoked with: ${JSON.stringify(params)}`)
 
-    // Delete all CloudWatch Log Groups:
-    const siteName = truncateAtLastSeparator(params.AdminBucket, '-')
-    try {
-      deleteAllLogGroups({ siteName: siteName })
-    } catch(e) {
-      console.log(`Error deleting log groups for ${siteName}`, e)
-    }
-
     // Empty all site S3 buckets
     try {
       await deleteAllObjectsFromBucket(s3, params.WebDataBucket)
@@ -148,6 +140,14 @@ const cfnDeleteHandler = async (requestId, params) => {
       await deleteAllObjectsFromBucket(s3, params.WebLogsBucket)
     } catch(e) {
       console.log(`Error deleting bucket objects for ${siteName}`, e)
+    }
+
+    // Delete all CloudWatch Log Groups:
+    const siteName = truncateAtLastSeparator(params.AdminBucket, '-')
+    try {
+      deleteAllLogGroups({ siteName: siteName })
+    } catch(e) {
+      console.log(`Error deleting log groups for ${siteName}`, e)
     }
 
     return {}
@@ -179,6 +179,13 @@ const deleteAllObjectsFromBucket = async (s3, bucketName) => {
 
 /** Get all log events, from all AutoSite related streams (for this site), for the requested time range. */
 async function deleteAllLogGroups(options) {
+
+  // TODO: These logs end up left behind - Likely because of last-second accesses after this cleanup - Anything we can do??
+  //   - I have tried moving this delete step to the last action, and moving these log groups to last in the list, we'll
+  //      see if that helps.
+  //   /aws/lambda/braevitae3-provisioner
+  //   /aws/lambda/us-east-1.braevitae3-edge
+
   // Define all site log groups
   const LogGroupsTemplate = [{
     groupName: '/aws/lambda/@SITE_NAME@-admin-worker',
@@ -186,9 +193,6 @@ async function deleteAllLogGroups(options) {
   },{
     groupName: '/aws/lambda/@SITE_NAME@-builder',
     name: 'Builder'
-  },{
-    groupName: '/aws/lambda/@SITE_NAME@-provisioner',
-    name: 'Provisioner'
   },{
     groupName: '/aws/lambda/@SITE_NAME@-publisher',
     name: 'Publisher'
@@ -200,13 +204,16 @@ async function deleteAllLogGroups(options) {
     name: 'Admin Edge',
     edge: true
   },{
+    groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
+    name: 'Amazon URL Forwarder',
+    edge: true
+  },{
     groupName: '/aws/lambda/us-east-1.@SITE_NAME@-edge',
     name: 'Site Edge',
     edge: true
   },{
-    groupName: '/aws/lambda/us-east-1.@SITE_NAME@-azn-url',
-    name: 'Amazon URL Forwarder',
-    edge: true
+    groupName: '/aws/lambda/@SITE_NAME@-provisioner',
+    name: 'Provisioner'
   }]
   //
   try {

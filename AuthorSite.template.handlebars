@@ -20,7 +20,7 @@ Description: >
 
   Copyright 2022 BraeVitae Inc. Apache License 2.0
 
-  NOTE: Stack name may NOT contain any upper-case letters or dash character!
+  NOTE: Stack name may NOT contain any upper-case letters!
 
 Parameters:
   {{#if domain}}
@@ -96,7 +96,7 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
-  {{!-- TestWebData:
+  TestWebData:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Join ['.', ['test', !Ref AWS::StackName]]
@@ -108,7 +108,7 @@ Resources:
         RestrictPublicBuckets: true
       Tags:
         - Key: 'Service'
-          Value: !Ref 'AWS::StackName' --}}
+          Value: !Ref 'AWS::StackName'
 
   # Bucket name matches the related admin lambda function
   AdminData:
@@ -125,7 +125,7 @@ Resources:
         - Key: 'Service'
           Value: !Ref 'AWS::StackName'
 
-  {{!-- # Bucket name closely related to admin lambda function
+  # Bucket name closely related to admin lambda function
   AdminUiData:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -138,7 +138,7 @@ Resources:
         RestrictPublicBuckets: true
       Tags:
         - Key: 'Service'
-          Value: !Ref 'AWS::StackName' --}}
+          Value: !Ref 'AWS::StackName'
 
   WebDataAccess:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
@@ -146,17 +146,17 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: Limit bucket access to CloudFront
 
-  {{!-- TestWebDataAccess:
+  TestWebDataAccess:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: Limit bucket access to CloudFront --}}
+        Comment: Limit bucket access to CloudFront
 
-  {{!-- AdminUiDataAccess:
+  AdminUiDataAccess:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: Limit bucket access to CloudFront --}}
+        Comment: Limit bucket access to CloudFront
 
   WebDataAccessPolicy:
     Type: AWS::S3::BucketPolicy
@@ -172,7 +172,7 @@ Resources:
               - 's3:GetObject'
             Resource: !Join ['', [!GetAtt WebData.Arn, '/*']]
 
-  {{!-- TestWebDataAccessPolicy:
+  TestWebDataAccessPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref TestWebData
@@ -198,7 +198,7 @@ Resources:
               AWS: !Join [' ', ['arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity', !Ref AdminUiDataAccess]]
             Action:
               - 's3:GetObject'
-            Resource: !Join ['', [!GetAtt AdminUiData.Arn, '/*']] --}}
+            Resource: !Join ['', [!GetAtt AdminUiData.Arn, '/*']]
 
   WebCacheLogs:
     Type: 'AWS::S3::Bucket'

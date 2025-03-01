@@ -9,12 +9,12 @@
     </p>
     <div class="promotions pure-g">
       <div class="promoCol pure-u-1-2">
-        <div class="title">Twitter</div>
+        <div class="title">Bluesky</div>
         <div class="promoContainer">
         {%#social%}
-          {%#if category.twitter%}
+          {%#if category.bluesky%}
             <div class="promoItem">
-              <a class="" href="https://twitter.com/intent/tweet/?text={%description%}&amp;url=https://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%id%}" target="_blank" rel="noopener" aria-label="%altText%">
+              <a class="" href="https://bsky.app/intent/compose?text={%description%} https://{%@config.hostName%}{%@config.promoLinkPath%}/tw/{%id%}" target="_blank" rel="noopener" aria-label="{%altText%}">
                 <img src="/{%thumbImage%}" title="{%title%}">
               </a>
               <br>

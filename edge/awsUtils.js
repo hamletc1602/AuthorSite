@@ -357,6 +357,7 @@ AwsUtils.prototype.displayUpdate2 = async function(update) {
 
 /** Send an update to the site SQS queue. */
 AwsUtils.prototype.displayUpdate = async function(params, logType, logStr) {
+  console.log(`Display update ${logType}. ${logStr}.`, params)
   try {
     const msg = {
       time: Date.now(),
@@ -788,7 +789,7 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
       }
     }
   } catch (e) {
-    console.log(`Get templates metadata from private bucket ${adminBucket}. ${e.message}`)
+    console.debug(`Get templates metadata from private bucket (It's ok if this key does not exist) ${adminBucket}. ${e.message}`)
   }
   let sharedTemplates = []
   try {
@@ -801,12 +802,13 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
       }
     }
   } catch (e) {
-    console.log(`Get templates metadata from shared bucket ${sharedBucket}. ${e.message}`)
+    console.log(`Get templates metadata from shared bucket (this may fail if the site is not using a shared bucket) ${sharedBucket}. ${e.message}`)
   }
   let publicTemplates = []
-  {
-    // TODO: Get public template metadata from the correct versioned template, not the unversioned data.
-    const templateMetadataObj = await this.get(publicBucket, `AutoSite${siteVersion}/site-config/metadata.json`)
+  try {
+    const key = `AutoSite${siteVersion}/site-config/metadata.json`
+    console.log(`Get template metaata from ${publicBucket}/${key}`)
+    const templateMetadataObj = await this.get(publicBucket, key)
     //console.log(publicBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
       const templatesStr = templateMetadataObj.Body.toString()
@@ -814,6 +816,8 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
         publicTemplates = JSON.parse(templatesStr)
       }
     }
+  } catch (e) {
+    console.error(`Get templates metadata from public bucket ${publicBucket}. ${e.message}`)
   }
   return [...publicTemplates, ...sharedTemplates, ...privateTemplates]
 }

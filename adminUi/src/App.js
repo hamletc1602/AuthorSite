@@ -380,12 +380,12 @@ function App() {
     setShowSelectTemplate(true)
   }
 
-  const onUpdateTemplate = (fromId) => {
+  const onUpdateTemplate = () => {
     setDisplay('updatingTemplate', true)
     console.log('Start update template: display state', adminDisplay)
     controller.sendCommand('updateTemplate', {
+      fromId: "publisher",  // TODO: Need some UI to specify the source template here. Currently assuming "Publisher" template for all, but that may not work well for 'Author' sites, and certainly not for 'Artist' or other sites in the future.
       id: adminConfig.current.templateId,
-      fromId: fromId
     })
     startFastPolling()
   }

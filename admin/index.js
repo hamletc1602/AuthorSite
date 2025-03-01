@@ -90,13 +90,13 @@ exports.handler = async (event, _context) => {
   // Handle action requests
   switch (event.command) {
     case 'template':
-      return applyTemplate(publicBucket, adminBucket, adminUiBucket, event.body)
+      return applyTemplate(adminBucket, event.body)
     case 'publish':
       return deploySite(testSiteBucket, siteBucket, event.body)
     case 'completeUpload':
       return completeFileUpload(adminBucket, adminUiBucket, event.body)
     case 'updateTemplate':
-      return upateTemplate(publicBucket, adminBucket, event.body)
+      return upateTemplate(adminBucket, event.body)
     case 'updateAdminUi':
       return updateAdminUi(publicBucket, adminUiBucket, event.body)
     case 'saveTemplate':
@@ -172,13 +172,18 @@ const deploySite = async (testSiteBucket, siteBucket) => {
 }
 
 /** Reurn the access level for the template with the given name (so we know where to look for it) */
-async function getLocationForTemplate(templateName) {
-  const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket)
-  const templateProps = templates.find(p => p.id === templateName)
-  if (templateProps) {
-    return templateProps.access
+async function getLocationForTemplate(templateName, siteVersion) {
+  try {
+    const templates = await aws.getTemplates(publicBucket, sharedBucket, adminBucket, siteVersion)
+    const templateProps = templates.find(p => p.id === templateName)
+    if (templateProps) {
+      return templateProps.access
+    }
+    return 'local'
+  } catch (e) {
+    console.log(`Unable to get templates metadata. Assume only public templates are available?`, e)
+    return 'public'
   }
-  return 'local'
 }
 
 /** Return the AWS bucket name to use for this source location. */
@@ -192,14 +197,14 @@ function getSourceBucket(sourceLoc) {
 }
 
 /** Copy default site template selected by the user from braevitae-pub to this site's bucket. */
-async function applyTemplate(publicBucket, adminBucket, adminUiBucket, params) {
+async function applyTemplate(adminBucket, params) {
   let success = true
   const templateName = params.id
   try {
     await aws.displayUpdate({
         preparing: true, prepareError: false, stepMsg: 'Prepare'
       }, 'prepare', `Starting prepare with ${templateName} template.`)
-    const sourceLoc = await getLocationForTemplate(templateName)
+    const sourceLoc = await getLocationForTemplate(templateName, version)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
     const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${templateName}' from ${sourceBucket} to ${adminBucket}`)
@@ -254,7 +259,7 @@ async function upateTemplate(adminBucket, params) {
         updatingTemplate: true, updateTemplateError: false, stepMsg: 'Update Template'
       }, 'update', `Starting update with ${fromTemplate} template.`)
     // Copy template archive to local FS.
-    const sourceLoc = await getLocationForTemplate(fromTemplate)
+    const sourceLoc = await getLocationForTemplate(fromTemplate, version)
     const keyRoot = sourceLoc === 'public' ? 'AutoSite' + version : 'AutoSite'
     const sourceBucket = getSourceBucket(sourceLoc)
     console.log(`Copy site template '${fromTemplate}' schema and style from ${sourceBucket} to ${adminBucket}`)

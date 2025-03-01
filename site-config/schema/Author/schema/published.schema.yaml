@@ -20,6 +20,7 @@ properties:
   altText:
     disp: Cover Alt Text
     type: text
+    textType: plain
     desc: The book's cover image alt text.
   tags:
     disp: Tags
