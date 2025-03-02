@@ -16,11 +16,11 @@
   schema: schema/published.schema.yaml
 - id: social
   title: Social
-  data: conf/social.json
+  data: conf/social.yaml
   schema: schema/social.schema.yaml
 - id: series
   title: Series
-  data: conf/series.json
+  data: conf/series.yaml
   schema: schema/series.schema.yaml
 - id: distributors
   title: Distributors
