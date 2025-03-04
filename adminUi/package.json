@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "homepage": ".",
-  "proxy": "http://d8vkbb9fmdp1e.cloudfront.net:80",
+  "proxy": "http://dua679d4rkzqg.cloudfront.net:80",
   "jest": {
     "transformIgnorePatterns": [
       "node_modules/(?!strip-json-comments)"
@@ -12,8 +12,10 @@
   "dependencies": {
     "@chakra-ui/icons": "^2.0.11",
     "@chakra-ui/react": "^2.5.4",
+    "@codemirror/theme-one-dark": "^6.1.2",
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
+    "@focus-reactive/react-yaml": "^1.1.2",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^14.4.3",

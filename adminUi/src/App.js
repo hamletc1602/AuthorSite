@@ -4,7 +4,7 @@ import {
   Tab, TabPanel, Skeleton, Modal, ModalOverlay, Popover, PopoverArrow, PopoverBody, Image,
   PopoverTrigger, PopoverContent, Portal, Button, Input, HStack, VStack, Select, Tooltip
 } from '@chakra-ui/react'
-import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
+import { ExternalLinkIcon, InfoOutlineIcon, RepeatIcon, CheckIcon, CloseIcon, EditIcon } from '@chakra-ui/icons'
 import { mode } from '@chakra-ui/theme-tools'
 import Controller from './Controller'
 import PollAdminState from './PollAdminState'
@@ -22,6 +22,7 @@ import PollAvailableDomains from './PollAvailableDomains'
 import PollCfState from './PollCfState'
 import ManageTemplatesPopup from './ManageTemplatesPopup'
 import PollEditorsState from './PollEditorsState'
+import EditorRaw from './EditorRaw'
 
 // Theme
 const props = { colorMode: 'light' } // Hack so 'mode' func will work. Need to actually get props with color mode from the framework, but defining colors as a func does not work??
@@ -126,6 +127,7 @@ function App() {
   const [showSelectTemplate, setShowSelectTemplate] = useState(false)
   const [showPreparingTemplate, setShowPreparingTemplate] = useState(false)
   const [advancedMode, setAdvancedMode] = useState(false)
+  const [rawEditMode, setRawEditMode] = useState(false)
   const [authState, setAuthState] = useState('unknown')
   const [authErrorMsg, setAuthErrorMsg] = useState('')
   const [locked, setLocked] = useState(false)
@@ -300,6 +302,7 @@ function App() {
 
   // Handlers
   const advancedModeClick = () => setAdvancedMode(!advancedMode)
+  const rawEditModeClick = () => setRawEditMode(!rawEditMode)
   const refreshLocationClick = () => refreshLocation()
 
   // Browser window reload as needed
@@ -485,21 +488,30 @@ function App() {
   function EditorTab({editor}) {
     const config = configs.current[editor.id]
     if (config) {
-      return <Editor
-        editor={editor}
-        configs={configs}
-        path={path}
-        setPath={setPath}
-        fileContent={fileContent}
-        contentUpdate={contentUpdate}
-        setContentUpdate={setContentUpdate}
-        contentToPut={contentToPut}
-        putContentComplete={putContentComplete}
-        getContent={(path) => controller.getSiteContent(adminConfig.current.templateId, path)}
-        deleteContent={(path) => controller.deleteContent(adminConfig.current.templateId, path)}
-        advancedMode={advancedMode}
-        locked={locked}
-      />
+      return rawEditMode ?
+        <EditorRaw
+          id={editor.id}
+          editor={editor}
+          configs={configs}
+          contentToPut={contentToPut}
+          locked={locked}
+        />
+        :
+        <Editor
+          editor={editor}
+          configs={configs}
+          path={path}
+          setPath={setPath}
+          fileContent={fileContent}
+          contentUpdate={contentUpdate}
+          setContentUpdate={setContentUpdate}
+          contentToPut={contentToPut}
+          putContentComplete={putContentComplete}
+          getContent={(path) => controller.getSiteContent(adminConfig.current.templateId, path)}
+          deleteContent={(path) => controller.deleteContent(adminConfig.current.templateId, path)}
+          advancedMode={advancedMode}
+          locked={locked}
+        />
     }
     return null
   }
@@ -667,6 +679,7 @@ function App() {
             isLoaded={editorsEnabled}
             hidden={showLogin || showSelectTemplate || showPreparingTemplate}
             height='100%'
+            variant='none'
           >
             <Tabs size='sm' h='1em' isManual isLazy lazyBehavior='keepMounted' onChange={editorTabChange}>
               <TabList bg='accent'>
@@ -692,6 +705,9 @@ function App() {
           <Flex p='3px 5px'>
             <Text fontSize='xs' m='2px 5px 0 0' color='accentText'>Copyright BraeVitae 2023</Text>
             <InfoOutlineIcon m='3px' color={advancedMode ? 'accentActiveText' : 'accentText'} onClick={advancedModeClick}/>
+            {advancedMode ?
+              <EditIcon m='3px' color={rawEditMode ? 'accentActiveText' : 'accentText'} onClick={rawEditModeClick}/>
+              : null}
             <Spacer/>
             {advancedMode ? [
               <ActionButton text='Load Template' onClick={onLoadTemplate} buttonStyle={{ size: 'xs' }}
