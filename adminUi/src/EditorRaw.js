@@ -1,7 +1,8 @@
 import React from 'react';
-import {} from '@chakra-ui/react'
-import YamlEditor from '@focus-reactive/react-yaml';
-import { oneDark } from '@codemirror/theme-one-dark';
+import { Textarea, Flex } from '@chakra-ui/react'
+import YAML from 'yaml'
+//import YamlEditor from '@focus-reactive/react-yaml';
+//import { oneDark } from '@codemirror/theme-one-dark';
 
 /**  */
 export default function EditorRaw({id, editor, configs, contentToPut, locked}) {
@@ -16,6 +17,68 @@ export default function EditorRaw({id, editor, configs, contentToPut, locked}) {
       state: 'new'
     }
   }
+
+  const safeParse = (text) => {
+    try {
+      return YAML.parse(text, { strict: false })
+    } catch (e) {
+      // ignore
+    }
+    return null
+  }
+
+
+  return <Flex w='100%' marginTop='0 !important'>
+    <Flex
+      flex='1'
+      minH='calc(100vh - 6.25em)'
+      padding='0.3em'
+      color='editorText'
+      bg='editorBg'
+      maxHeight='calc(100vh - 6.25em)'
+      overflowY='auto'
+    >
+      <Textarea
+        key={'RawEdit_' + id}
+        w='75%'
+        h='100%'
+        overflowX='auto'
+        bg='white'
+        color='editorText'
+        defaultValue={YAML.stringify(configs.current[editor.id].content, { lineWidth: 0 })}
+        isDisabled={locked}
+        resize='none'
+        onChangeCapture={ev => {
+          const value = safeParse(ev.target.value)
+          if (value) {
+            configs.current[editor.id].content = value
+            pushContent(editor.data, configs.current, editor.id, editor.id)
+          }
+        }}
+      />
+      <Textarea
+        key={'RawEdit_' + id}
+        w='25%'
+        maxW='25%'
+        h='100%'
+        overflowX='auto'
+        wordBreak={false}
+        bg='white'
+        color='editorText'
+        defaultValue={YAML.stringify(configs.current[editor.id].schema, { lineWidth: 0 })}
+        isDisabled={locked}
+        resize='none'
+        onChangeCapture={ev => {
+          const value = safeParse(ev.target.value)
+          if (value) {
+            configs.current[editor.id].schema = value
+            // TOOD: Need to add a way to push client-side schema updates to server. This is new
+            //pushContent(editor.data, configs.current, editor.id, editor.id)
+          }
+        }}
+      />
+    </Flex>
+  </Flex>
 
   // Fails with :
   // ht TypeError: Cannot read properties of undefined (reading 'baseTheme')
@@ -59,20 +122,20 @@ export default function EditorRaw({id, editor, configs, contentToPut, locked}) {
   // export default App;
 
 
-  return
-    <YamlEditor
-      key={'RawEdit_' + id}
-      w='100%'
-      h='100%'
-      bg='white'
-      theme={oneDark}
-      color='editorText'
-      isDisabled={locked}
-      json={JSON.parse(configs.current[editor.id])}
-      onChange={({ json, _text }) => {
-        // onChange is only called for valid YAML/JSON
-        configs.current[editor.id] = JSON.stringify(json)
-        pushContent(editor.data, configs.current, editor.id, editor.id)
-      }}
-    />
+  // return
+  //   <YamlEditor
+  //     key={'RawEdit_' + id}
+  //     w='100%'
+  //     h='100%'
+  //     bg='white'
+  //     theme={oneDark}
+  //     color='editorText'
+  //     isDisabled={locked}
+  //     json={JSON.parse(configs.current[editor.id])}
+  //     onChange={({ json, _text }) => {
+  //       // onChange is only called for valid YAML/JSON
+  //       configs.current[editor.id] = JSON.stringify(json)
+  //       pushContent(editor.data, configs.current, editor.id, editor.id)
+  //     }}
+  //   />
 }
