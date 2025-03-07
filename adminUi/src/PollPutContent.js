@@ -15,12 +15,21 @@ export default function PollPutContent({controller, adminConfig, contentToPut, s
             console.log(`Push content to server for ${toPutId}`, sourceRec)
             try {
               if (sourceRec.isConfig) {
-                await controller.putSiteConfig(
+                if (toPutId.indexOf('schema') === 0) {
+                  await controller.putSiteConfig(
+                    adminConfig.current.templateId,
+                    toPutId,
+                    toPut.contentType || sourceRec.contentType,
+                    sourceRec.schema
+                  )
+                } else {
+                  await controller.putSiteConfig(
                     adminConfig.current.templateId,
                     toPutId,
                     toPut.contentType || sourceRec.contentType,
                     sourceRec.content
-                )
+                  )
+                }
               } else {
                 await controller.putSiteContent(
                     adminConfig.current.templateId,

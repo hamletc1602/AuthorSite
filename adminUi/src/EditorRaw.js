@@ -72,8 +72,7 @@ export default function EditorRaw({id, editor, configs, contentToPut, locked}) {
           const value = safeParse(ev.target.value)
           if (value) {
             configs.current[editor.id].schema = value
-            // TOOD: Need to add a way to push client-side schema updates to server. This is new
-            //pushContent(editor.data, configs.current, editor.id, editor.id)
+            pushContent(editor.schema, configs.current, editor.id, editor.id)
           }
         }}
       />
