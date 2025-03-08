@@ -355,7 +355,7 @@ async function ensureSchemaJsonFiles(adminBucket, templateName) {
         console.log('rewrite as: ' + editor.schema, JSON.stringify(Yaml.parse(yaml)))
         await aws.put(adminBucket, rootPath + editor.schema, JsonContentType, JSON.stringify(Yaml.parse(yaml)))
       }
-      console.log('Schema: ' + editor.data)
+      console.log('Data: ' + editor.data)
       if (/.*yaml$/.test(editor.data)) {
         const yaml = (await aws.get(adminBucket, rootPath + editor.data)).Body.toString()
         editor.data += '.json'

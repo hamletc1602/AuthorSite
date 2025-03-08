@@ -685,17 +685,19 @@ function App() {
               <TabList bg='accent'>
                 {editors.current.map((editor) => {
                   const inError = uploadError === editor.id
-                  return <Tab key={editor.id}
+                  return (editor.advanced && !advancedMode ? null :
+                    <Tab key={editor.id}
                       isDisabled={!authenticated} bg={inError ? 'danger' : null}
-                    >{editor.title}</Tab>
+                    >{editor.title}</Tab>)
                 })}
               </TabList>
               <TabPanels bg='editorBg' maxHeight='calc(100vh - 6.25em)'>
                 {editors.current.map((editor) => (
+                  (editor.advanced && !advancedMode ? null :
                   <TabPanel p='0' key={'Tab_' + editor.id}>
                     <Skeleton isLoaded={configs.current[editor.id]} hidden={configs.current[editor.id]} height='calc(100vh - 6.3em)'/>
                     <EditorTab key={'EditorTab_' + editor.id} editor={editor}/>
-                  </TabPanel>
+                  </TabPanel>)
                 ))}
               </TabPanels>
             </Tabs>

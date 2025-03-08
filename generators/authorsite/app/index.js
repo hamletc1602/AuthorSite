@@ -744,12 +744,11 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   renderData.items.useCarousel = renderData.items.length >= Number(config.minBooksForCarousel)
 
   // Write custom content pages defined in Config:
-  if (config.customPages) {
-    Promise.all(Object.keys(config.customPages).map(async pageId => {
-      const pageConfig = config.customPages[pageId]
+  if (config.customPages && config.customPages.map) {
+    Promise.all(config.customPages.map(async pageConfig => {
       if (pageConfig.content) {
         const pageContentConfig = Object.assign({
-          name: 'page-' + pageId,
+          name: 'page-' + pageConfig.id,
           content: await Files.loadLargeData(pageConfig.textType || 'markdown', Path.join(confDir, pageConfig.content))
         }, renderData);
         if (pageConfig.menuRef) {

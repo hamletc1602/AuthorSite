@@ -26,11 +26,6 @@
       }
     ],
 
-    "fonts": [],
-
-    "customPages": {
-    },
-
     "bkgndConfig": {
         "heightSm": 200,
         "height": 400,
