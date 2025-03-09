@@ -721,7 +721,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   const bookPromoTwitterTpl = await Files.loadTemplate(config.templatesDir, templateType, 'bookPromoTwitter.html')
   // Generic content page template
   const contentPage = Files.loadTemplateDirect(
-      '{%#> page this %}<div class="{%name%} content">{%noescape content%}</div>{%/page%}')
+      '{%#> page id=pageId %}<div class="{%name%} content">{%noescape content%}</div>{%/page%}')
 
   //
   console.log("Cleaning and re-creating output directories.")
@@ -754,6 +754,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
     Promise.all(config.customPages.map(async pageConfig => {
       if (pageConfig.content) {
         const pageContentConfig = Object.assign({
+          pageId: pageConfig.menuRef,
           name: 'page-' + pageConfig.id,
           // TODO: Potentially pass config here if the custom page looks like a mustache template format?
           content: await Files.loadLargeData(pageConfig.textType || 'markdown', Path.join(contentDir, pageConfig.content))
@@ -853,7 +854,7 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   }))
 
   // News category pages
-  const newsTpl = menuTemplates.find(p => p.name === 'news').bin
+  const newsTpl = menuTemplates.find(p => p && p.name === 'news').bin
   await Promise.all(Object.keys(data.postsByCat).map(async catId => {
     let category = data.postsByCat[catId];
     await Files.savePage(outputDir + `/n/cat-${catId}.html`, newsTpl(Object.assign(renderData, { pageId: 'news', news: category.posts, category: category }), tplData))

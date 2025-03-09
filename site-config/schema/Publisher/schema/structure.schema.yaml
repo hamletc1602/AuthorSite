@@ -4,6 +4,7 @@ properties:
     type: list
     nameProp: name
     elemType: object
+    addTitle: menu
     properties:
       name:
         disp: Name
@@ -30,6 +31,7 @@ properties:
     type: list
     nameProp: id
     elemType: object
+    addTitle: page
     properties:
       id:
         disp: Page ID

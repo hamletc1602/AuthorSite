@@ -4,6 +4,7 @@ properties:
     type: list
     nameProp: name
     elemType: object
+    addTitle: menu
     properties:
       name:
         disp: Name
@@ -30,6 +31,7 @@ properties:
     type: list
     nameProp: id
     elemType: object
+    addTitle: page
     properties:
       id:
         disp: Page ID
@@ -44,11 +46,10 @@ properties:
         disp: Content
         desc: Custom page content. Markdown format.
         type: text
-      mnuRef:
+      menuRef:
         disp: Menu Ref
         desc: Name that links to the menu item to be highlighted when this page is loaded.
         type: string
-        key: true
   bkgndConfig:
     disp: Background Configuration
     desc: Background header and footer heights. CSS width break points for page flow.

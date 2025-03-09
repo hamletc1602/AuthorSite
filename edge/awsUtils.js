@@ -807,7 +807,7 @@ AwsUtils.prototype.getTemplates = async function(publicBucket, sharedBucket, adm
   let publicTemplates = []
   try {
     const key = `AutoSite${siteVersion}/site-config/metadata.json`
-    console.log(`Get template metaata from ${publicBucket}/${key}`)
+    console.log(`Get template metadata from ${publicBucket}/${key}`)
     const templateMetadataObj = await this.get(publicBucket, key)
     //console.log(publicBucket + ' templates: ', templateMetadataObj)
     if (templateMetadataObj) {
