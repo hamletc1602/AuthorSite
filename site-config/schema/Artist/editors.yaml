@@ -31,4 +31,7 @@
   data: conf/news.json
   schema: schema/news.schema.yaml
 - id: structure
+  title: Structure
   data: conf/structure.json
+  schema: schema/structure.schema.yaml
+  advanced: true

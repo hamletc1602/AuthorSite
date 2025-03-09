@@ -694,13 +694,19 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
   Handlebars.registerPartial("bookFeature", bookFeatureTpl)
 
   // Templates for the main site pages
+  //    ( Custom pages won't have templates, so if there's a template loading error here, assume it's a custome page menu item )
   const menuTemplates = await Promise.all(config.menu.map(async m => {
-    return {
-      name: m.name,
-      pageId: m.pageId,
-      bin: await Files.loadTemplate(config.templatesDir, templateType, m.template)
+    try {
+      return {
+        name: m.name,
+        pageId: m.pageId,
+        bin: await Files.loadTemplate(config.templatesDir, templateType, m.template)
+      }
+    } catch (e) {
+      // ignore
     }
-  }))
+    return null
+  }).filter(p => p !== null))
 
   // Template for each book page
   const itemTpl = await Files.loadTemplate(config.templatesDir, templateType, 'item.html')
@@ -749,7 +755,8 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
       if (pageConfig.content) {
         const pageContentConfig = Object.assign({
           name: 'page-' + pageConfig.id,
-          content: await Files.loadLargeData(pageConfig.textType || 'markdown', Path.join(confDir, pageConfig.content))
+          // TODO: Potentially pass config here if the custom page looks like a mustache template format?
+          content: await Files.loadLargeData(pageConfig.textType || 'markdown', Path.join(contentDir, pageConfig.content))
         }, renderData);
         if (pageConfig.menuRef) {
           pageContentConfig[pageConfig.menuRef] = true;
@@ -839,8 +846,10 @@ const renderPages = async (confDir, config, contentDir, data, templateType, outp
 
   // Render main pages
   await Promise.all(menuTemplates.map(async tpl => {
-    renderData.pageId = tpl.pageId
-    return await Files.savePage(`${outputDir}/${tpl.name}.html`, tpl.bin(renderData, tplData))
+    if (tpl) {    //TODO: tpl _shouldn't ever be null here, but somehow the filter up around ln700 is not removing the nulls from the list?
+      renderData.pageId = tpl.pageId
+      return await Files.savePage(`${outputDir}/${tpl.name}.html`, tpl.bin(renderData, tplData))
+    }
   }))
 
   // News category pages

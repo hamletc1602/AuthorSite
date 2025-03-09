@@ -1,0 +1,248 @@
+{
+    "type": "object",
+    "properties": {
+      "menu": {
+        "type": "list",
+        "elemType": "object",
+        "properties": {
+          "name": {
+            "disp": "Name",
+            "desc": "Menu item name",
+            "type": "string",
+            "key": true
+          },
+          "pageId": {
+            "disp": "Page ID",
+            "desc": null,
+            "type": "string"
+          },
+          "title": {
+            "disp": "Title",
+            "desc": null,
+            "type": "string"
+          },
+          "desc": {
+            "disp": "Description",
+            "desc": null,
+            "type": "string"
+          },
+          "template": {
+            "disp": "Template",
+            "desc": "Generator template name",
+            "type": "string"
+          }
+        }
+      },
+      "customPages": {
+        "type": "list",
+        "elemType": "object",
+        "properties": {
+          "id": {
+            "disp": "Page ID",
+            "desc": "A short unique identifier for this page.",
+            "type": "string",
+            "key": true
+          },
+          "outputPath": {
+            "disp": "Output Path",
+            "desc": "Page output path on the generated site. This should match the paths in your customized templates.",
+            "type": "string"
+          },
+          "content": {
+            "disp": "Content",
+            "desc": "Custom page content. Markdown format.",
+            "type": "text"
+          },
+          "mnuRef": {
+            "disp": "Menu Ref",
+            "desc": "Name that links to the menu item to be highlighted when this page is loaded.",
+            "type": "string",
+            "key": true
+          }
+        }
+      },
+      "bkgndConfig": {
+        "disp": "Background Configuration",
+        "desc": "Background header and footer heights. CSS width break points for page flow.",
+        "type": "object",
+        "properties": {
+          "heightSm": {
+            "disp": "Height (Small)",
+            "desc": null,
+            "type": "string"
+          },
+          "height": {
+            "disp": "Height",
+            "desc": null,
+            "type": "string"
+          },
+          "widthXSm": {
+            "disp": "Width (XSmall)",
+            "desc": null,
+            "type": "string"
+          },
+          "widthSm": {
+            "disp": "Width (Small)",
+            "desc": null,
+            "type": "string"
+          },
+          "widthMd": {
+            "disp": "Width (Medium)",
+            "desc": null,
+            "type": "string"
+          },
+          "widthLg": {
+            "disp": "Width (Large)",
+            "desc": null,
+            "type": "string"
+          },
+          "widthXl": {
+            "disp": "Width (XLarge)",
+            "desc": null,
+            "type": "string"
+          },
+          "widthXXl": {
+            "disp": "Width (XXLArge)",
+            "desc": null,
+            "type": "string"
+          },
+          "footerHeight": {
+            "disp": "Footer Height",
+            "desc": null,
+            "type": "string"
+          }
+        }
+      },
+      "headerHeight": {
+        "disp": "Header heights",
+        "desc": "Heights for header at different page widths.",
+        "type": "object",
+        "properties": {
+          "sm": {
+            "disp": "Small",
+            "desc": null,
+            "type": "string"
+          },
+          "md": {
+            "disp": "Medium",
+            "desc": null,
+            "type": "string"
+          },
+          "lg": {
+            "disp": "Large",
+            "desc": null,
+            "type": "string"
+          },
+          "noPanel": {
+            "disp": "Header heights for no-panel pages",
+            "desc": "Heights for no-panel pages headers at different page widths.",
+            "type": "object",
+            "properties": {
+              "sm": {
+                "disp": "Small",
+                "desc": null,
+                "type": "string"
+              },
+              "md": {
+                "disp": "Medium",
+                "desc": null,
+                "type": "string"
+              },
+              "lg": {
+                "disp": "Large",
+                "desc": null,
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "coverIconHeight": {
+        "disp": "Cover Icon Height",
+        "desc": null,
+        "type": "string"
+      },
+      "coverIconWidth": {
+        "disp": "Cover Icon Width",
+        "desc": null,
+        "type": "string"
+      },
+      "featureImageHeight": {
+        "disp": "Feature Image Height",
+        "desc": null,
+        "type": "string"
+      },
+      "featureImageWidth\"": {
+        "disp": "Feature Image Width",
+        "desc": null,
+        "type": "string"
+      },
+      "promoThumbImageHeight": {
+        "disp": "PromoThumbImageHeight",
+        "desc": null,
+        "type": "string"
+      },
+      "publishedMarkerWidth\"": {
+        "disp": "Published Marker Width",
+        "desc": null,
+        "type": "string"
+      },
+      "unpublishedMarkerWidth\"": {
+        "disp": "Unpublished Marker Width",
+        "desc": null,
+        "type": "string"
+      },
+      "paths": {
+        "disp": "Paths",
+        "desc": "Site paths to pages",
+        "hidden": true,
+        "properties": {
+          "rootPath\"": {
+            "disp": "Root",
+            "desc": null,
+            "type": "string"
+          },
+          "imagePath\"": {
+            "disp": "Images",
+            "desc": null,
+            "type": "string"
+          },
+          "fontPath\"": {
+            "disp": "Fonts",
+            "desc": null,
+            "type": "string"
+          },
+          "booksPath\"": {
+            "disp": "Books",
+            "desc": null,
+            "type": "string"
+          },
+          "authorPath\"": {
+            "disp": "Authors",
+            "desc": null,
+            "type": "string"
+          },
+          "promoLinkPath": {
+            "disp": "Promo Links",
+            "desc": null,
+            "type": "string"
+          },
+          "scriptPath": {
+            "disp": "Scripts",
+            "desc": null,
+            "type": "string"
+          },
+          "stylePath": {
+            "disp": "Styling",
+            "desc": null,
+            "type": "string"
+          },
+          "newsPath": {
+            "disp": "News",
+            "desc": null,
+            "type": "string"
+          }
+        }
+      }
+    }
+  }

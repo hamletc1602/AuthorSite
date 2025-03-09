@@ -44,11 +44,10 @@ properties:
         disp: Content
         desc: Custom page content. Markdown format.
         type: text
-      mnuRef:
+      menuRef:
         disp: Menu Ref
         desc: Name that links to the menu item to be highlighted when this page is loaded.
         type: string
-        key: true
   bkgndConfig:
     disp: Background Configuration
     desc: Background header and footer heights. CSS width break points for page flow.
